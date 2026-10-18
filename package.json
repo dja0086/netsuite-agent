@@ -11,6 +11,7 @@
     "typecheck": "turbo run typecheck && tsc -p .",
     "test": "turbo run test",
     "gateway": "pnpm --filter @ns-agent/mcp-gateway start",
+    "ns:ping": "tsx scripts/ns-ping.ts",
     "new:skill": "tsx scripts/new-skill.ts",
     "skills:validate": "tsx scripts/validate-skills.ts",
     "skills:eval": "tsx scripts/run-evals.ts",

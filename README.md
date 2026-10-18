@@ -58,6 +58,7 @@ Example MCP client entry:
 | `pnpm skills:eval --mode tools` | Runs every `kind: tool` eval through the real gateway against `NS_ACCOUNT_ID` (sandbox only) |
 | `pnpm new:skill <name> [--writes]` | Scaffolds a disabled skill, its tool module and a CODEOWNERS line |
 | `pnpm gateway` | Starts the MCP gateway on stdio |
+| `pnpm ns:ping` | Read-only check of the M2M setup: token, SuiteQL, metadata catalog, explore RESTlet |
 
 ## Phase 1 tools (data-explorer skill)
 
