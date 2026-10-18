@@ -1,0 +1,22 @@
+node_modules/
+.turbo/
+dist/
+coverage/
+*.log
+
+# Local configuration and secrets never leave the developer machine
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+secrets/
+
+# SuiteCloud CLI local state
+netsuite/project.json
+netsuite/.sdf*
+.suitecloud*
+
+# Gateway runtime output
+audit/

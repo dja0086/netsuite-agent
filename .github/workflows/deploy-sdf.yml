@@ -1,0 +1,72 @@
+name: deploy-sdf
+
+# Deploys the SuiteCloud project. Sandbox first, then production.
+# Approval gates come from GitHub environment protection rules:
+#   environment "sandbox"     -> required reviewer: NetSuite admin
+#   environment "production"  -> required reviewers: NetSuite admin + security
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy (merged commit on main)
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  sandbox:
+    runs-on: ubuntu-latest
+    environment: sandbox
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g @oracle/suitecloud-cli
+      - name: Authenticate with M2M certificate (key written outside the workspace)
+        run: |
+          umask 077
+          printf '%s' "$KEY" > "$RUNNER_TEMP/sdf.pem"
+          suitecloud account:setup:ci --account "$ACCOUNT" --authid ns-agent-sandbox \
+            --certificateid "$CERT_ID" --privatekeypath "$RUNNER_TEMP/sdf.pem"
+        working-directory: netsuite
+        env:
+          KEY: ${{ secrets.NS_SANDBOX_SDF_PRIVATE_KEY }}
+          ACCOUNT: ${{ vars.NS_SANDBOX_ACCOUNT_ID }}
+          CERT_ID: ${{ vars.NS_SANDBOX_SDF_CERT_ID }}
+      - run: suitecloud project:validate --server
+        working-directory: netsuite
+      - run: suitecloud project:deploy
+        working-directory: netsuite
+
+  production:
+    needs: sandbox
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g @oracle/suitecloud-cli
+      - name: Authenticate with M2M certificate (key written outside the workspace)
+        run: |
+          umask 077
+          printf '%s' "$KEY" > "$RUNNER_TEMP/sdf.pem"
+          suitecloud account:setup:ci --account "$ACCOUNT" --authid ns-agent-production \
+            --certificateid "$CERT_ID" --privatekeypath "$RUNNER_TEMP/sdf.pem"
+        working-directory: netsuite
+        env:
+          KEY: ${{ secrets.NS_PROD_SDF_PRIVATE_KEY }}
+          ACCOUNT: ${{ vars.NS_PROD_ACCOUNT_ID }}
+          CERT_ID: ${{ vars.NS_PROD_SDF_CERT_ID }}
+      - run: suitecloud project:validate --server
+        working-directory: netsuite
+      - run: suitecloud project:deploy
+        working-directory: netsuite

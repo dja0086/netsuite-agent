@@ -1,0 +1,17 @@
+{
+  "name": "@ns-agent/ns-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The only code that talks to NetSuite: OAuth 2.0 M2M auth, governance limiter, retries, SuiteQL paging, records, RESTlets.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "jose": "^6.2.12"
+  }
+}

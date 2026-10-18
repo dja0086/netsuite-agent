@@ -1,0 +1,10 @@
+should_route:
+  - Add a Rush Order checkbox to sales orders.
+  - How do we get a new custom field into production?
+  - Roll back the field we deployed yesterday.
+  - Who approves a change to the invoice template?
+  - Can you just edit the field in NetSuite directly?
+should_not_route:
+  - How many open invoices are there?
+  - Look up the customer Acme.
+  - What does custbody_tier mean?

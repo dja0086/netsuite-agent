@@ -1,0 +1,37 @@
+{
+  "name": "netsuite-agent",
+  "private": true,
+  "type": "module",
+  "description": "MCP gateway, SuiteCloud project and agent skills for working with NetSuite through an AI agent.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "turbo run typecheck && tsc -p .",
+    "test": "turbo run test",
+    "gateway": "pnpm --filter @ns-agent/mcp-gateway start",
+    "new:skill": "tsx scripts/new-skill.ts",
+    "skills:validate": "tsx scripts/validate-skills.ts",
+    "skills:eval": "tsx scripts/run-evals.ts",
+    "check": "pnpm typecheck && pnpm test && pnpm skills:validate"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@ns-agent/mcp-gateway": "workspace:*",
+    "@ns-agent/ns-client": "workspace:*",
+    "@ns-agent/schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.9",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

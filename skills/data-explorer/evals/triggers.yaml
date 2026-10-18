@@ -1,0 +1,17 @@
+# Prompts that SHOULD route to data-explorer, and prompts that belong to other skills.
+should_route:
+  - How many active customers do we have?
+  - Which invoices are more than 60 days overdue?
+  - What is the internal id of the customer Acme Corp?
+  - What does the field custbody_approval_tier mean on sales orders?
+  - Show me the last 5 sales orders for the Germany subsidiary.
+  - Find vendor bills over 10,000 posted this month.
+  - What record type stores our widgets?
+  - Total open AR by subsidiary.
+
+should_not_route:
+  - Save a search of open invoices over 60 days so finance can reuse it.   # search-builder
+  - Import this CSV of new customers.                                      # data-importer
+  - Add a checkbox field called Rush Order to sales orders.                # custom-fields
+  - Change the invoice PDF to show our new logo.                           # pdf-templates
+  - Send me a monthly AR aging report as Excel.                            # reports

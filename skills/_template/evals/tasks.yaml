@@ -1,0 +1,12 @@
+# At least 3 cases. Two kinds:
+#   kind: tool   -> one gateway tool called on the SANDBOX; checked by `pnpm skills:eval --mode tools`
+#   kind: agent  -> a full prompt judged by the agent-host adapter, with a rubric
+# Write-capable skills need at least one tool case proving the write tool is blocked without approval (expect ok: false).
+#
+# Example:
+# - kind: tool
+#   id: rejects-bad-input
+#   tool: ns_example
+#   input: { value: "" }
+#   expect: { ok: false, error_contains: "required" }
+cases: []

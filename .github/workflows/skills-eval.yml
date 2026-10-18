@@ -1,0 +1,49 @@
+name: skills-eval
+
+# Runs on any change under skills/ or the gateway tools. Tool evals hit the SANDBOX only.
+on:
+  pull_request:
+    paths:
+      - "skills/**"
+      - "apps/mcp-gateway/src/tools/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    environment: sandbox # holds sandbox-only secrets; never production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm skills:validate
+
+      - name: Write sandbox key to a temp file outside the workspace
+        run: |
+          umask 077
+          printf '%s' "$NS_M2M_PRIVATE_KEY" > "$RUNNER_TEMP/ns_m2m.pem"
+        env:
+          NS_M2M_PRIVATE_KEY: ${{ secrets.NS_SANDBOX_M2M_PRIVATE_KEY }}
+
+      - name: Run tool evals against the sandbox
+        run: pnpm skills:eval --mode tools --report "$RUNNER_TEMP/eval-report.json"
+        env:
+          NS_ACCOUNT_ID: ${{ vars.NS_SANDBOX_ACCOUNT_ID }}
+          NS_CLIENT_ID: ${{ vars.NS_SANDBOX_CLIENT_ID }}
+          NS_CERT_ID: ${{ vars.NS_SANDBOX_CERT_ID }}
+          NS_MAX_CONCURRENCY: ${{ vars.NS_SANDBOX_MAX_CONCURRENCY }}
+          SECRETS_BACKEND: file
+          NS_PRIVATE_KEY_PATH: ${{ runner.temp }}/ns_m2m.pem
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report
+          path: ${{ runner.temp }}/eval-report.json

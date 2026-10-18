@@ -1,0 +1,17 @@
+{
+  "name": "@ns-agent/schemas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod schemas shared by the gateway, skills tooling and RESTlets: skill manifests, eval files, tool inputs.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  }
+}

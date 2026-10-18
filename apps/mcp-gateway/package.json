@@ -1,0 +1,28 @@
+{
+  "name": "@ns-agent/mcp-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server exposing ns_* tools, with skill-manifest enforcement, approvals, audit and redaction.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./skills": "./src/skills.ts",
+    "./tools": "./src/tools/index.ts"
+  },
+  "bin": {
+    "ns-agent-gateway": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@ns-agent/ns-client": "workspace:*",
+    "@ns-agent/schemas": "workspace:*",
+    "@ns-agent/suiteql": "workspace:*",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  }
+}

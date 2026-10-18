@@ -1,0 +1,14 @@
+{
+  "name": "@ns-agent/suiteql",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SuiteQL query guards used before any agent-written query reaches NetSuite.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  }
+}

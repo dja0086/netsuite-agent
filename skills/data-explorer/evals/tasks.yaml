@@ -1,0 +1,86 @@
+# Tool cases run against the SANDBOX with `pnpm skills:eval --mode tools`.
+# Agent cases are judged by the agent-host adapter ([FILL: agent host for agent evals]).
+cases:
+  - kind: tool
+    id: suiteql-count-customers
+    description: An aggregate query returns one row with a numeric count.
+    tool: ns_suiteql
+    input:
+      q: SELECT COUNT(id) AS n FROM customer
+    expect:
+      min_rows: 1
+      max_rows: 1
+      has_keys: [n]
+
+  - kind: tool
+    id: suiteql-transactions-by-type
+    description: Grouped query over transactions works with the internal type codes.
+    tool: ns_suiteql
+    input:
+      q: SELECT type, COUNT(id) AS n FROM transaction GROUP BY type
+      limit: 100
+    expect:
+      min_rows: 1
+      has_keys: [type, n]
+
+  - kind: tool
+    id: suiteql-count-column-with-order-by
+    description: Regression for the Phase 0 finding; COUNT(t.id) with alias and ORDER BY must work.
+    tool: ns_suiteql
+    input:
+      q: SELECT t.type, COUNT(t.id) AS n FROM transaction t GROUP BY t.type ORDER BY n DESC
+      limit: 100
+    expect:
+      min_rows: 1
+      has_keys: [type, n]
+
+  - kind: tool
+    id: suiteql-rejects-dml
+    description: Write statements are refused before reaching NetSuite.
+    tool: ns_suiteql
+    input:
+      q: DELETE FROM customer WHERE id = 1
+    expect:
+      ok: false
+      error_contains: Only SELECT
+
+  - kind: tool
+    id: suiteql-row-cap
+    description: The tool never returns more than the requested page.
+    tool: ns_suiteql
+    input:
+      q: SELECT id FROM transaction
+      limit: 25
+    expect:
+      max_rows: 25
+
+  - kind: tool
+    id: catalog-has-customer
+    description: The integration role can see the customer record type.
+    tool: ns_catalog_list
+    input:
+      filter: customer
+    expect:
+      has_keys: [count, recordTypes]
+
+  - kind: tool
+    id: describe-customer
+    description: Field metadata comes back for a standard record.
+    tool: ns_record_describe
+    input:
+      type: customer
+    expect:
+      has_keys: [type, fieldCount, fields]
+
+  - kind: agent
+    id: overdue-invoices-aggregate
+    prompt: How much do customers owe us on invoices more than 60 days past due?
+    expect_tools: [ns_suiteql]
+    forbid_tools: [ns_record_get]
+    rubric: Uses one aggregated SuiteQL query filtering type 'CustInvc' and due date, states the subsidiary assumption, and shows the query used.
+
+  - kind: agent
+    id: unknown-field-describes-first
+    prompt: Which sales orders have the rush flag set?
+    expect_tools: [ns_record_describe, ns_suiteql]
+    rubric: Describes the salesorder record to find the real field id before querying, and asks if no rush field exists.

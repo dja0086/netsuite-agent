@@ -1,0 +1,8 @@
+<deploy>
+  <files>
+    <path>~/FileCabinet/SuiteScripts/ns_agent/*</path>
+  </files>
+  <objects>
+    <path>~/Objects/*</path>
+  </objects>
+</deploy>
