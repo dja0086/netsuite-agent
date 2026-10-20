@@ -2,7 +2,7 @@
  * pnpm skills:eval --mode tools [--skill <name>] [--threshold 0.9] [--report <file>]
  *
  * Tool mode runs every `kind: tool` case through the real gateway (policy, redaction, audit)
- * against the account in NS_ACCOUNT_ID. Point it at a SANDBOX only.
+ * against the account in NS_ACCOUNT_ID. Requires NS_TARGET_KIND=sandbox|demo (see scripts/lib/target.ts).
  * Agent and trigger evals need an agent host; see scripts/eval-adapters.ts.
  */
 import { readFile, writeFile } from "node:fs/promises";
@@ -21,6 +21,7 @@ import { NsClient } from "@ns-agent/ns-client";
 import { TaskEvals, type TaskCase } from "@ns-agent/schemas";
 import { parse as parseYaml } from "yaml";
 import { agentHostAdapter } from "./eval-adapters";
+import { requireLiveTarget } from "./lib/target";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -114,6 +115,7 @@ if (mode !== "tools") {
   process.exit(2);
 }
 
+requireLiveTarget("skills:eval");
 const results = await runToolEvals();
 const bySkill = new Map<string, CaseResult[]>();
 for (const r of results) bySkill.set(r.skill, [...(bySkill.get(r.skill) ?? []), r]);

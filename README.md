@@ -2,7 +2,7 @@
 
 An MCP gateway, a SuiteCloud (SDF) project and a set of agent skills that let an AI agent search, report on and (later, with approval) change NetSuite data, inside NetSuite's API limits.
 
-**Status: Phase 1 (foundation and data explorer).** Read-only. Writes are refused by the gateway until Phase 2/3 skills ship behind approvals. See the delivery plan for phases and checkpoints.
+**Status: Phase 1 (foundation and data explorer).** Release procedure: [docs/release.md](docs/release.md). Working with Claude Code: [CLAUDE.md](CLAUDE.md). Read-only. Writes are refused by the gateway until Phase 2/3 skills ship behind approvals. See the delivery plan for phases and checkpoints.
 
 ## Layout
 
@@ -55,10 +55,13 @@ Example MCP client entry:
 | --- | --- |
 | `pnpm check` | Typecheck, unit tests, skills validation (what CI runs) |
 | `pnpm skills:validate` | Skill gate: manifests, declared tools, write-safety evals, owners, changelog, examples, secrets |
-| `pnpm skills:eval --mode tools` | Runs every `kind: tool` eval through the real gateway against `NS_ACCOUNT_ID` (sandbox only) |
+| `pnpm skills:eval --mode tools` | Runs every `kind: tool` eval through the real gateway against `NS_ACCOUNT_ID` (needs `NS_TARGET_KIND=sandbox|demo`) |
 | `pnpm new:skill <name> [--writes]` | Scaffolds a disabled skill, its tool module and a CODEOWNERS line |
 | `pnpm gateway` | Starts the MCP gateway on stdio |
 | `pnpm ns:ping` | Read-only check of the M2M setup: token, SuiteQL, metadata catalog, explore RESTlet |
+| `pnpm contracts:record` | Records sanitized live responses as contract fixtures (sandbox/demo only) |
+| `pnpm load:test` | Concurrency and throttling test through one limiter (sandbox/demo only) |
+| `pnpm release:check` | Runs every release gate and writes an evidence report (see docs/release.md) |
 
 ## Phase 1 tools (data-explorer skill)
 

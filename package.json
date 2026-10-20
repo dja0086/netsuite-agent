@@ -12,10 +12,14 @@
     "test": "turbo run test",
     "gateway": "pnpm --filter @ns-agent/mcp-gateway start",
     "ns:ping": "tsx scripts/ns-ping.ts",
+    "contracts:record": "tsx scripts/record-contracts.ts",
+    "test:contract": "vitest run tests",
+    "load:test": "tsx scripts/load-test.ts",
+    "release:check": "tsx scripts/release-check.ts",
     "new:skill": "tsx scripts/new-skill.ts",
     "skills:validate": "tsx scripts/validate-skills.ts",
     "skills:eval": "tsx scripts/run-evals.ts",
-    "check": "pnpm typecheck && pnpm test && pnpm skills:validate"
+    "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm skills:validate"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

@@ -20,3 +20,6 @@ netsuite/.sdf*
 
 # Gateway runtime output
 audit/
+
+# Release evidence is attached to checkpoints, not committed
+release-reports/

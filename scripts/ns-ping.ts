@@ -27,6 +27,7 @@ const tokenOk = await step("token", async () => {
 if (!tokenOk) {
   console.log(`
 Token failures usually mean one of:
+  - "fetch failed": NS_ACCOUNT_ID is wrong (the account host does not exist) or the network blocks NetSuite
   - NS_CLIENT_ID is not the integration record's Client ID (Consumer Key)
   - NS_CERT_ID is not the Certificate ID from the M2M setup page
   - the private key does not match the uploaded certificate, or the mapping was revoked/expired
