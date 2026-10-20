@@ -55,7 +55,7 @@ Example MCP client entry:
 | --- | --- |
 | `pnpm check` | Typecheck, unit tests, skills validation (what CI runs) |
 | `pnpm skills:validate` | Skill gate: manifests, declared tools, write-safety evals, owners, changelog, examples, secrets |
-| `pnpm skills:eval --mode tools` | Runs every `kind: tool` eval through the real gateway against `NS_ACCOUNT_ID` (needs `NS_TARGET_KIND=sandbox|demo`) |
+| `pnpm skills:eval --mode tools` | Runs every `kind: tool` eval through the real gateway against `NS_ACCOUNT_ID` (needs `NS_TARGET_KIND` sandbox or demo) |
 | `pnpm new:skill <name> [--writes]` | Scaffolds a disabled skill, its tool module and a CODEOWNERS line |
 | `pnpm gateway` | Starts the MCP gateway on stdio |
 | `pnpm ns:ping` | Read-only check of the M2M setup: token, SuiteQL, metadata catalog, explore RESTlet |
