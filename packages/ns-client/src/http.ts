@@ -1,4 +1,4 @@
-import { M2MTokenProvider } from "./auth/oauth2-m2m";
+import { M2MTokenProvider, type SigningAlg } from "./auth/oauth2-m2m";
 import { configFromEnv, type NsConfig } from "./config";
 import { parseNsError } from "./errors";
 import { GovernanceLimiter } from "./governance/limiter";
@@ -49,11 +49,14 @@ export class NsClient implements NsRequester {
   /** Wires config, secrets, token provider and limiter from environment variables. */
   static fromEnv(env: NodeJS.ProcessEnv = process.env): NsClient {
     const config = configFromEnv(env);
+    const alg = (env.NS_JWT_ALG?.trim() || "PS256") as SigningAlg;
+    if (!/^(PS|ES)(256|384|512)$/.test(alg)) throw new Error(`NS_JWT_ALG must be PS256/384/512 or ES256/384/512, got ${alg}`);
     const tokens = new M2MTokenProvider({
       tokenUrl: config.tokenUrl,
       clientId: config.clientId,
       certId: config.certId,
       secrets: secretsFromEnv(env),
+      alg,
     });
     const limiter = new GovernanceLimiter({ maxConcurrency: config.maxConcurrency });
     return new NsClient({ config, tokens, limiter });

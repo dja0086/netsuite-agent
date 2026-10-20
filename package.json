@@ -11,6 +11,7 @@
     "typecheck": "turbo run typecheck && tsc -p .",
     "test": "turbo run test",
     "gateway": "pnpm --filter @ns-agent/mcp-gateway start",
+    "doctor": "node scripts/doctor.mjs",
     "ns:ping": "tsx scripts/ns-ping.ts",
     "contracts:record": "tsx scripts/record-contracts.ts",
     "test:contract": "vitest run tests",

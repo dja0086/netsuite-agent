@@ -2,6 +2,20 @@
 
 MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and (later, with approval) change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs). Current phase: **CP1, read-only data explorer**.
 
+## Start of every session
+
+1. Run `node scripts/doctor.mjs` and read every FAIL and WARN. Verify, never assume: if a tool is missing, stop and tell the user what to install (doctor prints the fix); do not install system software (JDK, Homebrew packages, global npm CLIs) without asking.
+2. `git status` and `git log --oneline -5` to see where work stopped.
+3. Read "Handoff state" below, then continue at the first unchecked item in "Next work".
+4. Before live commands: `set -a; source .env; set +a`.
+
+## Handoff state (2026-10-20)
+
+- Repo: Phase 1, release tooling and doctor are committed; `pnpm check` passes (87 tests); delivered to `~/dev/netsuite-agent` without `node_modules` (run `pnpm install` first).
+- NetSuite account TSTDRV1755417 (demo): OAuth 2.0, REST Web Services, Server SuiteScript and SDF already enabled. Checked 2026-10-20: no `NS Agent` role and no `NS Agent` employee exist yet, so CP0 has not started.
+- Never run: the live scripts have not run against the account yet (no credentials). `contracts:record`, `load:test` and `release:check` are untested live; expect first-run fixes.
+- Certificate: macOS ships LibreSSL as `openssl`. If the RSA-PSS command fails, either use OpenSSL 3 or make an EC certificate and set `NS_JWT_ALG=ES256`.
+
 ## Rules that are not negotiable
 
 - **Never write to NetSuite outside the approval path.** No `ns_createRecord`, no record PUT/POST/PATCH/DELETE, no CSV imports, no live config edits. Account changes ship only as SDF objects in `netsuite/` via PR and `deploy-sdf.yml` (ADR 0002).
@@ -15,6 +29,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 
 | Command | Use |
 | --- | --- |
+| `node scripts/doctor.mjs` | Verifies tools (Node, pnpm, git, OpenSSL, JDK, SuiteCloud CLI, Claude Code), repo and `.env`; no dependencies needed |
 | `pnpm check` | Offline gate: typecheck, unit tests, contract replay, skills validation. Run before every commit. |
 | `pnpm ns:ping` | Read-only M2M check against the live account |
 | `pnpm contracts:record` | Record sanitized live responses to `tests/contract/fixtures` (review the diff) |

@@ -15,6 +15,7 @@ The demo account reports itself as `PRODUCTION` to NetSuite; that is its environ
 ## One-time setup per machine
 
 ```bash
+node scripts/doctor.mjs --tools-only   # fix every FAIL before going on
 pnpm install
 cp .env.example .env                 # NS_ACCOUNT_ID, NS_TARGET_KIND, NS_CLIENT_ID, NS_CERT_ID, NS_PRIVATE_KEY_PATH
 set -a; source .env; set +a
