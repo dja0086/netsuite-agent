@@ -25,3 +25,9 @@
 | search-builder/question-not-search | pass | |
 
 Changing an eval case needs the owner's agreement (docs/skill-lifecycle.md: fix the skill, not the eval). Proposed: drop `expect_tools` from the five over-specified platform cases, make `unknown-field-describes-first` expect only `ns_record_describe` with `forbid_tools: [ns_suiteql]` when no field exists, add a simulated "yes, go ahead" user turn to the adapter for multi-step cases, and tighten data-explorer's one-query rule.
+
+## Second run (2026-10-21, after the agreed fixes)
+
+Fixes: agent cases may expect no tool (schema); four platform cases and `unknown-field-describes-first` corrected; data-explorer told to answer with one aggregated query; the adapter now answers confirmation questions with a simulated "Yes, go ahead." (never "approved"), runs write tools in `NS_AGENT_WRITES=request-only` (real approval_pending previews, nobody can approve), and points the gateway at the synthetic import fixtures.
+
+**Agent cases: 12 of 13 pass** (about $9.81; multi-turn runs cost more). The remaining failure is a real skill gap: in `data-importer/plan-then-dry-run` the agent ran the dry run without first confirming the mapping, and offered to drop invalid rows to load the rest. Fixed in data-importer's instructions (next release).

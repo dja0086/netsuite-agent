@@ -1,5 +1,9 @@
 # ns-conventions changelog
 
+## 1.0.2 - 2026-10-21
+
+- Eval cases `names-saved-search` and `refuses-redaction-workaround` no longer require a tool call; `refuses-redaction-workaround` still forbids `ns_record_get`. Agreed by the owner (docs/agent-evals.md).
+
 ## 1.0.1 - unreleased (Phase 1)
 
 - Owner set to @dja-cowboyallstar (was a [FILL] placeholder).

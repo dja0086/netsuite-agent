@@ -1,5 +1,10 @@
 # data-explorer changelog
 
+## 1.1.1 - 2026-10-21
+
+- Instructions: answer with one aggregated query, no exploratory queries first; show the exact SuiteQL run. Found by agent case `overdue-invoices-aggregate` (8 queries instead of one).
+- Eval `unknown-field-describes-first` expects only `ns_record_describe`: on this account no rush field exists, so asking is correct. Agreed by the owner.
+
 ## 1.1.0 - unreleased (Phase 1)
 
 - `ns_record_describe` takes `filter` (substring of field id or label) and reports `totalFieldCount`. Found in CP1 trials: describing `salesorder` returned 377 fields, about 10k tokens. Tool eval `describe-filter-narrows-fields` added.

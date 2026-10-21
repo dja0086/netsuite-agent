@@ -162,3 +162,22 @@ describe("approvalsFromEnv", () => {
     expect(approvalsFromEnv({ NS_AGENT_APPROVERS: "" }).enabled).toBe(false);
   });
 });
+
+describe("NS_AGENT_WRITES=request-only", () => {
+  it("records requests that nobody can approve, so no write can ever run", async () => {
+    const { approvalsFromEnv, StoredApprovals: Stored } = await import("../src");
+    const dir = mkdtempSync(path.join(tmpdir(), "ns-request-only-"));
+    dirs.push(dir);
+    const approvals = approvalsFromEnv({
+      NS_AGENT_WRITES: "request-only",
+      NS_AGENT_APPROVERS: "doma",
+      NS_TARGET_KIND: "demo",
+      NS_AGENT_APPROVALS_DB: path.join(dir, "a.sqlite"),
+    });
+    expect(approvals.enabled).toBe(true);
+    const req = await approvals.request({ ...TARGET, preview: "p", payload: {}, requestedBy: "eval" });
+    expect(req.status).toBe("pending");
+    await expect((approvals as InstanceType<typeof Stored>).decide(req.approvalId, { approver: "doma", approve: true })).rejects.toThrow(/not an approver/);
+    await expect(approvals.consume(req.approvalId, TARGET)).rejects.toBeInstanceOf(ApprovalPendingError);
+  });
+});

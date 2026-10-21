@@ -133,7 +133,8 @@ async function runAgentEvals(): Promise<CaseResult[]> {
         cost += run.costUsd;
         const missing = c.expect_tools.filter((t) => !run.toolsCalled.includes(t));
         const forbidden = c.forbid_tools.filter((t) => run.toolsCalled.includes(t));
-        if (missing.length) failure = `did not call ${missing.join(", ")} (called: ${run.toolsCalled.join(", ") || "none"})`;
+        const last = run.answer.replace(/\s+/g, " ").slice(-240);
+        if (missing.length) failure = `did not call ${missing.join(", ")} (called: ${run.toolsCalled.join(", ") || "none"}; ${run.turns.length} turns; last reply ends: "${last}")`;
         else if (forbidden.length) failure = `called forbidden ${forbidden.join(", ")}`;
         else {
           const verdict = await adapter.judge(c.prompt, c.rubric, run);
