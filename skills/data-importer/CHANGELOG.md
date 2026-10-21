@@ -1,5 +1,9 @@
 # data-importer changelog
 
+## 1.0.0 - 2026-10-21
+
+- Enabled (plan and dry run only). Acceptance: validator clean with `enabled: true`; live tool evals 5/5 on TSTDRV1755417; owner approved.
+
 ## 0.1.0 - unreleased
 
 - Scaffolded with `pnpm new:skill data-importer` (disabled). Plan and dry-run only; no load tool until CP3.

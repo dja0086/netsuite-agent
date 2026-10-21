@@ -1,13 +1,12 @@
 ---
 name: data-importer
 description: Prepare a CSV import into NetSuite - map the columns to record fields and dry-run every row (required fields, types, references, duplicates) without writing anything. Use for "import this CSV", "is this file ready to load", "map these columns". Loading the rows is not available yet (CP3). Not for exports (reports) or questions about existing data (data-explorer).
-version: 0.1.0
+version: 1.0.0
 owner: "@dja-cowboyallstar"
 # Tools this skill may call. Each must exist in apps/mcp-gateway/src/tools/ (see data-importer.ts).
 tools: [ns_import_plan, ns_import_dry_run]
 writes: false
-# New skills ship disabled. Set to true only when the acceptance table passes (see docs/skill-lifecycle.md).
-enabled: false
+enabled: true
 governance_budget:
   max_calls_per_invocation: 20
   max_concurrency: 2
