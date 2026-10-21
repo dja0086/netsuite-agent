@@ -59,6 +59,12 @@ describe("NsClient", () => {
     );
   });
 
+  it("restores the internal id that NetSuite omits when fields are requested", async () => {
+    const { ns } = client([() => json({ companyName: "Acme" }), () => json({ companyName: "Acme" })]);
+    await expect(getRecord(ns, "customer", "42", { fields: ["companyname"] })).resolves.toEqual({ id: "42", companyName: "Acme" });
+    await expect(getRecord(ns, "customer", "eid:CUST-001", { fields: ["companyname"] })).resolves.toEqual({ companyName: "Acme" });
+  });
+
   it("calls RESTlets on the restlets host and validates ids", async () => {
     const { ns, calls } = client([() => json({ ok: true })]);
     await callRestlet(ns, { scriptId: "customscript_ns_agent_explore_rl", deployId: "customdeploy_ns_agent_explore_rl", body: { a: 1 } });
