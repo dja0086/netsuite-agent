@@ -28,7 +28,7 @@ Importing beats hand-writing the XML: permission keys are easy to get wrong, and
 | Transactions | Find Transaction, plus each transaction type the agent may read | View |
 | Lists | Custom record types the agent may read | View |
 
-Open question (2026-10-20): after the first SDF deploy, NetSuite added **Other Addresses (`LIST_OTHER_ADDRESS`) = Full** to the role on save. It is in the imported XML because the XML must match the account; decide whether to lower it to View or document why it is accepted.
+Known exception (2026-10-20): NetSuite forces **Other Addresses (`LIST_OTHER_ADDRESS`) = Full** onto this role whenever it is saved. `VIEW` is not a valid level for that key, and removing it from the XML (PR #3) did not stick: the next deploy added it back. It stays in the XML so the repo matches the account. The risk is contained because the gateway exposes no write tools and the integration only calls the read-only explore RESTlet; revisit it if Phase 2 adds write paths.
 
 Add more record types only through a PR, reviewed by the NetSuite admin and security (CODEOWNERS enforces this for `netsuite/src/Objects/`).
 

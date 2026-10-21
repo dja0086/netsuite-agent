@@ -74,6 +74,10 @@
       <permlevel>VIEW</permlevel>
     </permission>
     <permission>
+      <permkey>LIST_OTHER_ADDRESS</permkey>
+      <permlevel>FULL</permlevel>
+    </permission>
+    <permission>
       <permkey>LIST_CUSTJOB</permkey>
       <permlevel>VIEW</permlevel>
     </permission>
