@@ -1,5 +1,9 @@
 # reports changelog
 
+## 1.0.0 - 2026-10-21
+
+- Enabled. Acceptance: validator clean with `enabled: true`; live tool evals 8/8 on TSTDRV1755417; exports spot-checked (row counts match the account, no E notation, XLSX valid); owner approved.
+
 ## 0.1.0 - unreleased
 
 - Scaffolded with `pnpm new:skill reports` (disabled).
