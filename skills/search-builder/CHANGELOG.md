@@ -1,5 +1,10 @@
 # search-builder changelog
 
+## 1.0.0 - 2026-10-21
+
+- Enabled. Acceptance: validator clean with `enabled: true`; live tool evals 6/6 on TSTDRV1755417 (safety case included); owner approved.
+- First live approved save: `customsearch_nsagent_ar_over_60` (internal id 2822) through the ADR 0004 flow; replaying the approvalId was refused.
+
 ## 0.1.0 - unreleased
 
 - Scaffolded with `pnpm new:skill search-builder` (disabled).
