@@ -7,6 +7,7 @@ export {
   MetadataCache,
   assertRecordId,
   assertRecordType,
+  createRecord,
   describeRecordSchema,
   getRecord,
   listRecordTypes,

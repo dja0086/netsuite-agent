@@ -40,6 +40,22 @@ export async function getRecord(
   return result;
 }
 
+/**
+ * Creates one record through the REST Record API and returns its internal id. This writes to NetSuite:
+ * call it only from a write tool's handler, which the gateway runs after an approval (ADR 0004).
+ */
+export async function createRecord(ns: NsRequester, type: string, body: Record<string, unknown>): Promise<{ id: string }> {
+  const res = await ns.request<{ location?: string } | undefined>({
+    method: "POST",
+    base: "rest",
+    path: `/services/rest/record/v1/${assertRecordType(type)}`,
+    body,
+  });
+  const id = res?.location?.match(/\/(\d+)\/?$/)?.[1];
+  if (!id) throw new Error(`NetSuite created a ${type} but returned no record id`);
+  return { id };
+}
+
 /** Lists record types exposed to the integration role through the REST metadata catalog. */
 export async function listRecordTypes(ns: NsRequester): Promise<string[]> {
   const catalog = await ns.request<{ items?: Array<{ name?: string }> }>({

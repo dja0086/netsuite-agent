@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GovernanceLimiter, NsClient, NsHttpError, buildConfig, callRestlet, getRecord } from "../src";
+import { GovernanceLimiter, NsClient, NsHttpError, buildConfig, callRestlet, createRecord, getRecord } from "../src";
 
 function client(responses: Array<() => Response>) {
   const calls: Array<{ url: string; init: RequestInit }> = [];
@@ -63,6 +63,26 @@ describe("NsClient", () => {
     const { ns } = client([() => json({ companyName: "Acme" }), () => json({ companyName: "Acme" })]);
     await expect(getRecord(ns, "customer", "42", { fields: ["companyname"] })).resolves.toEqual({ id: "42", companyName: "Acme" });
     await expect(getRecord(ns, "customer", "eid:CUST-001", { fields: ["companyname"] })).resolves.toEqual({ companyName: "Acme" });
+  });
+
+  it("creates a record with POST and returns the new internal id from the Location header", async () => {
+    const { ns, calls } = client([
+      () =>
+        new Response(null, {
+          status: 204,
+          headers: { location: "https://1234567-sb1.suitetalk.api.netsuite.com/services/rest/record/v1/customer/2901" },
+        }),
+    ]);
+    await expect(createRecord(ns, "customer", { companyName: "Acme", subsidiary: { id: "1" } })).resolves.toEqual({ id: "2901" });
+    expect(calls[0]!.init.method).toBe("POST");
+    expect(calls[0]!.url).toBe("https://1234567-sb1.suitetalk.api.netsuite.com/services/rest/record/v1/customer");
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ companyName: "Acme", subsidiary: { id: "1" } });
+  });
+
+  it("fails clearly when a create returns no Location", async () => {
+    const { ns } = client([() => new Response(null, { status: 204 })]);
+    await expect(createRecord(ns, "customer", {})).rejects.toThrow(/no record id/);
+    await expect(createRecord(ns, "bad type!", {})).rejects.toThrow(/Invalid record type/);
   });
 
   it("calls RESTlets on the restlets host and validates ids", async () => {
