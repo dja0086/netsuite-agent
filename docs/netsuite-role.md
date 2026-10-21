@@ -5,7 +5,7 @@ The gateway runs as one dedicated, web-services-only role with view-level permis
 ## Steps (NetSuite admin, Phase 0)
 
 1. Setup > Users/Roles > Manage Roles > New. Name **NS Agent Integration**, ID **`_ns_agent`** (NetSuite prefixes it to `customrole_ns_agent`).
-2. Leave **Web Services Only Role** unchecked: with it checked, OAuth 2.0 calls to RESTlets fail with `InsufficientPermissions` in the Login Audit Trail (REST and SuiteQL still work). Because the role can then log in to the UI, assign it only to a dedicated integration employee.
+2. Leave **Web Services Only Role** unchecked: with it checked, OAuth 2.0 calls to RESTlets fail with `InsufficientPermissions` in the Login Audit Trail (REST and SuiteQL still work). The role is assigned to employee 2815 "Integration User", the account's integration user for this use case (decided 2026-10-21; no dedicated employee).
 3. Add the permissions below.
 4. Import it into the repo so the XML matches the account exactly:
    ```bash
