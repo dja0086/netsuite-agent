@@ -69,6 +69,34 @@ describe("M2MTokenProvider", () => {
     expect(bodies).toHaveLength(1);
   });
 
+  it("reports NetSuite's OAuth error code and description, nothing else", async () => {
+    const provider = new M2MTokenProvider({
+      tokenUrl: TOKEN_URL,
+      clientId: "client-123",
+      certId: "cert-abc",
+      secrets: { get: async () => pkcs8 },
+      fetch: (async () =>
+        new Response(JSON.stringify({ error: "invalid_grant", error_description: "Invalid signature", extra: "secret-ish" }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        })) as typeof fetch,
+    });
+    const err = await provider.getToken().catch((e: Error) => e);
+    expect((err as Error).message).toBe("NetSuite token request failed with HTTP 400: invalid_grant (Invalid signature)");
+    expect((err as Error).message).not.toContain("secret-ish");
+  });
+
+  it("falls back to the status alone when the error body is not JSON", async () => {
+    const provider = new M2MTokenProvider({
+      tokenUrl: TOKEN_URL,
+      clientId: "c",
+      certId: "k",
+      secrets: { get: async () => pkcs8 },
+      fetch: (async () => new Response("<html>oops</html>", { status: 400 })) as typeof fetch,
+    });
+    await expect(provider.getToken()).rejects.toThrow(/^NetSuite token request failed with HTTP 400$/);
+  });
+
   it("fetches a new token after invalidate()", async () => {
     const { provider } = setup();
     await provider.getToken();

@@ -1,6 +1,23 @@
 import { SignJWT, importPKCS8, type CryptoKey } from "jose";
 import type { SecretsBackend } from "../secrets";
 
+/**
+ * Reads only the standard OAuth 2.0 error fields (RFC 6749 section 5.2) from a failed token response.
+ * They carry no credentials; the rest of the body is never surfaced.
+ */
+export async function oauthErrorDetail(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: unknown; error_description?: unknown };
+    const clean = (v: unknown) => (typeof v === "string" ? v.replace(/[^\x20-\x7E]/g, "").slice(0, 200) : "");
+    const error = clean(body.error);
+    const description = clean(body.error_description);
+    if (!error && !description) return "";
+    return `: ${error || "error"}${description ? ` (${description})` : ""}`;
+  } catch {
+    return "";
+  }
+}
+
 export type SigningAlg = "PS256" | "PS384" | "PS512" | "ES256" | "ES384" | "ES512";
 
 export interface M2MTokenProviderOptions {
@@ -83,8 +100,7 @@ export class M2MTokenProvider {
     });
 
     if (!response.ok) {
-      // The body can echo request details; report the status only.
-      throw new Error(`NetSuite token request failed with HTTP ${response.status}`);
+      throw new Error(`NetSuite token request failed with HTTP ${response.status}${await oauthErrorDetail(response)}`);
     }
     const json = (await response.json()) as { access_token?: string; expires_in?: number | string };
     if (!json.access_token) throw new Error("NetSuite token response had no access_token");
