@@ -1,0 +1,69 @@
+{
+  "name": "suiteql-paged",
+  "recordedAt": "2026-10-21T00:31:54.656Z",
+  "target": "demo",
+  "request": {
+    "method": "POST",
+    "base": "rest",
+    "path": "/services/rest/query/v1/suiteql",
+    "query": {
+      "limit": 5,
+      "offset": 5
+    },
+    "body": {
+      "q": "SELECT id FROM transaction ORDER BY id"
+    }
+  },
+  "status": 200,
+  "response": {
+    "links": [
+      {
+        "rel": "previous",
+        "href": "https://ACCOUNT.example/…"
+      },
+      {
+        "rel": "first",
+        "href": "https://ACCOUNT.example/…"
+      },
+      {
+        "rel": "next",
+        "href": "https://ACCOUNT.example/…"
+      },
+      {
+        "rel": "last",
+        "href": "https://ACCOUNT.example/…"
+      },
+      {
+        "rel": "self",
+        "href": "https://ACCOUNT.example/…",
+        "method": "<string>"
+      }
+    ],
+    "count": 5,
+    "hasMore": true,
+    "items": [
+      {
+        "links": [],
+        "id": "7"
+      },
+      {
+        "links": [],
+        "id": "9"
+      },
+      {
+        "links": [],
+        "id": "10"
+      },
+      {
+        "links": [],
+        "id": "11"
+      },
+      {
+        "links": [],
+        "id": "12"
+      }
+    ],
+    "offset": 5,
+    "totalResults": 3370
+  }
+}

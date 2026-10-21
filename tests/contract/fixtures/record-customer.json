@@ -1,0 +1,36 @@
+{
+  "name": "record-customer",
+  "recordedAt": "2026-10-21T00:32:01.480Z",
+  "target": "demo",
+  "request": {
+    "method": "GET",
+    "base": "rest",
+    "path": "/services/rest/record/v1/customer/2784",
+    "query": {
+      "fields": "companyname,subsidiary,balance"
+    }
+  },
+  "status": 200,
+  "response": {
+    "links": [
+      {
+        "rel": "self",
+        "href": "https://ACCOUNT.example/…",
+        "method": "<string>"
+      }
+    ],
+    "balance": 0,
+    "companyName": "<string>",
+    "subsidiary": {
+      "links": [
+        {
+          "rel": "self",
+          "href": "https://ACCOUNT.example/…",
+          "method": "<string>"
+        }
+      ],
+      "id": "11",
+      "refName": "<string>"
+    }
+  }
+}

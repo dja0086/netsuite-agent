@@ -1,0 +1,35 @@
+{
+  "name": "suiteql-error",
+  "recordedAt": "2026-10-21T00:31:54.867Z",
+  "target": "demo",
+  "request": {
+    "method": "POST",
+    "base": "rest",
+    "path": "/services/rest/query/v1/suiteql",
+    "query": {
+      "limit": 1,
+      "offset": 0
+    },
+    "body": {
+      "q": "SELECT no_such_column FROM customer"
+    }
+  },
+  "status": 400,
+  "error": {
+    "status": 400,
+    "code": "INVALID_PARAMETER",
+    "message": "Invalid search query. Detailed unprocessed description follows. Search error occurred: Unknown identifier 'no_such_column'. Available identifiers are: {customer=customer}.",
+    "body": {
+      "type": "https://ACCOUNT.example/…",
+      "title": "Bad Request",
+      "status": 400,
+      "o:errorDetails": [
+        {
+          "detail": "Invalid search query. Detailed unprocessed description follows. Search error occurred: Unknown identifier 'no_such_column'. Available identifiers are: {customer=customer}.",
+          "o:errorPath": "<string>",
+          "o:errorCode": "INVALID_PARAMETER"
+        }
+      ]
+    }
+  }
+}
