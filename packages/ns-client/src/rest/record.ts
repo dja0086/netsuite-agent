@@ -34,7 +34,10 @@ export async function getRecord(
       expandSubResources: options.expandSubResources ? "true" : undefined,
     },
   });
-  return stripLinks(record);
+  const result = stripLinks(record);
+  // With `fields`, NetSuite omits the id from the response; put back the internal id we asked for.
+  if (result.id === undefined && /^\d+$/.test(id)) return { id, ...result };
+  return result;
 }
 
 /** Lists record types exposed to the integration role through the REST metadata catalog. */

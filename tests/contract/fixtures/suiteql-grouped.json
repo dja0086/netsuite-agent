@@ -1,0 +1,83 @@
+{
+  "name": "suiteql-grouped",
+  "recordedAt": "2026-10-21T00:31:54.187Z",
+  "target": "demo",
+  "request": {
+    "method": "POST",
+    "base": "rest",
+    "path": "/services/rest/query/v1/suiteql",
+    "query": {
+      "limit": 100,
+      "offset": 0
+    },
+    "body": {
+      "q": "SELECT t.type, COUNT(t.id) AS n FROM transaction t GROUP BY t.type ORDER BY n DESC"
+    }
+  },
+  "status": 200,
+  "response": {
+    "links": [
+      {
+        "rel": "self",
+        "href": "https://ACCOUNT.example/…",
+        "method": "<string>"
+      }
+    ],
+    "count": 10,
+    "hasMore": false,
+    "items": [
+      {
+        "links": [],
+        "n": "1104",
+        "type": "CustInvc"
+      },
+      {
+        "links": [],
+        "n": "546",
+        "type": "Journal"
+      },
+      {
+        "links": [],
+        "n": "512",
+        "type": "CustPymt"
+      },
+      {
+        "links": [],
+        "n": "389",
+        "type": "SalesOrd"
+      },
+      {
+        "links": [],
+        "n": "264",
+        "type": "VendBill"
+      },
+      {
+        "links": [],
+        "n": "208",
+        "type": "Opprtnty"
+      },
+      {
+        "links": [],
+        "n": "140",
+        "type": "VendPymt"
+      },
+      {
+        "links": [],
+        "n": "98",
+        "type": "Estimate"
+      },
+      {
+        "links": [],
+        "n": "94",
+        "type": "PurchOrd"
+      },
+      {
+        "links": [],
+        "n": "15",
+        "type": "CustCred"
+      }
+    ],
+    "offset": 0,
+    "totalResults": 10
+  }
+}
