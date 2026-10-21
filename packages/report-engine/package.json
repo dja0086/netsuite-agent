@@ -1,0 +1,20 @@
+{
+  "name": "@ns-agent/report-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Report definitions (parameterised SuiteQL), parameter binding, and CSV/XLSX export.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ns-agent/ns-client": "workspace:*",
+    "@ns-agent/suiteql": "workspace:*",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  }
+}
