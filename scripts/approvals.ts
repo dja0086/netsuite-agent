@@ -60,7 +60,7 @@ async function main(): Promise<number> {
         return 0;
       }
       show(r);
-      const decided = await approvals.decide(id, { approver, approve: command === "approve", reason });
+      const decided = await approvals.decide(id, { approver, approve: command === "approve", reason, via: "cli" });
       await auditSinkFromEnv().write({
         ts: new Date().toISOString(),
         event: "approval.decided",

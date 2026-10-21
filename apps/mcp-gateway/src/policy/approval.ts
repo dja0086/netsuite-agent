@@ -28,6 +28,21 @@ export interface ChangeRequest {
   decidedAt?: string;
   decidedBy?: string;
   reason?: string;
+  /** Where the approver decides: the local CLI (default) or a GitHub issue. */
+  channel?: "cli" | "github";
+  /** The channel's handle for this request, e.g. the GitHub issue URL. */
+  channelRef?: string;
+}
+
+/** A human-facing place where change requests are shown and decided (ADR 0004). */
+export interface ApprovalChannel {
+  readonly name: "github";
+  /** Shows the request to approvers; returns the handle to store on it. */
+  notify(request: ChangeRequest): Promise<{ channelRef: string }>;
+  /** Reads a decision from an allowlisted approver, if one has been made. */
+  poll(request: ChangeRequest, approvers: ReadonlySet<string>): Promise<{ approve: boolean; approver: string; reason?: string } | undefined>;
+  /** Reports an outcome back on the channel; close ends the conversation there. */
+  report(request: ChangeRequest, text: string, close: boolean): Promise<void>;
 }
 
 /** Where change requests live. transition() must be atomic: the single-use rule depends on it. */
@@ -110,6 +125,8 @@ export interface StoredApprovalsOptions {
   pendingTtlMinutes?: number;
   /** Approval window when the tool does not set approvalTtlMinutes. */
   defaultTtlMinutes?: number;
+  /** Where approvers decide. Without one, decisions come from the local CLI. */
+  channel?: ApprovalChannel;
 }
 
 const MINUTE = 60_000;
@@ -121,8 +138,10 @@ export class StoredApprovals implements ApprovalService {
   private readonly now: () => number;
   private readonly pendingTtlMinutes: number;
   private readonly defaultTtlMinutes: number;
+  private readonly channel?: ApprovalChannel;
 
   constructor(options: StoredApprovalsOptions) {
+    this.channel = options.channel;
     this.store = options.store;
     this.approvers = options.approvers;
     this.now = options.now ?? Date.now;
@@ -161,13 +180,17 @@ export class StoredApprovals implements ApprovalService {
       expiresAt: this.iso(this.pendingTtlMinutes),
     };
     await this.store.create(request);
-    return request;
+    if (!this.channel) return request;
+    const { channelRef } = await this.channel.notify(request);
+    const patch = { channel: this.channel.name, channelRef } as const;
+    await this.store.transition(request.approvalId, "pending", "pending", patch);
+    return { ...request, ...patch };
   }
 
   /** Approves or denies a pending request. Called by an approval channel (the CLI first), never by the agent. */
   async decide(
     approvalId: string,
-    decision: { approver: string; approve: boolean; reason?: string },
+    decision: { approver: string; approve: boolean; reason?: string; via?: "cli" | "channel" },
   ): Promise<ChangeRequest> {
     const approver = decision.approver.trim();
     if (!approver || !this.approvers.has(approver)) {
@@ -176,6 +199,9 @@ export class StoredApprovals implements ApprovalService {
     const request = await this.store.get(approvalId);
     if (!request) throw new ApprovalInvalidError(`unknown approval ${approvalId}.`);
     if (request.status !== "pending") throw new ApprovalInvalidError(`approval ${approvalId} is not pending (${request.status}).`);
+    if (request.channel && request.channel !== "cli" && decision.via !== "channel") {
+      throw new ApprovalInvalidError(`approval ${approvalId} is decided on its ${request.channel} issue (${request.channelRef}), not here.`);
+    }
     if (this.expired(request)) {
       await this.store.transition(approvalId, "pending", "expired");
       throw new ApprovalInvalidError(`approval ${approvalId} expired before a decision; ask the agent to request it again.`);
@@ -193,8 +219,26 @@ export class StoredApprovals implements ApprovalService {
     return { ...request, ...patch, status: to };
   }
 
+  /** Picks up a decision made on the channel, if any. */
+  private async pollChannel(request: ChangeRequest): Promise<ChangeRequest> {
+    if (!this.channel || request.channel !== this.channel.name || request.status !== "pending") return request;
+    const found = await this.channel.poll(request, this.approvers);
+    if (!found) return request;
+    const decided = await this.decide(request.approvalId, { ...found, via: "channel" });
+    await this.channel.report(
+      decided,
+      decided.status === "approved"
+        ? `Approved by @${found.approver}. Valid until ${decided.expiresAt} for one call with exactly this payload.`
+        : `Denied by @${found.approver}${found.reason ? `: ${found.reason}` : ""}. Nothing will be changed.`,
+      decided.status !== "approved",
+    );
+    return decided;
+  }
+
   async consume(approvalId: string, target: ApprovalTarget): Promise<ApprovalDecision> {
-    const request = await this.store.get(approvalId);
+    const stored = await this.store.get(approvalId);
+    if (!stored) throw new ApprovalInvalidError(`unknown approval ${approvalId}. No change was made.`);
+    const request = await this.pollChannel(stored);
     if (!request) throw new ApprovalInvalidError(`unknown approval ${approvalId}. No change was made.`);
     // Checked before status so a mismatched call never learns or changes anything about someone else's approval.
     if (request.tool !== target.tool || request.accountId !== target.accountId || request.payloadHash !== target.payloadHash) {
@@ -232,5 +276,9 @@ export class StoredApprovals implements ApprovalService {
 
   async complete(approvalId: string, ok: boolean): Promise<void> {
     await this.store.transition(approvalId, "executing", ok ? "executed" : "failed");
+    const request = await this.store.get(approvalId);
+    if (this.channel && request?.channel === this.channel.name) {
+      await this.channel.report(request, ok ? "Executed. This approval is used up." : "The write failed; see the gateway audit log. This approval is used up.", true);
+    }
   }
 }
