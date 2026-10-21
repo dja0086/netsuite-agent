@@ -47,18 +47,19 @@ const has = (name: string) => fixtures.has(name);
 const fx = (name: string) => fixtures.get(name)!;
 
 describe.skipIf(fixtures.size === 0)("NetSuite contract (recorded responses)", () => {
-  it.runIf(has("suiteql-count"))("SuiteQL aggregate returns one row with a numeric count", async () => {
-    const page = await suiteql<{ n: number }>(replay(fx("suiteql-count")), "SELECT COUNT(id) AS n FROM customer", { limit: 1 });
+  // SuiteQL over REST returns every value as a string, aggregates included.
+  it.runIf(has("suiteql-count"))("SuiteQL aggregate returns one row with a string-encoded count", async () => {
+    const page = await suiteql<{ n: string }>(replay(fx("suiteql-count")), "SELECT COUNT(id) AS n FROM customer", { limit: 1 });
     expect(page.items).toHaveLength(1);
-    expect(typeof page.items[0]!.n).toBe("number");
+    expect(page.items[0]!.n).toMatch(/^\d+$/);
     expect(page.items[0]).not.toHaveProperty("links");
   });
 
   it.runIf(has("suiteql-grouped"))("grouped SuiteQL with COUNT(t.id) and ORDER BY works", async () => {
-    const page = await suiteql<{ type: string; n: number }>(replay(fx("suiteql-grouped")), "q", { limit: 100 });
+    const page = await suiteql<{ type: string; n: string }>(replay(fx("suiteql-grouped")), "q", { limit: 100 });
     expect(page.items.length).toBeGreaterThan(0);
-    expect(page.items[0]).toEqual({ type: expect.any(String), n: expect.any(Number) });
-    const counts = page.items.map((r) => r.n);
+    expect(page.items[0]).toEqual({ type: expect.any(String), n: expect.stringMatching(/^\d+$/) });
+    const counts = page.items.map((r) => Number(r.n));
     expect(counts).toEqual([...counts].sort((a, b) => b - a));
   });
 
@@ -90,8 +91,8 @@ describe.skipIf(fixtures.size === 0)("NetSuite contract (recorded responses)", (
   });
 
   it.runIf(has("record-customer"))("record get returns the requested fields without links", async () => {
-    const rec = await getRecord(replay(fx("record-customer")), "customer", "1", { fields: ["companyname"] });
-    expect(rec).toHaveProperty("id");
+    const rec = await getRecord(replay(fx("record-customer")), "customer", "2784", { fields: ["companyname"] });
+    expect(rec).toHaveProperty("id", "2784");
     expect(JSON.stringify(rec)).not.toContain('"links"');
   });
 

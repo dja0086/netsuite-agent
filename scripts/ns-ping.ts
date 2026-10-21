@@ -38,7 +38,7 @@ Token failures usually mean one of:
 
 let ok = true;
 ok &&= await step("suiteql", async () => {
-  const page = await suiteql<{ n: number }>(ns, "SELECT COUNT(id) AS n FROM customer", { limit: 1 });
+  const page = await suiteql<{ n: string }>(ns, "SELECT COUNT(id) AS n FROM customer", { limit: 1 });
   return `${page.items[0]?.n ?? 0} customers visible to the integration role`;
 });
 ok &&= await step("metadata catalog", async () => `${(await listRecordTypes(ns)).length} record types visible`);
