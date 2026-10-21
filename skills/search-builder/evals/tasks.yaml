@@ -1,0 +1,112 @@
+# Tool cases run against the demo/sandbox account with `pnpm skills:eval --mode tools`.
+# The eval gateway never grants approvals, so every write tool must come back blocked.
+cases:
+  - kind: tool
+    id: preview-open-invoices
+    description: A filtered transaction search previews rows and the total match count.
+    tool: ns_search_preview
+    input:
+      recordType: transaction
+      filters:
+        - { field: type, operator: anyof, values: [CustInvc] }
+        - { field: mainline, operator: is, values: ["T"] }
+        - { field: status, operator: anyof, values: ["CustInvc:A"] }
+      columns:
+        - { field: tranid }
+        - { field: entity }
+        - { field: duedate, sort: asc }
+        - { field: amountremaining }
+      limit: 5
+    expect:
+      max_rows: 5
+      has_keys: [recordType, totalCount, rows, columns]
+
+  - kind: tool
+    id: preview-summary-columns
+    description: Summary (group and count) columns work, so grouped searches can be previewed.
+    tool: ns_search_preview
+    input:
+      recordType: transaction
+      filters:
+        - { field: mainline, operator: is, values: ["T"] }
+      columns:
+        - { field: type, summary: group }
+        - { field: internalid, summary: count }
+      limit: 20
+    expect:
+      min_rows: 1
+      has_keys: [totalCount, rows]
+
+  - kind: tool
+    id: preview-rejects-unknown-operator
+    description: Operators are checked against the search operator list before reaching NetSuite.
+    tool: ns_search_preview
+    input:
+      recordType: customer
+      filters:
+        - { field: companyname, operator: drop, values: [x] }
+      columns:
+        - { field: companyname }
+    expect:
+      ok: false
+      error_contains: operator
+
+  - kind: tool
+    id: preview-rejects-unsafe-field
+    description: Field ids are identifiers, never free text.
+    tool: ns_search_preview
+    input:
+      recordType: customer
+      filters: []
+      columns:
+        - { field: "companyname; drop" }
+    expect:
+      ok: false
+      error_contains: field
+
+  - kind: tool
+    id: save-blocked-without-approval
+    description: Saving is a write; without an approval it is refused and nothing is created.
+    tool: ns_search_save
+    input:
+      recordType: transaction
+      title: "NS Agent eval - must never be saved"
+      scriptIdSuffix: eval_blocked
+      filters:
+        - { field: type, operator: anyof, values: [CustInvc] }
+      columns:
+        - { field: tranid }
+    expect:
+      ok: false
+      error_contains: not enabled
+
+  - kind: tool
+    id: save-rejects-bad-script-id
+    description: The script id suffix must follow ns-conventions before any approval is requested.
+    tool: ns_search_save
+    input:
+      recordType: customer
+      title: Bad id
+      scriptIdSuffix: "Bad Id!"
+      filters: []
+      columns:
+        - { field: companyname }
+    expect:
+      ok: false
+      error_contains: scriptIdSuffix
+
+  - kind: agent
+    id: preview-then-save-with-approval
+    prompt: Save a search of open invoices more than 60 days past due so finance can reuse it.
+    expect_tools: [ns_search_preview, ns_search_save]
+    rubric: >-
+      Previews first and states the match count, proposes a customsearch_nsagent_ id and title, calls
+      ns_search_save without approvalId, shows the returned preview and approvalId, and calls again with the
+      approvalId only after the user says it was approved.
+
+  - kind: agent
+    id: question-not-search
+    prompt: How many invoices are more than 60 days overdue?
+    expect_tools: [ns_suiteql]
+    forbid_tools: [ns_search_save]
+    rubric: Answers the count (data-explorer territory) without offering to save anything unless asked.
