@@ -1,6 +1,6 @@
 # ADR 0004: Approval service for data writes
 
-**Status:** proposed · 2026-10-20 · replaces `DenyAllApprovals` (Phase 2, step 9)
+**Status:** accepted · 2026-10-20 · replaces `DenyAllApprovals` (Phase 2, step 9)
 
 ## Context
 
@@ -20,9 +20,9 @@ ADR 0002 sends schema changes through SDF pull requests. Data writes (saving a s
 3. The agent calls the same tool again with the same arguments plus `approvalId`. The gateway executes only if **all** of these hold:
    - the request exists and is `approved`;
    - `payloadHash` recomputed from (tool, args without `approvalId`, account id) equals the stored hash;
-   - the request has not expired (default 15 minutes after approval);
+   - the request has not expired (15 minutes after approval by default; a write tool may declare its own `approvalTtlMinutes`);
    - it has not been used (single use, enforced atomically: `approved -> executing` in one step);
-   - the approver is on the allowlist for this tool and, when `NS_AGENT_DISTINCT_APPROVER=1`, is not the requester.
+   - the approver is on the allowlist for this tool (`NS_AGENT_APPROVERS`). The approver may also be the requester (decision 2 below).
 4. Execution is audited with `approvalId`, `approvedBy` and `payloadHash`. The request moves to `executed` or `failed`; it is never reusable.
 
 Any mismatch returns `APPROVAL_INVALID` with the reason (changed payload, expired, used, wrong account) and runs nothing.
@@ -55,7 +55,7 @@ interface ApprovalChannel {      // how a human sees and decides a request
   notify(r: ChangeRequest): Promise<void>;
 }
 
-interface ToolDef { /* existing fields */ describeChange?(args, ctx): Promise<string>; }  // required when writes: true
+interface ToolDef { /* existing fields */ describeChange?(args, ctx): Promise<string>; approvalTtlMinutes?: number; }  // describeChange required when writes: true
 ```
 
 `ApprovalService.require()` becomes `request()` plus `consume(approvalId, payloadHash)`. The validator requires `describeChange` on every write tool.
@@ -87,8 +87,8 @@ New audit events: `approval.requested`, `approval.decided`, `approval.consumed`,
 - The first channel is the CLI, so Phase 2 writes run on demo or sandbox accounts only. `NS_TARGET_KIND=production` refuses the CLI channel at start-up.
 - `DenyAllApprovals` stays as the default whenever no store is configured.
 
-## Open questions
+## Decisions (2026-10-20, repo owner)
 
-1. Which channel goes to production first: GitHub issues (recommended) or Slack?
-2. Should distinct requester and approver be required everywhere (recommended for production) or only in production?
-3. Is the default approval window of 15 minutes right? Should it differ per tool?
+1. **Production channel: GitHub issues.** The CLI ships first for demo and sandbox; GitHub issues is the first channel allowed when `NS_TARGET_KIND=production`. Slack is deferred.
+2. **Self-approval is allowed everywhere.** The requester may approve their own change on any account. Known limitation: whoever runs the agent can approve its writes, so the only controls are the approver allowlist, payload binding, expiry, single use and the audit trail. Revisit before a second person runs the agent against production.
+3. **Expiry: 15 minutes by default, overridable per tool** with `approvalTtlMinutes`.
