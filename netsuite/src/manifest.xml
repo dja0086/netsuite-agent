@@ -4,6 +4,10 @@
   <dependencies>
     <features>
       <feature required="true">SERVERSIDESCRIPTING</feature>
+      <feature required="false">WEBSERVICES</feature>
+      <feature required="false">SUBSIDIARIES</feature>
+      <feature required="false">ISSUEDB</feature>
+      <feature required="false">CRM</feature>
     </features>
   </dependencies>
 </manifest>
