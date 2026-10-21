@@ -1,10 +1,10 @@
 ---
 name: data-importer
-description: Import a CSV into NetSuite - map the columns to record fields, dry-run every row (required fields, types, references, duplicates), then create the records after a named approver approves. Use for "import this CSV", "is this file ready to load", "load these customers". Create only, customers only for now. Not for exports (reports) or questions about existing data (data-explorer).
-version: 2.0.0
+description: Import a CSV into NetSuite and undo it - map the columns to record fields, dry-run every row (required fields, types, references, duplicates), create the records after a named approver approves, and delete records (for example a mistaken import) after approval. Use for "import this CSV", "is this file ready to load", "load these customers", "delete the customers we imported". Customers only for now. Not for exports (reports) or questions about existing data (data-explorer).
+version: 3.0.0
 owner: "@dja-cowboyallstar"
 # Tools this skill may call. Each must exist in apps/mcp-gateway/src/tools/ (see data-importer.ts).
-tools: [ns_import_plan, ns_import_dry_run, ns_import_run]
+tools: [ns_import_plan, ns_import_dry_run, ns_import_run, ns_record_delete_preview, ns_record_delete]
 writes: true
 enabled: true
 governance_budget:
@@ -36,6 +36,17 @@ Hand off instead when the user wants data out of NetSuite (reports), a question 
 
 Limits: customers only, create only (no updates), at most 500 rows per file. The run stops after 5 consecutive failures; rows already created stay, and the result file shows which rows still need loading.
 
+## Deleting records (undoing an import)
+
+Use this when the user asks to remove records, for example rows loaded by mistake (the import result file lists their internal ids).
+
+1. Get the internal ids (from the import result file, or with data-explorer). Never guess ids or delete by name or search.
+2. Call `ns_record_delete_preview` with `recordType` and `ids` (at most 25). Show the records (name, external id, last modified) and point out anything that does not look like what the user described.
+3. Call `ns_record_delete` with the same `ids` and the `snapshot` from the preview, and no `approvalId`. It deletes nothing and returns `approval_pending` with a preview. Tell the user the delete is permanent and that a named approver runs `pnpm approvals approve <approvalId>` (valid 15 minutes once approved).
+4. Only after the user says it was approved, call `ns_record_delete` again with exactly the same arguments plus `approvalId`. Report `deleted`, `failed` (NetSuite refuses to delete, for example, customers with transactions) and the ids.
+
+If a record changed since the preview, the delete is refused: preview again and request a new approval.
+
 ## What the dry run checks
 
 - **required**: fields NetSuite always needs for the record type (customer and vendor: company name, or first and last name for individuals, and subsidiary). Forms and customisations can require more; say so.
@@ -46,6 +57,7 @@ Limits: customers only, create only (no updates), at most 500 rows per file. The
 ## Do not
 
 - Do not create, update or upsert records any other way than `ns_import_run` with an approval (no suggestions to use the NetSuite CSV import assistant as a workaround).
-- Do not pass an `approvalId` the user has not confirmed was approved, and do not change any argument between the approval request and the load.
+- Do not pass an `approvalId` the user has not confirmed was approved, and do not change any argument between the approval request and the load or delete.
+- Do not delete anything the user did not ask to delete, and never more than the ids they confirmed.
 - Do not read files outside the import folder or ask the user to paste file contents with sensitive data into chat.
 - Do not repeat values shown as `[REDACTED]`.

@@ -1,5 +1,10 @@
 # data-importer changelog
 
+## 3.0.0 - 2026-10-21
+
+- **Deletes (ADR 0006):** `ns_record_delete_preview` (read-only: records plus a snapshot of their last-modified times) and `ns_record_delete` (write, approval-gated, bound to the snapshot; customers only; internal ids; at most 25). Requested by the owner to undo imports.
+- Evals: `delete-preview-reports-missing` and safety case `delete-blocked-without-approval`; trigger prompt for deleting imported customers.
+
 ## 2.0.0 - 2026-10-21
 
 - **Writes (CP3, ADR 0005):** `ns_import_run` creates one customer per row of a file that passed the dry run, only through the ADR 0004 approval flow. Bound to the file's sha256; dry run repeated before writing; create only; 500 rows max; stops after 5 consecutive failures; result file in `exports/`.
