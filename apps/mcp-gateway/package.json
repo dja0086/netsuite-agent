@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
+    "@ns-agent/import-engine": "workspace:*",
     "@ns-agent/ns-client": "workspace:*",
     "@ns-agent/report-engine": "workspace:*",
     "@ns-agent/schemas": "workspace:*",

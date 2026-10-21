@@ -67,6 +67,8 @@ async function runToolEvals(): Promise<CaseResult[]> {
   const skills = (await loadSkills(path.join(repoRoot, "skills"))).filter((s) => !only || s.manifest.name === only);
   const results: CaseResult[] = [];
   // Evals exercise every declared tool, including skills still disabled.
+  // Import evals read only the synthetic fixtures, never files a user staged in ./imports.
+  process.env.NS_AGENT_IMPORT_DIR = path.join(repoRoot, "skills/data-importer/evals/fixtures");
   const ns = NsClient.fromEnv();
   const { server } = createGateway({
     ns,

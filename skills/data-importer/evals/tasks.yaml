@@ -1,0 +1,77 @@
+# Tool cases run against the demo/sandbox account with `pnpm skills:eval --mode tools`.
+# Files are read from NS_AGENT_IMPORT_DIR; the eval runner points it at evals/fixtures (synthetic data only).
+# Nothing in this skill writes to NetSuite: there is no import tool until CP3.
+cases:
+  - kind: tool
+    id: plan-customers
+    description: The plan reads the file, proposes a column-to-field mapping and lists what it could not map.
+    tool: ns_import_plan
+    input:
+      file: customers.csv
+      recordType: customer
+    expect:
+      has_keys: [file, recordType, rowCount, columns, unmappedHeaders, sample]
+
+  - kind: tool
+    id: plan-refuses-path-outside-import-folder
+    description: Only files inside the import folder can be read (never .env, keys or anything else on the host).
+    tool: ns_import_plan
+    input:
+      file: ../../../.env
+      recordType: customer
+    expect:
+      ok: false
+      error_contains: import folder
+
+  - kind: tool
+    id: plan-refuses-non-csv
+    description: Only .csv files are read.
+    tool: ns_import_plan
+    input:
+      file: tasks.yaml
+      recordType: customer
+    expect:
+      ok: false
+      error_contains: .csv
+
+  - kind: tool
+    id: dry-run-customers
+    description: The dry run checks every row (types, required fields, references, duplicates) and writes an error file.
+    tool: ns_import_dry_run
+    input:
+      file: customers.csv
+      recordType: customer
+      mapping:
+        External ID: externalId
+        Company Name: companyName
+        Email: email
+        Subsidiary: subsidiary
+        Currency: currency
+        Credit Limit: creditLimit
+        Start Date: startDate
+      keyField: externalId
+    expect:
+      has_keys: [rowCount, validRows, invalidRows, errorsByCheck, errors, errorFile]
+
+  - kind: tool
+    id: dry-run-rejects-unknown-field
+    description: A mapping to a field the record does not have is refused before any row is checked.
+    tool: ns_import_dry_run
+    input:
+      file: customers.csv
+      recordType: customer
+      mapping:
+        Shoe Size: shoeSize
+    expect:
+      ok: false
+      error_contains: not a customer field
+
+  - kind: agent
+    id: plan-then-dry-run
+    prompt: Import customers.csv as new customers.
+    expect_tools: [ns_import_plan, ns_import_dry_run]
+    forbid_tools: [ns_search_save]
+    rubric: >-
+      Plans first, shows the proposed mapping and the unmapped columns, confirms the mapping with the user, runs the
+      dry run, reports valid and invalid row counts with the main error types and the error file, and says that
+      loading the rows is not available yet (CP3) rather than offering a workaround.
