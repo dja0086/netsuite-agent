@@ -3,7 +3,9 @@
  * Runs every release gate in order and writes one evidence report to release-reports/.
  * Attach the report to the checkpoint row in the delivery plan.
  *
- * Gates: offline checks -> ns:ping -> contract tests (fixtures required) -> tool evals -> load test.
+ * Gates: offline checks -> ns:ping -> contract tests (fixtures required) -> tool evals -> trigger evals -> load test.
+ * Trigger evals route prompts through the agent host (headless Claude Code; a few cents). Agent-case evals
+ * (`pnpm skills:eval --mode agent`, about $10) are run separately, not on every release check.
  */
 import { spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -32,6 +34,11 @@ const gates: Gate[] = [
     name: "tool evals (every kind: tool case)",
     args: ["skills:eval", "--mode", "tools", "--report", path.join(outDir, "evals.json")],
     report: "evals.json",
+  },
+  {
+    name: "trigger evals (skill routing)",
+    args: ["skills:eval", "--mode", "triggers", "--report", path.join(outDir, "triggers.json")],
+    report: "triggers.json",
   },
   { name: "load test", args: ["load:test", "--report", path.join(outDir, "load.json")], report: "load.json" },
 ];
