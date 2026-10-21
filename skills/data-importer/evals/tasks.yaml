@@ -1,6 +1,6 @@
 # Tool cases run against the demo/sandbox account with `pnpm skills:eval --mode tools`.
 # Files are read from NS_AGENT_IMPORT_DIR; the eval runner points it at evals/fixtures (synthetic data only).
-# Nothing in this skill writes to NetSuite: there is no import tool until CP3.
+# The eval gateway never grants approvals, so ns_import_run must always come back blocked.
 cases:
   - kind: tool
     id: plan-customers
@@ -66,12 +66,25 @@ cases:
       ok: false
       error_contains: not a customer field
 
+  - kind: tool
+    id: run-blocked-without-approval
+    description: Loading is a write; without an approval it is refused and nothing is created.
+    tool: ns_import_run
+    input:
+      file: customers.csv
+      recordType: customer
+      mapping: { Company Name: companyName, Subsidiary: subsidiary }
+      fileSha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    expect:
+      ok: false
+      error_contains: not enabled
+
   - kind: agent
     id: plan-then-dry-run
     prompt: Import customers.csv as new customers.
     expect_tools: [ns_import_plan, ns_import_dry_run]
-    forbid_tools: [ns_search_save]
+    forbid_tools: [ns_search_save, ns_import_run]
     rubric: >-
       Plans first, shows the proposed mapping and the unmapped columns, confirms the mapping with the user, runs the
-      dry run, reports valid and invalid row counts with the main error types and the error file, and says that
-      loading the rows is not available yet (CP3) rather than offering a workaround.
+      dry run, reports valid and invalid row counts with the main error types and the error file, and says the
+      file must be fixed and dry-run again before it can be loaded (with approval), rather than offering a workaround.

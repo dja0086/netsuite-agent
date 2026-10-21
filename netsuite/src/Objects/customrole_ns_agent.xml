@@ -79,7 +79,7 @@
     </permission>
     <permission>
       <permkey>LIST_CUSTJOB</permkey>
-      <permlevel>VIEW</permlevel>
+      <permlevel>CREATE</permlevel>
     </permission>
     <permission>
       <permkey>LIST_CONTACT</permkey>

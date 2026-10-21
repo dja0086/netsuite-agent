@@ -152,3 +152,48 @@ export function dryRun(input: DryRunInput): DryRunResult {
     requiredFields: [...new Set(input.rows.length ? requiredFields(input.recordType, false) : [])],
   };
 }
+
+/**
+ * The REST Record API body for one row that passed the dry run. Empty cells are left out; references become
+ * { id }. A reference the dry run could not verify is accepted only as a numeric internal id.
+ */
+export function recordBody(
+  headers: string[],
+  row: string[],
+  mapping: Record<string, string>,
+  fields: ImportField[],
+  references: Map<string, ReferenceIndex>,
+): Record<string, unknown> {
+  const byId = new Map(fields.map((f) => [f.id, f]));
+  const body: Record<string, unknown> = {};
+  for (const [header, fieldId] of Object.entries(mapping)) {
+    const field = byId.get(fieldId);
+    const i = headers.indexOf(header);
+    if (!field || i < 0) throw new MappingError(`cannot map column "${header}" to ${fieldId}`);
+    const value = (row[i] ?? "").trim();
+    if (value === "") continue;
+    switch (field.kind) {
+      case "number":
+        body[fieldId] = Number(value);
+        break;
+      case "integer":
+        body[fieldId] = Number.parseInt(value, 10);
+        break;
+      case "boolean":
+        body[fieldId] = TRUE.has(value.toLowerCase());
+        break;
+      case "reference": {
+        const index = references.get(fieldId);
+        const id = index?.verified ? index.values.get(value.toLowerCase()) : /^\d{1,12}$/.test(value) ? value : undefined;
+        if (!id || id === "ambiguous") {
+          throw new MappingError(`${fieldId} "${value}" could not be verified; use its internal id`);
+        }
+        body[fieldId] = { id };
+        break;
+      }
+      default:
+        body[fieldId] = value;
+    }
+  }
+  return body;
+}

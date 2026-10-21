@@ -145,3 +145,40 @@ describe("dryRun", () => {
     expect(() => dryRun({ recordType: "customer", headers, rows, mapping: { Email: "email", "Company Name": "email" }, fields, references })).toThrow(/mapped twice/);
   });
 });
+
+describe("recordBody", () => {
+  const fields = classifyFields(SCHEMA);
+  const references = new Map([
+    ["subsidiary", { verified: true, values: new Map([["us west", "1"]]) }],
+    ["terms", { verified: false, values: new Map() }],
+  ]);
+  const headers = ["Company Name", "Credit Limit", "Is Individual", "Start Date", "Subsidiary", "Terms", "Email"];
+  const mapping = {
+    "Company Name": "companyName",
+    "Credit Limit": "creditLimit",
+    "Is Individual": "isPerson",
+    "Start Date": "startDate",
+    Subsidiary: "subsidiary",
+    Terms: "terms",
+    Email: "email",
+  };
+
+  it("converts each value to the REST Record API shape and leaves empty cells out", async () => {
+    const { recordBody } = await import("../src");
+    expect(recordBody(headers, ["Acme", "5000.50", "no", "2026-01-15", "US West", "7", ""], mapping, fields, references)).toEqual({
+      companyName: "Acme",
+      creditLimit: 5000.5,
+      isPerson: false,
+      startDate: "2026-01-15",
+      subsidiary: { id: "1" },
+      terms: { id: "7" },
+    });
+  });
+
+  it("refuses a reference it cannot resolve to an internal id", async () => {
+    const { recordBody } = await import("../src");
+    expect(() => recordBody(headers, ["Acme", "", "", "", "US West", "Net 30", ""], mapping, fields, references)).toThrow(
+      /terms "Net 30" could not be verified; use its internal id/,
+    );
+  });
+});

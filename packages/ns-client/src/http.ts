@@ -98,7 +98,11 @@ export class NsClient implements NsRequester {
     }
     const text = await response.text();
     if (!response.ok) throw parseNsError(response.status, text);
-    if (!text) return undefined as T;
+    if (!text) {
+      // Creates answer 204 with the new record's URL in Location; keep it so callers can read the id.
+      const location = response.headers.get("location");
+      return (location ? { location } : undefined) as T;
+    }
     const type = response.headers.get("content-type") ?? "";
     return (type.includes("json") ? JSON.parse(text) : text) as T;
   }
