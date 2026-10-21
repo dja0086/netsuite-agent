@@ -20,6 +20,22 @@ describe("parseNsError", () => {
     expect(isThrottle(err)).toBe(true);
   });
 
+  it("reads a RESTlet error whose message breaks the JSON (SuiteScriptError with bad escaping)", () => {
+    // Shape seen from TSTDRV1755417: the inner message's quotes are escaped as \\", so JSON.parse fails.
+    const body = String.raw`{"error" : {"code" : "WRONG_PARAMETER_TYPE", "message" : "{\"type\":\"error.SuiteScriptError\",\"name\":\"WRONG_PARAMETER_TYPE\",\"message\":\"Invalid sort; use \\"ASC\\", \\"DESC\\" or \\"NONE\\".\"}"}}`;
+    expect(() => JSON.parse(body)).toThrow();
+    const err = parseNsError(400, body);
+    expect(err.code).toBe("WRONG_PARAMETER_TYPE");
+    expect(err.message).toContain("Invalid sort");
+    expect(err.message.length).toBeLessThanOrEqual(300);
+  });
+
+  it("uses the inner SuiteScriptError message when a RESTlet nests one", () => {
+    const inner = JSON.stringify({ type: "error.SuiteScriptError", name: "NS_AGENT_BAD_INPUT", message: "unknown operator \"drop\"" });
+    const err = parseNsError(400, JSON.stringify({ error: { code: "NS_AGENT_BAD_INPUT", message: inner } }));
+    expect(err).toMatchObject({ code: "NS_AGENT_BAD_INPUT", message: 'unknown operator "drop"' });
+  });
+
   it("finds a throttle code in a non-JSON body", () => {
     expect(parseNsError(400, "<html>SSS_REQUEST_LIMIT_EXCEEDED</html>").code).toBe("SSS_REQUEST_LIMIT_EXCEEDED");
   });
