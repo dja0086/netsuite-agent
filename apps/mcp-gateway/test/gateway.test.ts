@@ -151,6 +151,13 @@ describe("gateway", () => {
     expect(described.json.fields).toEqual([
       { id: "custentity_tier", label: "Tier", type: "object", nullable: true, custom: true },
     ]);
+    // filter matches the field id or the label, case-insensitively, and reports the full count
+    expect((await call("ns_record_describe", { type: "customer", filter: "COMPANY" })).json).toMatchObject({
+      fieldCount: 1,
+      totalFieldCount: 2,
+      fields: [{ id: "companyname" }],
+    });
+    expect((await call("ns_record_describe", { type: "customer", filter: "tier" })).json.fields).toHaveLength(1);
     await call("ns_record_describe", { type: "customer" });
     expect(ns.requests.filter((r) => r.path.endsWith("/customer"))).toHaveLength(1);
   });
