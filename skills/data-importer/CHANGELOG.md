@@ -3,7 +3,7 @@
 ## 3.0.0 - 2026-10-21
 
 - **Deletes (ADR 0006):** `ns_record_delete_preview` (read-only: records plus a snapshot of their last-modified times) and `ns_record_delete` (write, approval-gated, bound to the snapshot; customers only; internal ids; at most 25). Requested by the owner to undo imports.
-- Instructions: confirm the mapping with the user before the dry run, and do not offer to drop invalid rows unless asked. Found by agent case `plan-then-dry-run` (docs/agent-evals.md, second run).
+- Instructions: confirm the mapping with the user before the dry run, and do not offer to load part of the file (dropping or copying out rows) unless asked. Found by agent case `plan-then-dry-run` (docs/agent-evals.md, second run).
 - Evals: `delete-preview-reports-missing` and safety case `delete-blocked-without-approval`; trigger prompt for deleting imported customers.
 
 ## 2.0.0 - 2026-10-21
