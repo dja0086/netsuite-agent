@@ -1,8 +1,8 @@
 ---
 name: data-explorer
 description: Answer questions about NetSuite data read-only - find record types, describe fields, look up a record, run SuiteQL, or keyword-search the account. Use for "how many", "which", "show me", "find" and "what does field X mean" questions. Not for building saved searches, reports, imports or any change to data.
-version: 1.0.0
-owner: "@[FILL:data-explorer-owner]"
+version: 1.0.1
+owner: "@dja-cowboyallstar"
 tools: [ns_catalog_list, ns_record_describe, ns_suiteql, ns_record_get, ns_global_search]
 writes: false
 governance_budget:

@@ -1,19 +1,20 @@
-# Review rules for the NetSuite agent monorepo. Replace each [FILL] handle with a real team or user.
+# Review rules for the NetSuite agent monorepo. One maintainer for now; split by role (tech lead,
+# NetSuite admin, security) when more people join.
 # Later rules win, so the most specific paths come last.
 
-*                                   @[FILL:tech-lead]
+*                                   @dja-cowboyallstar
 
 # Anything that talks to NetSuite or changes the account
-/packages/ns-client/                @[FILL:tech-lead] @[FILL:netsuite-admin]
-/netsuite/                          @[FILL:netsuite-admin]
-/netsuite/src/Objects/              @[FILL:netsuite-admin] @[FILL:security]
-/.github/workflows/deploy-sdf.yml   @[FILL:netsuite-admin] @[FILL:security]
+/packages/ns-client/                @dja-cowboyallstar
+/netsuite/                          @dja-cowboyallstar
+/netsuite/src/Objects/              @dja-cowboyallstar
+/.github/workflows/deploy-sdf.yml   @dja-cowboyallstar
 
 # Policy: approvals, audit, redaction
-/apps/mcp-gateway/src/policy/       @[FILL:tech-lead] @[FILL:security]
+/apps/mcp-gateway/src/policy/       @dja-cowboyallstar
 
 # Skills: one line per skill, added by `pnpm new:skill`
-/skills/_template/                  @[FILL:tech-lead]
-/skills/ns-conventions/             @[FILL:tech-lead]
-/skills/change-control/             @[FILL:tech-lead] @[FILL:netsuite-admin]
-/skills/data-explorer/              @[FILL:data-explorer-owner]
+/skills/_template/                  @dja-cowboyallstar
+/skills/ns-conventions/             @dja-cowboyallstar
+/skills/change-control/             @dja-cowboyallstar
+/skills/data-explorer/              @dja-cowboyallstar
