@@ -92,3 +92,9 @@ New audit events: `approval.requested`, `approval.decided`, `approval.consumed`,
 1. **Production channel: GitHub issues.** The CLI ships first for demo and sandbox; GitHub issues is the first channel allowed when `NS_TARGET_KIND=production`. Slack is deferred.
 2. **Self-approval is allowed everywhere.** The requester may approve their own change on any account. Known limitation: whoever runs the agent can approve its writes, so the only controls are the approver allowlist, payload binding, expiry, single use and the audit trail. Revisit before a second person runs the agent against production.
 3. **Expiry: 15 minutes by default, overridable per tool** with `approvalTtlMinutes`.
+
+## Implementation status
+
+- CLI channel: `pnpm approvals` (PR #9). Demo and sandbox only.
+- GitHub issue channel: `NS_AGENT_APPROVAL_CHANNEL=github`, `NS_AGENT_GITHUB_REPO=<owner>/<repo>`, and `NS_AGENT_APPROVERS` listing GitHub logins. Each request opens an issue with the preview and the payload-hash prefix (never the payload). An allowlisted login comments `/approve <prefix>` or `/deny <reason>`; the gateway reads the comments when the agent presents the `approvalId`, reports the outcome on the issue and closes it. The CLI refuses to decide requests that went through GitHub. Auth: `NS_AGENT_GITHUB_TOKEN` (fine-grained, Issues read/write on that repo), else the local `gh` login. This is the channel allowed with `NS_TARGET_KIND=production`.
+

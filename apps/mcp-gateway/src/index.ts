@@ -7,6 +7,7 @@ export {
   ApprovalPendingError,
   DenyAllApprovals,
   StoredApprovals,
+  type ApprovalChannel,
   type ApprovalDecision,
   type ApprovalService,
   type ApprovalStore,
@@ -15,6 +16,7 @@ export {
   type ChangeStatus,
 } from "./policy/approval";
 export { MemoryApprovalStore, SqliteApprovalStore } from "./policy/approval-store";
+export { GhCliGitHubApi, GitHubIssueChannel, RestGitHubApi, type GitHubApi, type GitHubComment } from "./policy/github-channel";
 export { approvalsDbPath, approvalsFromEnv, approversFromEnv } from "./policy/approvals-env";
 export { JsonlAuditSink, MemoryAuditSink, auditSinkFromEnv, hashInput, type AuditEntry, type AuditEvent, type AuditSink } from "./policy/audit";
 export { REDACTED, redact, redactFieldsFromEnv } from "./policy/redact";
