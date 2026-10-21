@@ -11,7 +11,7 @@
   <issinglesignononly>F</issinglesignononly>
   <issuerole></issuerole>
   <issupportrole>F</issupportrole>
-  <iswebserviceonlyrole>T</iswebserviceonlyrole>
+  <iswebserviceonlyrole>F</iswebserviceonlyrole>
   <name>NS Agent Integration</name>
   <parentrolescriptid></parentrolescriptid>
   <restrictbydevice>F</restrictbydevice>
@@ -72,6 +72,10 @@
     <permission>
       <permkey>LIST_ACCOUNT</permkey>
       <permlevel>VIEW</permlevel>
+    </permission>
+    <permission>
+      <permkey>LIST_OTHER_ADDRESS</permkey>
+      <permlevel>FULL</permlevel>
     </permission>
     <permission>
       <permkey>LIST_CUSTJOB</permkey>

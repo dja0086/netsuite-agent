@@ -5,7 +5,7 @@ The gateway runs as one dedicated, web-services-only role with view-level permis
 ## Steps (NetSuite admin, Phase 0)
 
 1. Setup > Users/Roles > Manage Roles > New. Name **NS Agent Integration**, ID **`_ns_agent`** (NetSuite prefixes it to `customrole_ns_agent`).
-2. Check **Web Services Only Role**.
+2. Leave **Web Services Only Role** unchecked: with it checked, OAuth 2.0 calls to RESTlets fail with `InsufficientPermissions` in the Login Audit Trail (REST and SuiteQL still work). Because the role can then log in to the UI, assign it only to a dedicated integration employee.
 3. Add the permissions below.
 4. Import it into the repo so the XML matches the account exactly:
    ```bash
@@ -27,6 +27,8 @@ Importing beats hand-writing the XML: permission keys are easy to get wrong, and
 | Lists | Subsidiaries, Currency, Accounts | View |
 | Transactions | Find Transaction, plus each transaction type the agent may read | View |
 | Lists | Custom record types the agent may read | View |
+
+Open question (2026-10-20): after the first SDF deploy, NetSuite added **Other Addresses (`LIST_OTHER_ADDRESS`) = Full** to the role on save. It is in the imported XML because the XML must match the account; decide whether to lower it to View or document why it is accepted.
 
 Add more record types only through a PR, reviewed by the NetSuite admin and security (CODEOWNERS enforces this for `netsuite/src/Objects/`).
 
