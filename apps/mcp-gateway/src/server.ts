@@ -130,6 +130,12 @@ export function createGateway(options: GatewayOptions): Gateway {
         let consumed = false;
         try {
           if (tool.writes) {
+            // With writes switched off, refuse before describeChange so a blocked write never touches NetSuite.
+            if (!options.approvals.enabled) {
+              throw new ApprovalDeniedError(
+                `${tool.name} writes to NetSuite and writes are not enabled in this release. No change was made.`,
+              );
+            }
             if (!presented) {
               const preview = await tool.describeChange!(args, ctx);
               const request = await options.approvals.request({
