@@ -1,5 +1,9 @@
 # data-explorer changelog
 
+## 1.0.1 - unreleased (Phase 1)
+
+- Owner set to @dja-cowboyallstar (was a [FILL] placeholder).
+
 ## 1.0.0 - unreleased (Phase 1)
 
 - First release: `ns_catalog_list`, `ns_record_describe`, `ns_suiteql`, `ns_record_get`, `ns_global_search`.
