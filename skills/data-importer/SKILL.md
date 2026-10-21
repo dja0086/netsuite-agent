@@ -27,10 +27,10 @@ Hand off instead when the user wants data out of NetSuite (reports), a question 
 
 1. **Locate the file.** It must be in the import folder (`NS_AGENT_IMPORT_DIR`, default `./imports` on the gateway host). Pass the file name, not a path. If it is not there, ask the user to copy it in.
 2. **Plan.** Call `ns_import_plan` with the file and record type. Show the proposed mapping as a short table (column -> field), the unmapped columns, and `missingRequired`.
-3. **Agree the mapping.** Ask about unmapped columns and missing required fields. Use `ns_record_describe` with `filter` to find a field for a column the plan could not match. Do not invent field ids.
+3. **Agree the mapping, then stop.** Show the mapping and ask the user to confirm it before anything else, even when every column matched: ask about unmapped columns and missing required fields. Use `ns_record_describe` with `filter` to find a field for a column the plan could not match. Do not invent field ids. Do not run the dry run until the user has confirmed the mapping.
 4. **Pick a key.** Choose a `keyField` that identifies a record (usually `externalId`; otherwise `companyName` or `email`) so duplicates in the file and records that already exist are found.
 5. **Dry run.** Call `ns_import_dry_run` with the agreed `mapping` and `keyField`. Report `validRows` and `invalidRows`, the counts in `errorsByCheck`, a few example errors with their line numbers, and the `errorFile` path.
-6. **Fix and repeat.** If any row is invalid, tell the user to fix the file and dry-run again. Do not call `ns_import_run` while `invalidRows` is above 0.
+6. **Fix and repeat.** If any row is invalid, tell the user to fix the file and dry-run again. Do not call `ns_import_run` while `invalidRows` is above 0, and do not suggest dropping invalid rows to load the rest unless the user asks for that.
 7. **Request approval to load.** When every row is valid, call `ns_import_run` with the same `file`, `recordType`, `mapping` and `keyField`, plus the `fileSha256` from the dry run, and no `approvalId`. It creates nothing and returns `approval_pending` with a preview and an `approvalId`. Show both, and tell the user a named approver runs `pnpm approvals approve <approvalId>` (valid 30 minutes once approved).
 8. **Load.** Only after the user says it was approved, call `ns_import_run` again with exactly the same arguments plus `approvalId`. Report `created`, `failed` and `notAttempted`, and the `resultFile`. If the file was edited, the run is refused: dry-run again and request a new approval.
 
