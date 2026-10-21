@@ -99,7 +99,8 @@ describe("search-builder tools", () => {
     const res = await call("ns_search_save", { ...SPEC, title: "Open AR", scriptIdSuffix: "open_ar" });
     expect(res.isError).toBe(true);
     expect(res.text).toMatch(/not enabled/);
-    expect(ns.bodies.some((b) => b.action === "save")).toBe(false);
+    // Not even the describeChange preview may reach NetSuite while writes are off.
+    expect(ns.bodies).toHaveLength(0);
   });
 
   it("saves only after approval, with the conventional script id", async () => {

@@ -19,6 +19,27 @@ const THROTTLE_CODES = new Set([
   "REQUEST_LIMIT_EXCEEDED",
 ]);
 
+const MAX_MESSAGE = 300;
+
+/**
+ * RESTlet errors often carry a serialized SuiteScriptError as their message ({"type":...,"name":...,"message":...}),
+ * sometimes with broken escaping. Returns the human part, capped.
+ */
+function innerMessage(raw: string): string {
+  let message = raw;
+  if (raw.trimStart().startsWith("{")) {
+    try {
+      const inner = JSON.parse(raw) as { message?: unknown };
+      if (typeof inner.message === "string") message = inner.message;
+    } catch {
+      const flat = raw.replace(/\\+"/g, '"');
+      const m = /"message"\s*:\s*"([\s\S]*)"\s*\}\s*$/.exec(flat);
+      if (m) message = m[1]!;
+    }
+  }
+  return message.slice(0, MAX_MESSAGE);
+}
+
 /**
  * Turns a NetSuite error response into an NsHttpError.
  * Handles the REST web services shape ({"o:errorDetails":[{"o:errorCode":...}]})
@@ -38,14 +59,21 @@ export function parseNsError(status: number, text: string): NsHttpError {
     } else if (json.error && typeof json.error === "object") {
       const err = json.error as Record<string, unknown>;
       code = typeof err.code === "string" ? err.code : undefined;
-      if (typeof err.message === "string") message = err.message;
+      if (typeof err.message === "string") message = innerMessage(err.message);
     } else if (typeof json.title === "string") {
       message = json.title;
     }
   } catch {
-    // Non-JSON body (HTML error page, empty body). Fall back to a regex for known codes.
-    const match = /\b(SSS_REQUEST_LIMIT_EXCEEDED|CONCURRENCY_LIMIT_EXCEEDED|REQUEST_LIMIT_EXCEEDED)\b/.exec(text);
-    code = match?.[1];
+    // RESTlet errors whose message breaks the JSON: read the code and message fields directly.
+    const restlet = /^\s*\{\s*"error"\s*:\s*\{\s*"code"\s*:\s*"([A-Za-z0-9_.]+)"\s*,\s*"message"\s*:\s*"([\s\S]*)"\s*\}\s*\}\s*$/.exec(text);
+    if (restlet) {
+      code = restlet[1];
+      message = innerMessage(restlet[2]!);
+    } else {
+      // Non-JSON body (HTML error page, empty body). Fall back to a regex for known codes.
+      const match = /\b(SSS_REQUEST_LIMIT_EXCEEDED|CONCURRENCY_LIMIT_EXCEEDED|REQUEST_LIMIT_EXCEEDED)\b/.exec(text);
+      code = match?.[1];
+    }
   }
 
   return new NsHttpError(status, code, message, text);

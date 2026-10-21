@@ -59,6 +59,8 @@ export interface NewChangeRequest extends ApprovalTarget {
 }
 
 export interface ApprovalService {
+  /** False when writes are switched off: the gateway refuses write tools before running anything, even describeChange. */
+  readonly enabled: boolean;
   /** Records a pending change request. Throws ApprovalDeniedError when writes are not enabled. */
   request(input: NewChangeRequest): Promise<ChangeRequest>;
   /** Claims an approved request for one execution, or throws why it cannot run. */
@@ -84,6 +86,8 @@ export class ApprovalInvalidError extends Error {
 
 /** Default when no approval store is configured: every write is refused. */
 export class DenyAllApprovals implements ApprovalService {
+  readonly enabled = false;
+
   async request(input: NewChangeRequest): Promise<ChangeRequest> {
     throw new ApprovalDeniedError(
       `${input.tool} writes to NetSuite and writes are not enabled in this release. No change was made.`,
@@ -111,6 +115,7 @@ export interface StoredApprovalsOptions {
 const MINUTE = 60_000;
 
 export class StoredApprovals implements ApprovalService {
+  readonly enabled = true;
   private readonly store: ApprovalStore;
   private readonly approvers: ReadonlySet<string>;
   private readonly now: () => number;

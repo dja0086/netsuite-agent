@@ -38,12 +38,10 @@ define(['N/search', 'N/error', '../lib/governance'], (search, error, governance)
       if (values.length > 50 || values.some((v) => !['string', 'number', 'boolean'].includes(typeof v))) {
         fail('filter values must be at most 50 strings, numbers or booleans');
       }
-      return search.createFilter({
-        name: ident(f.field, 'filter field'),
-        join: f.join ? ident(f.join, 'filter join') : undefined,
-        operator,
-        values,
-      });
+      // N/search rejects options set to undefined (WRONG_PARAMETER_TYPE), so only set what is given.
+      const options = { name: ident(f.field, 'filter field'), operator, values };
+      if (f.join) options.join = ident(f.join, 'filter join');
+      return search.createFilter(options);
     });
   };
 
@@ -56,13 +54,12 @@ define(['N/search', 'N/error', '../lib/governance'], (search, error, governance)
       if (summary && !SUMMARIES.has(summary)) fail(`unknown summary ${JSON.stringify(c.summary)}`);
       const sort = c.sort ? String(c.sort).toLowerCase() : undefined;
       if (sort && sort !== 'asc' && sort !== 'desc') fail('sort must be asc or desc');
-      return search.createColumn({
-        name: ident(c.field, 'column field'),
-        join: c.join ? ident(c.join, 'column join') : undefined,
-        summary: summary ? summary.toUpperCase() : undefined,
-        sort: sort ? sort.toUpperCase() : undefined,
-        label: typeof c.label === 'string' ? c.label.slice(0, 60) : undefined,
-      });
+      const options = { name: ident(c.field, 'column field') };
+      if (c.join) options.join = ident(c.join, 'column join');
+      if (summary) options.summary = search.Summary[summary.toUpperCase()];
+      if (sort) options.sort = sort === 'asc' ? search.Sort.ASC : search.Sort.DESC;
+      if (typeof c.label === 'string') options.label = c.label.slice(0, 60);
+      return search.createColumn(options);
     });
   };
 
