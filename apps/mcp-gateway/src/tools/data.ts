@@ -37,16 +37,21 @@ export const nsRecordDescribe = defineTool({
   title: "Describe a NetSuite record type",
   description:
     "Returns the fields of one record type: id, label, type, whether it is custom, and the record it references. " +
-    "Call before writing SuiteQL or reading a record so you use real field ids.",
+    "Call before writing SuiteQL or reading a record so you use real field ids. " +
+    "Large records have hundreds of fields: pass filter to match part of a field id or label.",
   writes: false,
   input: z.object({
     type: recordType,
     customOnly: z.boolean().default(false).describe("Return only custom fields (ids starting with cust)"),
+    filter: z.string().min(2).max(60).optional().describe("Case-insensitive substring of a field id or label, e.g. 'date' or 'rush'"),
   }),
-  async handler({ type, customOnly }, { metadata }) {
+  async handler({ type, customOnly, filter }, { metadata }) {
     const fields = await metadata.fields(type);
-    const selected = customOnly ? fields.filter((f) => f.custom) : fields;
-    return { type, fieldCount: selected.length, fields: selected };
+    const needle = filter?.toLowerCase();
+    const selected = fields.filter(
+      (f) => (!customOnly || f.custom) && (!needle || f.id.toLowerCase().includes(needle) || f.label.toLowerCase().includes(needle)),
+    );
+    return { type, fieldCount: selected.length, totalFieldCount: fields.length, fields: selected };
   },
 });
 

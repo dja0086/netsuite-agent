@@ -1,5 +1,10 @@
 # data-explorer changelog
 
+## 1.1.0 - unreleased (Phase 1)
+
+- `ns_record_describe` takes `filter` (substring of field id or label) and reports `totalFieldCount`. Found in CP1 trials: describing `salesorder` returned 377 fields, about 10k tokens. Tool eval `describe-filter-narrows-fields` added.
+- New rule: format numbers before showing them; SuiteQL returns strings and can use scientific notation (`3.381844953E7`).
+
 ## 1.0.1 - unreleased (Phase 1)
 
 - Owner set to @dja-cowboyallstar (was a [FILL] placeholder).

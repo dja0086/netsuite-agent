@@ -72,6 +72,16 @@ cases:
     expect:
       has_keys: [type, fieldCount, fields]
 
+  - kind: tool
+    id: describe-filter-narrows-fields
+    description: A filter returns only matching fields and reports the full count, so the agent need not load ~10k tokens of metadata.
+    tool: ns_record_describe
+    input:
+      type: salesorder
+      filter: date
+    expect:
+      has_keys: [type, fieldCount, totalFieldCount, fields]
+
   - kind: agent
     id: overdue-invoices-aggregate
     prompt: How much do customers owe us on invoices more than 60 days past due?

@@ -1,7 +1,7 @@
 ---
 name: data-explorer
 description: Answer questions about NetSuite data read-only - find record types, describe fields, look up a record, run SuiteQL, or keyword-search the account. Use for "how many", "which", "show me", "find" and "what does field X mean" questions. Not for building saved searches, reports, imports or any change to data.
-version: 1.0.1
+version: 1.1.0
 owner: "@dja-cowboyallstar"
 tools: [ns_catalog_list, ns_record_describe, ns_suiteql, ns_record_get, ns_global_search]
 writes: false
@@ -24,11 +24,12 @@ Hand off instead when the user wants to **save** a search (search-builder), prod
 
 ## How to answer
 
-1. **Know the shape first.** If you are not sure of a record type id, call `ns_catalog_list` with a filter. Before querying fields you have not used in this conversation, call `ns_record_describe`. Never guess field ids.
+1. **Know the shape first.** If you are not sure of a record type id, call `ns_catalog_list` with a filter. Before querying fields you have not used in this conversation, call `ns_record_describe`; pass `filter` (part of a field id or label, e.g. `rush` or `date`) when you are looking for specific fields, because large records such as `salesorder` have hundreds. Never guess field ids.
 2. **Prefer one aggregated query.** Use `ns_suiteql` with `COUNT`, `SUM` and `GROUP BY` rather than fetching rows and counting them yourself. Ask for the columns you need, not `*`.
 3. **Look up single records** with `ns_record_get`, passing `fields` to keep the response small. Use `ns_global_search` when the user gives a name or number but not an id.
 4. **Page deliberately.** `ns_suiteql` returns at most 200 rows. If `hasMore` is true, say how many rows exist (`totalResults`) and offer to narrow the question rather than paging through everything.
 5. **Show your working.** State the query or record you used in one line so the user can check it.
+6. **Format numbers before showing them.** SuiteQL returns every value as a string, and large amounts can come back in scientific notation (`3.381844953E7`). Present them as ordinary numbers with the currency (`JPY 33,818,449.53`), never in E notation.
 
 ## SuiteQL rules (Oracle dialect)
 
