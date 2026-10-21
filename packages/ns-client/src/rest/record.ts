@@ -56,6 +56,16 @@ export async function createRecord(ns: NsRequester, type: string, body: Record<s
   return { id };
 }
 
+/**
+ * Deletes one record by internal id through the REST Record API. This writes to NetSuite: call it only from a
+ * write tool's handler, which the gateway runs after an approval (ADR 0006). External ids are refused so the
+ * approved list of internal ids is exactly what gets deleted.
+ */
+export async function deleteRecord(ns: NsRequester, type: string, id: string): Promise<void> {
+  if (!/^\d{1,12}$/.test(id)) throw new Error(`Delete needs an internal id (digits), got ${id}`);
+  await ns.request({ method: "DELETE", base: "rest", path: `/services/rest/record/v1/${assertRecordType(type)}/${id}` });
+}
+
 /** Lists record types exposed to the integration role through the REST metadata catalog. */
 export async function listRecordTypes(ns: NsRequester): Promise<string[]> {
   const catalog = await ns.request<{ items?: Array<{ name?: string }> }>({

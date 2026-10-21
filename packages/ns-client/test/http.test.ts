@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GovernanceLimiter, NsClient, NsHttpError, buildConfig, callRestlet, createRecord, getRecord } from "../src";
+import { GovernanceLimiter, NsClient, NsHttpError, buildConfig, callRestlet, createRecord, deleteRecord, getRecord } from "../src";
 
 function client(responses: Array<() => Response>) {
   const calls: Array<{ url: string; init: RequestInit }> = [];
@@ -83,6 +83,14 @@ describe("NsClient", () => {
     const { ns } = client([() => new Response(null, { status: 204 })]);
     await expect(createRecord(ns, "customer", {})).rejects.toThrow(/no record id/);
     await expect(createRecord(ns, "bad type!", {})).rejects.toThrow(/Invalid record type/);
+  });
+
+  it("deletes one record by internal id with DELETE", async () => {
+    const { ns, calls } = client([() => new Response(null, { status: 204 })]);
+    await expect(deleteRecord(ns, "customer", "2828")).resolves.toBeUndefined();
+    expect(calls[0]!.init.method).toBe("DELETE");
+    expect(calls[0]!.url).toBe("https://1234567-sb1.suitetalk.api.netsuite.com/services/rest/record/v1/customer/2828");
+    await expect(deleteRecord(ns, "customer", "eid:x")).rejects.toThrow(/internal id/);
   });
 
   it("calls RESTlets on the restlets host and validates ids", async () => {
