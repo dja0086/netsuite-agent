@@ -27,4 +27,4 @@
 - line 4: Company Name is empty; Subsidiary "No Such Subsidiary" does not exist
 - line 5: External ID repeats line 2; Currency "XYZ" does not exist; Start Date must be YYYY-MM-DD
 
-All errors are in `exports/customers-dry-run-errors-20261021T034057Z.csv`. Fix the file and I will dry-run it again. Loading the rows into NetSuite is not available yet; nothing has been written.
+All errors are in `exports/customers-dry-run-errors-20261021T034057Z.csv`. Fix the file and I will dry-run it again; once every row is valid I can request approval to load it. Nothing has been written.
