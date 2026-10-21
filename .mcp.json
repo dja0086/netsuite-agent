@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "netsuite-agent": {
+      "command": "sh",
+      "args": ["scripts/mcp-gateway.sh"]
+    }
+  }
+}
