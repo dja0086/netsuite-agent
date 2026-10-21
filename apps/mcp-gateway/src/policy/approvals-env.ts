@@ -16,6 +16,8 @@ export function approvalsDbPath(env: NodeJS.ProcessEnv = process.env): string {
  * The only channel so far is the local CLI, which ADR 0004 limits to demo and sandbox accounts.
  */
 export function approvalsFromEnv(env: NodeJS.ProcessEnv = process.env): ApprovalService {
+  // NS_AGENT_WRITES=off wins over everything (used by agent evals): no write can be approved or run.
+  if (env.NS_AGENT_WRITES?.trim().toLowerCase() === "off") return new DenyAllApprovals();
   const approvers = approversFromEnv(env);
   if (approvers.size === 0) return new DenyAllApprovals();
   const kind = env.NS_TARGET_KIND?.trim().toLowerCase();

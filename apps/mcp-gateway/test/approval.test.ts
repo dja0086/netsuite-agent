@@ -153,3 +153,12 @@ describe.each([
     await expect(approvals.consume("00000000-0000-4000-8000-000000000000", TARGET)).rejects.toThrow(/unknown approval/);
   });
 });
+
+describe("approvalsFromEnv", () => {
+  it("forces DenyAllApprovals when NS_AGENT_WRITES=off, whatever the approvers", async () => {
+    const { approvalsFromEnv } = await import("../src");
+    const off = approvalsFromEnv({ NS_AGENT_APPROVERS: "doma", NS_TARGET_KIND: "demo", NS_AGENT_WRITES: "off" });
+    expect(off.enabled).toBe(false);
+    expect(approvalsFromEnv({ NS_AGENT_APPROVERS: "" }).enabled).toBe(false);
+  });
+});

@@ -1,9 +1,12 @@
 /**
- * pnpm skills:eval --mode tools [--skill <name>] [--threshold 0.9] [--report <file>]
+ * pnpm skills:eval --mode tools|agent|triggers [--skill <name>] [--threshold 0.9] [--report <file>]
  *
- * Tool mode runs every `kind: tool` case through the real gateway (policy, redaction, audit)
- * against the account in NS_ACCOUNT_ID. Requires NS_TARGET_KIND=sandbox|demo (see scripts/lib/target.ts).
- * Agent and trigger evals need an agent host; see scripts/eval-adapters.ts.
+ * tools:    every `kind: tool` case through the real gateway (policy, redaction, audit) against NS_ACCOUNT_ID.
+ * agent:    every `kind: agent` case end to end through the agent host (scripts/eval-adapters.ts, read-only
+ *           gateway), checked for expect_tools / forbid_tools and graded against its rubric.
+ * triggers: every should_route / should_not_route prompt routed by the agent host; thresholds from
+ *           docs/skill-lifecycle.md (>= 95% routed here, <= 3% of other skills' prompts claimed).
+ * Requires NS_TARGET_KIND=sandbox|demo (see scripts/lib/target.ts).
  */
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -18,7 +21,7 @@ import {
   redactFieldsFromEnv,
 } from "@ns-agent/mcp-gateway";
 import { NsClient } from "@ns-agent/ns-client";
-import { TaskEvals, type TaskCase } from "@ns-agent/schemas";
+import { TaskEvals, TriggerEvals, type TaskCase } from "@ns-agent/schemas";
 import { parse as parseYaml } from "yaml";
 import { agentHostAdapter } from "./eval-adapters";
 import { requireLiveTarget } from "./lib/target";
@@ -112,16 +115,80 @@ async function runToolEvals(): Promise<CaseResult[]> {
   return results;
 }
 
-if (mode === "agent" || mode === "triggers") {
-  await agentHostAdapter().assertConfigured();
+async function runAgentEvals(): Promise<CaseResult[]> {
+  const all = await loadSkills(path.join(repoRoot, "skills"));
+  const adapter = agentHostAdapter(repoRoot, all);
+  await adapter.assertConfigured();
+  const results: CaseResult[] = [];
+  let cost = 0;
+  for (const skill of all.filter((s) => !only || s.manifest.name === only)) {
+    const parsed = TaskEvals.safeParse(parseYaml(await readFile(path.join(skill.dir, "evals/tasks.yaml"), "utf8")));
+    if (!parsed.success) continue;
+    for (const c of parsed.data.cases) {
+      if (c.kind !== "agent") continue;
+      const started = Date.now();
+      let failure: string | undefined;
+      try {
+        const run = await adapter.run(c.prompt);
+        cost += run.costUsd;
+        const missing = c.expect_tools.filter((t) => !run.toolsCalled.includes(t));
+        const forbidden = c.forbid_tools.filter((t) => run.toolsCalled.includes(t));
+        if (missing.length) failure = `did not call ${missing.join(", ")} (called: ${run.toolsCalled.join(", ") || "none"})`;
+        else if (forbidden.length) failure = `called forbidden ${forbidden.join(", ")}`;
+        else {
+          const verdict = await adapter.judge(c.prompt, c.rubric, run);
+          cost += verdict.costUsd;
+          if (!verdict.pass) failure = `rubric: ${verdict.reason}`;
+        }
+      } catch (error) {
+        failure = `error: ${(error as Error).message}`;
+      }
+      results.push({ skill: skill.manifest.name, id: c.id, passed: !failure, safety: false, detail: failure ?? "ok", ms: Date.now() - started });
+      console.log(`${failure ? "FAIL" : "pass"}  ${skill.manifest.name}/${c.id}  ${failure ?? ""}`);
+    }
+  }
+  console.log(`(model cost about $${cost.toFixed(2)})`);
+  return results;
 }
-if (mode !== "tools") {
-  console.error(`Mode "${mode}" needs an agent host adapter. See scripts/eval-adapters.ts.`);
-  process.exit(2);
+
+async function runTriggerEvals(): Promise<{ results: CaseResult[]; failed: boolean }> {
+  const all = await loadSkills(path.join(repoRoot, "skills"));
+  const adapter = agentHostAdapter(repoRoot, all);
+  await adapter.assertConfigured();
+  const results: CaseResult[] = [];
+  let failed = false;
+  for (const skill of all.filter((s) => !s.manifest.platform && (!only || s.manifest.name === only))) {
+    const parsed = TriggerEvals.safeParse(parseYaml(await readFile(path.join(skill.dir, "evals/triggers.yaml"), "utf8")));
+    if (!parsed.success) continue;
+    const prompts = [...parsed.data.should_route, ...parsed.data.should_not_route];
+    const routed = await adapter.route(prompts);
+    const name = skill.manifest.name;
+    prompts.forEach((p, i) => {
+      const should = i < parsed.data.should_route.length;
+      const ok = should ? routed[i] === name : routed[i] !== name;
+      results.push({ skill: name, id: `${should ? "route" : "not"}: ${p}`, passed: ok, safety: false, detail: `routed to ${routed[i] ?? "none"}`, ms: 0 });
+      if (!ok) console.log(`FAIL  ${name}  ${should ? "should route" : "should not route"}: "${p}" -> ${routed[i] ?? "none"}`);
+    });
+    const hit = parsed.data.should_route.filter((_, i) => routed[i] === name).length / parsed.data.should_route.length;
+    const claimed = parsed.data.should_not_route.filter((_, i) => routed[parsed.data.should_route.length + i] === name).length / parsed.data.should_not_route.length;
+    const pass = hit >= 0.95 && claimed <= 0.03;
+    if (!pass) failed = true;
+    console.log(`${pass ? "pass" : "FAIL"}  ${name}: routed ${(hit * 100).toFixed(0)}% of its prompts, claimed ${(claimed * 100).toFixed(0)}% of others`);
+  }
+  return { results, failed };
 }
 
 requireLiveTarget("skills:eval");
-const results = await runToolEvals();
+if (mode === "triggers") {
+  const { results, failed } = await runTriggerEvals();
+  if (reportFile) await writeFile(reportFile, JSON.stringify({ mode, results }, null, 2));
+  process.exit(failed ? 1 : 0);
+}
+if (mode !== "tools" && mode !== "agent") {
+  console.error(`Unknown mode "${mode}"; use tools, agent or triggers.`);
+  process.exit(2);
+}
+const results = mode === "agent" ? await runAgentEvals() : await runToolEvals();
 const bySkill = new Map<string, CaseResult[]>();
 for (const r of results) bySkill.set(r.skill, [...(bySkill.get(r.skill) ?? []), r]);
 
