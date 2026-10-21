@@ -33,6 +33,6 @@ Every table is far below the 100,000-row SuiteQL cap, so a full scan of any tabl
 
 ## Still open for CP0
 
-- Is the connected account the **sandbox** or production? Phase 1 evals and the gateway must point at a sandbox. [FILL]
-- Service tier and SuiteCloud Plus licence count (sets `NS_MAX_CONCURRENCY`). Not visible through SuiteQL; read it from Setup > Integration > Integration Management > Integration Governance. [FILL]
+- Is the connected account the **sandbox** or production? Phase 1 evals and the gateway must point at a sandbox. Answered 2026-10-20: TSTDRV1755417 is a test-drive/demo account (environment type PRODUCTION, no live business data), so it runs as `NS_TARGET_KIND=demo`.
+- Service tier and SuiteCloud Plus licence count (sets `NS_MAX_CONCURRENCY`). Not visible through SuiteQL; read it from Setup > Integration > Integration Management > Integration Governance. Answered 2026-10-20: account concurrency limit 5; 2 allocated to the NS Agent Gateway integration record, so `NS_MAX_CONCURRENCY=2`.
 - Integration record, certificate and `customrole_ns_agent` role (see `docs/netsuite-role.md`).
