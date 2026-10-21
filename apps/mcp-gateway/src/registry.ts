@@ -16,6 +16,13 @@ export interface ToolDef<S extends z.ZodObject = z.ZodObject> {
   writes: boolean;
   input: S;
   handler(args: z.infer<S>, ctx: ToolContext): Promise<unknown>;
+  /**
+   * Required on write tools: one human-readable description of exactly what the call would change, shown to the
+   * approver. May read NetSuite through ctx, never write.
+   */
+  describeChange?(args: z.infer<S>, ctx: ToolContext): Promise<string>;
+  /** Write tools only: how long an approval stays valid once granted (default 15 minutes). */
+  approvalTtlMinutes?: number;
 }
 
 /** Identity helper that keeps the handler's argument type tied to its input schema. */
