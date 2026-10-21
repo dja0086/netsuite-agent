@@ -19,6 +19,7 @@
     "release:check": "tsx scripts/release-check.ts",
     "new:skill": "tsx scripts/new-skill.ts",
     "skills:validate": "tsx scripts/validate-skills.ts",
+    "approvals": "tsx scripts/approvals.ts",
     "skills:eval": "tsx scripts/run-evals.ts",
     "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm skills:validate"
   },
