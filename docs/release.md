@@ -10,7 +10,7 @@ A release is a checkpoint (CP1, CP2, ...) passing on evidence. `pnpm release:che
 | `sandbox` | A sandbox of a real company account | Allowed |
 | `production` | A real company account | Refused |
 
-The demo account reports itself as `PRODUCTION` to NetSuite; that is its environment type, not its data. Treat it as a sandbox for testing, and keep the integration role read-only until approvals ship.
+The demo account reports itself as `PRODUCTION` to NetSuite; that is its environment type, not its data. Treat it as a sandbox for testing. Since CP3 the integration role can create and delete customers, but only through approved tool calls (ADR 0004-0006).
 
 ## One-time setup per machine
 
@@ -38,10 +38,10 @@ suitecloud project:deploy
 
 ```bash
 pnpm contracts:record                # once; review the fixture diff, then commit it
-pnpm release:check                   # offline checks -> ns:ping -> contracts -> tool evals -> load test
+pnpm release:check                   # offline checks -> ns:ping -> contracts -> tool evals -> trigger evals -> load test
 ```
 
-`release:check` stops at the first failing gate and writes `release-reports/<timestamp>/summary.json` (plus `evals.json`, `load.json`). It flags an uncommitted working tree; commit first so the report names a real commit.
+`release:check` stops at the first failing gate and writes `release-reports/<timestamp>/summary.json` (plus `evals.json`, `triggers.json`, `load.json`). It flags an uncommitted working tree; commit first so the report names a real commit.
 
 CP1 passes when:
 
@@ -80,4 +80,5 @@ In Claude Code: `claude mcp add netsuite-agent --scope local -- pnpm --dir "$PWD
 | ns:ping | Account ID, Client ID, Certificate ID; mapping not revoked; role has "Log in using OAuth 2.0 Access Tokens" |
 | contract tests | NetSuite changed a response shape: re-record, read the diff, fix ns-client before re-recording blindly |
 | tool evals | `evals.json` names the failing case; reproduce with `pnpm skills:eval --mode tools --skill <name>` |
+| trigger evals | `FAIL` lines in the output and `triggers.json`; a prompt routed to the wrong skill means a skill description or trigger prompt needs fixing. Needs the `claude` CLI logged in. |
 | load test | `failures` in `load.json`; lower `NS_MAX_CONCURRENCY` or raise the integration's allocation |
