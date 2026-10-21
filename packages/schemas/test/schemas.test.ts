@@ -50,4 +50,16 @@ describe("eval files", () => {
     });
     expect(parsed.cases).toHaveLength(3);
   });
+
+  it("lets an agent case expect no tool calls (answers that need none), judged by the rubric", () => {
+    const tool = { kind: "tool", tool: "ns_suiteql", input: { q: "SELECT 1 FROM DUAL" }, expect: {} };
+    const parsed = TaskEvals.parse({
+      cases: [
+        { ...tool, id: "a" },
+        { ...tool, id: "b" },
+        { kind: "agent", id: "d", prompt: "How do we roll back?", rubric: "Explains a revert PR" },
+      ],
+    });
+    expect(parsed.cases[2]).toMatchObject({ expect_tools: [], forbid_tools: [] });
+  });
 });

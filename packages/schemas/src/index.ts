@@ -74,7 +74,8 @@ export const TaskCase = z.discriminatedUnion("kind", [
       kind: z.literal("agent"),
       id: z.string().min(1),
       prompt: z.string().min(5),
-      expect_tools: z.array(z.string().regex(TOOL_NAME)).min(1),
+      // Empty when the right answer needs no tool; the rubric still judges it.
+      expect_tools: z.array(z.string().regex(TOOL_NAME)).default([]),
       forbid_tools: z.array(z.string().regex(TOOL_NAME)).default([]),
       rubric: z.string().min(10),
     })

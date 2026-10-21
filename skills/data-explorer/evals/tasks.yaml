@@ -92,5 +92,6 @@ cases:
   - kind: agent
     id: unknown-field-describes-first
     prompt: Which sales orders have the rush flag set?
-    expect_tools: [ns_record_describe, ns_suiteql]
-    rubric: Describes the salesorder record to find the real field id before querying, and asks if no rush field exists.
+    # Queries only if a rush field exists; on TSTDRV1755417 none does, so asking is the right answer.
+    expect_tools: [ns_record_describe]
+    rubric: Describes the salesorder record to find the real field id before querying; if no rush field exists, says so and asks which field marks an order as rush instead of guessing.
