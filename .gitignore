@@ -23,3 +23,6 @@ audit/
 
 # Release evidence is attached to checkpoints, not committed
 release-reports/
+
+# Report exports written by ns_report_run
+exports/

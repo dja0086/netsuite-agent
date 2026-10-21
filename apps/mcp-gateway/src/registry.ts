@@ -5,6 +5,8 @@ import type { z } from "zod";
 export interface ToolContext {
   ns: NsRequester;
   metadata: MetadataCache;
+  /** Applies the gateway's field redaction; use it on anything a tool writes outside its result (files). */
+  redact<T>(value: T): T;
 }
 
 export interface ToolDef<S extends z.ZodObject = z.ZodObject> {

@@ -93,7 +93,11 @@ export function createGateway(options: GatewayOptions): Gateway {
     { name: "ns-agent-gateway", version: "0.1.0" },
     { instructions: SERVER_INSTRUCTIONS },
   );
-  const ctx: ToolContext = { ns: options.ns, metadata: options.metadata ?? new MetadataCache(options.ns) };
+  const ctx: ToolContext = {
+    ns: options.ns,
+    metadata: options.metadata ?? new MetadataCache(options.ns),
+    redact: (value) => redact(value, options.redactFields),
+  };
   const exposed: string[] = [];
 
   for (const tool of tools) {

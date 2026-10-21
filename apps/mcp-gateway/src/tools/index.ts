@@ -1,6 +1,7 @@
 import type { ToolDef } from "../registry";
 import { dataTools } from "./data";
 import { searchBuilderTools } from "./search-builder";
+import { reportsTools } from "./reports";
 // new-skill:imports (pnpm new:skill adds tool module imports above this line)
 
 /**
@@ -10,6 +11,7 @@ import { searchBuilderTools } from "./search-builder";
 export const ALL_TOOLS: ToolDef[] = [
   ...(dataTools as unknown as ToolDef[]),
   ...searchBuilderTools,
+  ...reportsTools,
   // new-skill:tools (pnpm new:skill adds tool lists above this line)
 ];
 

@@ -20,6 +20,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@ns-agent/ns-client": "workspace:*",
+    "@ns-agent/report-engine": "workspace:*",
     "@ns-agent/schemas": "workspace:*",
     "@ns-agent/suiteql": "workspace:*",
     "yaml": "^2.9.1",
