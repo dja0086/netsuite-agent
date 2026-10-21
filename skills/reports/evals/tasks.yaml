@@ -1,0 +1,105 @@
+# Tool cases run against the demo/sandbox account with `pnpm skills:eval --mode tools`.
+# Reports only read NetSuite; files are written to NS_AGENT_EXPORT_DIR (default ./exports, git-ignored).
+cases:
+  - kind: tool
+    id: list-reports
+    description: The catalogue lists every report definition with its parameters.
+    tool: ns_report_list
+    input: {}
+    expect:
+      has_keys: [count, reports]
+
+  - kind: tool
+    id: ar-aging-csv
+    description: AR aging runs as CSV and returns the file path, row count and a sample.
+    tool: ns_report_run
+    input:
+      reportId: ar-aging
+      params: { as_of: "2026-10-21" }
+      format: csv
+    expect:
+      has_keys: [file, format, rowCount, truncated, columns, sample]
+
+  - kind: tool
+    id: ar-aging-xlsx
+    description: The same report as an Excel workbook.
+    tool: ns_report_run
+    input:
+      reportId: ar-aging
+      params: { as_of: "2026-10-21" }
+      format: xlsx
+    expect:
+      has_keys: [file, rowCount]
+
+  - kind: tool
+    id: open-sales-orders
+    description: A row-level report pages through results without a parameter.
+    tool: ns_report_run
+    input:
+      reportId: open-sales-orders
+      format: csv
+      maxRows: 300
+    expect:
+      has_keys: [file, rowCount, truncated]
+
+  - kind: tool
+    id: unknown-report
+    description: An id that is not in the catalogue is refused.
+    tool: ns_report_run
+    input:
+      reportId: no-such-report
+      format: csv
+    expect:
+      ok: false
+      error_contains: unknown report
+
+  - kind: tool
+    id: bad-date-param
+    description: Date parameters must be ISO dates; nothing is sent to NetSuite otherwise.
+    tool: ns_report_run
+    input:
+      reportId: ar-aging
+      params: { as_of: "21/10/2026" }
+      format: csv
+    expect:
+      ok: false
+      error_contains: YYYY-MM-DD
+
+  - kind: tool
+    id: export-query-xlsx
+    description: An ad-hoc SELECT exports to a workbook.
+    tool: ns_report_export_query
+    input:
+      q: SELECT t.type, COUNT(t.id) AS n FROM transaction t GROUP BY t.type
+      title: Transactions by type
+      format: xlsx
+    expect:
+      has_keys: [file, rowCount]
+
+  - kind: tool
+    id: export-query-rejects-dml
+    description: Ad-hoc exports are guarded to a single SELECT.
+    tool: ns_report_export_query
+    input:
+      q: DELETE FROM customer WHERE id = 1
+      title: never
+      format: csv
+    expect:
+      ok: false
+      error_contains: Only SELECT
+
+  - kind: agent
+    id: ar-aging-excel
+    prompt: Send me the AR aging as of today as Excel.
+    expect_tools: [ns_report_run]
+    forbid_tools: [ns_search_save]
+    rubric: >-
+      Runs ar-aging with as_of set to today's date and format xlsx, returns the file path, states the row count
+      and that amounts are per currency (never summed across currencies), and does not paste the whole report.
+
+  - kind: agent
+    id: count-is-not-a-report
+    prompt: How many open sales orders are there?
+    expect_tools: [ns_suiteql]
+    forbid_tools: [ns_report_run, ns_report_export_query]
+    rubric: Answers with one count from data-explorer; does not produce a file unless asked.

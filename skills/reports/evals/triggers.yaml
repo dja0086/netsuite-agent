@@ -1,0 +1,14 @@
+# Prompts that SHOULD route to reports, and prompts that belong to other skills.
+should_route:
+  - Send me a monthly AR aging report as Excel.
+  - Export open sales orders to CSV.
+  - Give me a spreadsheet of vendor bills due in the next 14 days.
+  - Run the AR aging report as of the end of last month and give me the file.
+  - Download all transactions by type as an xlsx file.
+  - I need the open sales orders list as a CSV for the ops meeting.
+
+should_not_route:
+  - How many active customers do we have?                                  # data-explorer
+  - Save a search of open invoices over 60 days so finance can reuse it.   # search-builder
+  - Import this CSV of new customers.                                      # data-importer
+  - Add a checkbox field called Rush Order to sales orders.                # custom-fields

@@ -1,0 +1,28 @@
+id: vendor-bills-due
+title: Vendor bills due
+description: >-
+  Unpaid vendor bills due within the next N days (overdue ones included), by due date. Amounts are in each
+  bill's currency; the currency column says which.
+params:
+  - name: days
+    type: number
+    default: 14
+    description: How many days ahead to look
+  - name: subsidiary
+    type: id
+    description: Only this subsidiary (internal id); all subsidiaries when left out
+query: >-
+  SELECT t.id AS id, t.tranid AS bill_number, BUILTIN.DF(t.entity) AS vendor,
+  TO_CHAR(t.duedate, 'YYYY-MM-DD') AS due_date, BUILTIN.DF(t.subsidiary) AS subsidiary,
+  BUILTIN.DF(t.currency) AS currency, t.foreignamountunpaid AS amount_unpaid
+  FROM transaction t
+  WHERE t.type = 'VendBill' AND t.foreignamountunpaid > 0 AND t.duedate <= TRUNC(SYSDATE) + :days
+  {{#subsidiary}}AND t.subsidiary = :subsidiary{{/subsidiary}}
+  ORDER BY t.duedate, t.id
+columns:
+  - { key: bill_number, label: Bill }
+  - { key: vendor, label: Vendor }
+  - { key: due_date, label: Due, type: date }
+  - { key: subsidiary, label: Subsidiary }
+  - { key: currency, label: Currency }
+  - { key: amount_unpaid, label: Amount unpaid, type: currency }
