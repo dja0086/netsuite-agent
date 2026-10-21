@@ -6,6 +6,7 @@ should_route:
   - Dry-run this contact list before we import it.
   - What would go wrong if we imported new_customers.csv?
   - Validate this spreadsheet of customers against NetSuite before loading it.
+  - Delete the customers we imported by mistake yesterday.
 
 should_not_route:
   - How many active customers do we have?                                   # data-explorer

@@ -23,7 +23,7 @@ Importing beats hand-writing the XML: permission keys are easy to get wrong, and
 | Setup | REST Web Services | Full |
 | Setup | Log in using OAuth 2.0 Access Tokens | Full |
 | Reports | SuiteAnalytics Workbook (needed for SuiteQL) | Edit |
-| Lists | Customers | Create (CP3, ADR 0005: `ns_import_run`) |
+| Lists | Customers | Full (needed for delete: ADR 0006 `ns_record_delete`; creates: ADR 0005 `ns_import_run`). No edit tool exists. |
 | Lists | Vendors, Items, Employees, Contacts | View |
 | Lists | Subsidiaries, Currency, Accounts | View |
 | Transactions | Find Transaction, plus each transaction type the agent may read | View |

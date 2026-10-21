@@ -1,10 +1,10 @@
 ---
 name: data-importer
-description: Import a CSV into NetSuite - map the columns to record fields, dry-run every row (required fields, types, references, duplicates), then create the records after a named approver approves. Use for "import this CSV", "is this file ready to load", "load these customers". Create only, customers only for now. Not for exports (reports) or questions about existing data (data-explorer).
-version: 2.0.0
+description: Import a CSV into NetSuite and undo it - map the columns to record fields, dry-run every row (required fields, types, references, duplicates), create the records after a named approver approves, and delete records (for example a mistaken import) after approval. Use for "import this CSV", "is this file ready to load", "load these customers", "delete the customers we imported". Customers only for now. Not for exports (reports) or questions about existing data (data-explorer).
+version: 3.0.0
 owner: "@dja-cowboyallstar"
 # Tools this skill may call. Each must exist in apps/mcp-gateway/src/tools/ (see data-importer.ts).
-tools: [ns_import_plan, ns_import_dry_run, ns_import_run]
+tools: [ns_import_plan, ns_import_dry_run, ns_import_run, ns_record_delete_preview, ns_record_delete]
 writes: true
 enabled: true
 governance_budget:
@@ -27,14 +27,25 @@ Hand off instead when the user wants data out of NetSuite (reports), a question 
 
 1. **Locate the file.** It must be in the import folder (`NS_AGENT_IMPORT_DIR`, default `./imports` on the gateway host). Pass the file name, not a path. If it is not there, ask the user to copy it in.
 2. **Plan.** Call `ns_import_plan` with the file and record type. Show the proposed mapping as a short table (column -> field), the unmapped columns, and `missingRequired`.
-3. **Agree the mapping.** Ask about unmapped columns and missing required fields. Use `ns_record_describe` with `filter` to find a field for a column the plan could not match. Do not invent field ids.
+3. **Agree the mapping, then stop.** Show the mapping and ask the user to confirm it before anything else, even when every column matched: ask about unmapped columns and missing required fields. Use `ns_record_describe` with `filter` to find a field for a column the plan could not match. Do not invent field ids. Do not run the dry run until the user has confirmed the mapping.
 4. **Pick a key.** Choose a `keyField` that identifies a record (usually `externalId`; otherwise `companyName` or `email`) so duplicates in the file and records that already exist are found.
 5. **Dry run.** Call `ns_import_dry_run` with the agreed `mapping` and `keyField`. Report `validRows` and `invalidRows`, the counts in `errorsByCheck`, a few example errors with their line numbers, and the `errorFile` path.
-6. **Fix and repeat.** If any row is invalid, tell the user to fix the file and dry-run again. Do not call `ns_import_run` while `invalidRows` is above 0.
+6. **Fix and repeat.** If any row is invalid, tell the user to fix the file and dry-run again. Do not call `ns_import_run` while `invalidRows` is above 0, and do not suggest loading part of the file (dropping invalid rows, or copying the valid rows into another file) unless the user asks for that. The next step is always: fix the file, dry-run again, then request approval to load it.
 7. **Request approval to load.** When every row is valid, call `ns_import_run` with the same `file`, `recordType`, `mapping` and `keyField`, plus the `fileSha256` from the dry run, and no `approvalId`. It creates nothing and returns `approval_pending` with a preview and an `approvalId`. Show both, and tell the user a named approver runs `pnpm approvals approve <approvalId>` (valid 30 minutes once approved).
 8. **Load.** Only after the user says it was approved, call `ns_import_run` again with exactly the same arguments plus `approvalId`. Report `created`, `failed` and `notAttempted`, and the `resultFile`. If the file was edited, the run is refused: dry-run again and request a new approval.
 
 Limits: customers only, create only (no updates), at most 500 rows per file. The run stops after 5 consecutive failures; rows already created stay, and the result file shows which rows still need loading.
+
+## Deleting records (undoing an import)
+
+Use this when the user asks to remove records, for example rows loaded by mistake (the import result file lists their internal ids).
+
+1. Get the internal ids (from the import result file, or with data-explorer). Never guess ids or delete by name or search.
+2. Call `ns_record_delete_preview` with `recordType` and `ids` (at most 25). Show the records (name, external id, last modified) and point out anything that does not look like what the user described.
+3. Call `ns_record_delete` with the same `ids` and the `snapshot` from the preview, and no `approvalId`. It deletes nothing and returns `approval_pending` with a preview. Tell the user the delete is permanent and that a named approver runs `pnpm approvals approve <approvalId>` (valid 15 minutes once approved).
+4. Only after the user says it was approved, call `ns_record_delete` again with exactly the same arguments plus `approvalId`. Report `deleted`, `failed` (NetSuite refuses to delete, for example, customers with transactions) and the ids.
+
+If a record changed since the preview, the delete is refused: preview again and request a new approval.
 
 ## What the dry run checks
 
@@ -46,6 +57,7 @@ Limits: customers only, create only (no updates), at most 500 rows per file. The
 ## Do not
 
 - Do not create, update or upsert records any other way than `ns_import_run` with an approval (no suggestions to use the NetSuite CSV import assistant as a workaround).
-- Do not pass an `approvalId` the user has not confirmed was approved, and do not change any argument between the approval request and the load.
+- Do not pass an `approvalId` the user has not confirmed was approved, and do not change any argument between the approval request and the load or delete.
+- Do not delete anything the user did not ask to delete, and never more than the ids they confirmed.
 - Do not read files outside the import folder or ask the user to paste file contents with sensitive data into chat.
 - Do not repeat values shown as `[REDACTED]`.

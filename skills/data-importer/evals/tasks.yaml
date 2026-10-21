@@ -79,6 +79,28 @@ cases:
       ok: false
       error_contains: not enabled
 
+  - kind: tool
+    id: delete-preview-reports-missing
+    description: The delete preview is read-only and reports ids that do not exist instead of failing.
+    tool: ns_record_delete_preview
+    input:
+      recordType: customer
+      ids: ["999999999"]
+    expect:
+      has_keys: [recordType, records, missing, snapshot]
+
+  - kind: tool
+    id: delete-blocked-without-approval
+    description: Deleting is a write; without an approval it is refused and nothing is deleted.
+    tool: ns_record_delete
+    input:
+      recordType: customer
+      ids: ["999999999"]
+      snapshot: "0000000000000000000000000000000000000000000000000000000000000000"
+    expect:
+      ok: false
+      error_contains: not enabled
+
   - kind: agent
     id: plan-then-dry-run
     prompt: Import customers.csv as new customers.

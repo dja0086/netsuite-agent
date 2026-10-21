@@ -8,6 +8,7 @@ export {
   assertRecordId,
   assertRecordType,
   createRecord,
+  deleteRecord,
   describeRecordSchema,
   getRecord,
   listRecordTypes,
