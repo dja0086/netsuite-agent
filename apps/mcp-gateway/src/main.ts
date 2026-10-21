@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { NsClient } from "@ns-agent/ns-client";
-import { DenyAllApprovals } from "./policy/approval";
+import { approvalsFromEnv } from "./policy/approvals-env";
 import { auditSinkFromEnv } from "./policy/audit";
 import { redactFieldsFromEnv } from "./policy/redact";
 import { createGateway } from "./server";
@@ -13,12 +13,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const skillsDir = process.env.NS_AGENT_SKILLS_DIR ?? path.resolve(here, "../../../skills");
 
 const skills = selectSkills(await loadSkills(skillsDir), process.env.NS_AGENT_SKILLS);
+const ns = NsClient.fromEnv();
 const { server, exposed } = createGateway({
-  ns: NsClient.fromEnv(),
+  ns,
   skills,
   audit: auditSinkFromEnv(),
-  approvals: new DenyAllApprovals(),
+  approvals: approvalsFromEnv(),
   redactFields: redactFieldsFromEnv(),
+  accountId: ns.config.accountId,
 });
 
 await server.connect(new StdioServerTransport());

@@ -67,12 +67,15 @@ async function runToolEvals(): Promise<CaseResult[]> {
   const skills = (await loadSkills(path.join(repoRoot, "skills"))).filter((s) => !only || s.manifest.name === only);
   const results: CaseResult[] = [];
   // Evals exercise every declared tool, including skills still disabled.
+  const ns = NsClient.fromEnv();
   const { server } = createGateway({
-    ns: NsClient.fromEnv(),
+    ns,
     skills,
     audit: new MemoryAuditSink(),
+    // Evals never get an approval: every write tool must stay blocked here.
     approvals: new DenyAllApprovals(),
     redactFields: redactFieldsFromEnv(),
+    accountId: ns.config.accountId,
   });
   const [clientT, serverT] = InMemoryTransport.createLinkedPair();
   await server.connect(serverT);

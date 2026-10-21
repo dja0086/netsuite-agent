@@ -2,8 +2,12 @@ import { createHash } from "node:crypto";
 import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
+/** tool.call: a tool ran (or failed). approval.*: the life of a change request (ADR 0004). */
+export type AuditEvent = "tool.call" | "approval.requested" | "approval.decided" | "approval.rejected";
+
 export interface AuditEntry {
   ts: string;
+  event: AuditEvent;
   tool: string;
   writes: boolean;
   ok: boolean;
@@ -13,6 +17,10 @@ export interface AuditEntry {
   rowCount?: number;
   errorCode?: string;
   approvalId?: string;
+  /** The named approver whose decision this entry records or relies on. */
+  approvedBy?: string;
+  /** Who made an approval decision or requested the change. */
+  actor?: string;
 }
 
 export interface AuditSink {

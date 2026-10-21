@@ -7,7 +7,10 @@ import { z } from "zod";
 import {
   ALL_TOOLS,
   DenyAllApprovals,
+  MemoryApprovalStore,
   MemoryAuditSink,
+  StoredApprovals,
+  type ApprovalService,
   createGateway,
   defineTool,
   type LoadedSkill,
@@ -69,7 +72,7 @@ function fakeNs(): NsRequester & { requests: NsRequest[] } {
   };
 }
 
-async function connect(options: { skills: LoadedSkill[]; tools?: ToolDef[]; redact?: string[] }) {
+async function connect(options: { skills: LoadedSkill[]; tools?: ToolDef[]; redact?: string[]; approvals?: ApprovalService }) {
   const ns = fakeNs();
   const audit = new MemoryAuditSink();
   const { server, exposed } = createGateway({
@@ -77,8 +80,10 @@ async function connect(options: { skills: LoadedSkill[]; tools?: ToolDef[]; reda
     skills: options.skills,
     tools: options.tools,
     audit,
-    approvals: new DenyAllApprovals(),
+    approvals: options.approvals ?? new DenyAllApprovals(),
     redactFields: new Set(options.redact ?? []),
+    accountId: "TSTDRV1755417",
+    requestedBy: "doma",
   });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
@@ -111,6 +116,7 @@ describe("gateway", () => {
         audit: new MemoryAuditSink(),
         approvals: new DenyAllApprovals(),
         redactFields: new Set(),
+        accountId: "TSTDRV1755417",
       }),
     ).toThrow(/ns_does_not_exist/);
   });
@@ -177,6 +183,9 @@ describe("gateway", () => {
       description: "test",
       writes: true,
       input: z.object({ value: z.string() }),
+      async describeChange({ value }) {
+        return `Write ${value}`;
+      },
       async handler() {
         ran = true;
         return { ok: true };
@@ -193,6 +202,142 @@ describe("gateway", () => {
     expect(res.text).toMatch(/writes are not enabled/);
     expect(ran).toBe(false);
     expect(audit.entries[0]).toMatchObject({ writes: true, ok: false, errorCode: "APPROVAL_DENIED" });
+  });
+
+  describe("approval flow (ADR 0004)", () => {
+    function writer() {
+      const runs: string[] = [];
+      const tool = defineTool({
+        name: "ns_test_write",
+        title: "Test write",
+        description: "test",
+        writes: true,
+        input: z.object({ value: z.string() }),
+        async describeChange({ value }) {
+          return `Set value to '${value}'`;
+        },
+        async handler({ value }) {
+          runs.push(value);
+          return { saved: value };
+        },
+      });
+      return { runs, tool: tool as unknown as ToolDef };
+    }
+
+    async function setupFlow() {
+      const { runs, tool } = writer();
+      const approvals = new StoredApprovals({ store: new MemoryApprovalStore(), approvers: new Set(["doma"]) });
+      const conn = await connect({
+        skills: [skill("writer", ["ns_test_write"], { writes: true })],
+        tools: [...ALL_TOOLS, tool],
+        approvals,
+      });
+      return { ...conn, runs, approvals };
+    }
+
+    it("first call returns a pending approval with the preview and runs nothing", async () => {
+      const { call, runs, audit, approvals } = await setupFlow();
+      const res = await call("ns_test_write", { value: "x" });
+      expect(res.isError).toBe(false);
+      expect(res.json).toMatchObject({ status: "approval_pending", preview: "Set value to 'x'" });
+      expect(runs).toEqual([]);
+      const stored = await approvals.get(res.json.approvalId);
+      expect(stored).toMatchObject({ status: "pending", tool: "ns_test_write", accountId: "TSTDRV1755417", requestedBy: "doma" });
+      expect(audit.entries[0]).toMatchObject({ event: "approval.requested", approvalId: res.json.approvalId, ok: true });
+      expect(audit.entries[0]!.inputHash).toBe(stored!.payloadHash);
+    });
+
+    it("runs once after approval and audits approvalId and approver", async () => {
+      const { call, runs, audit, approvals } = await setupFlow();
+      const { approvalId } = (await call("ns_test_write", { value: "x" })).json;
+      await approvals.decide(approvalId, { approver: "doma", approve: true });
+      const res = await call("ns_test_write", { value: "x", approvalId });
+      expect(res.json).toEqual({ saved: "x" });
+      expect(runs).toEqual(["x"]);
+      expect(audit.entries.at(-1)).toMatchObject({ event: "tool.call", ok: true, approvalId, approvedBy: "doma", writes: true });
+      expect((await approvals.get(approvalId))?.status).toBe("executed");
+
+      const again = await call("ns_test_write", { value: "x", approvalId });
+      expect(again.isError).toBe(true);
+      expect(again.text).toMatch(/already used/);
+      expect(runs).toEqual(["x"]);
+      expect(audit.entries.at(-1)).toMatchObject({ event: "approval.rejected", errorCode: "APPROVAL_INVALID", approvalId });
+    });
+
+    it("refuses an approval presented with a changed payload", async () => {
+      const { call, runs, approvals } = await setupFlow();
+      const { approvalId } = (await call("ns_test_write", { value: "x" })).json;
+      await approvals.decide(approvalId, { approver: "doma", approve: true });
+      const res = await call("ns_test_write", { value: "y", approvalId });
+      expect(res.isError).toBe(true);
+      expect(res.text).toMatch(/payload changed/);
+      expect(runs).toEqual([]);
+    });
+
+    it("tells the agent when the approval is still pending", async () => {
+      const { call, runs } = await setupFlow();
+      const { approvalId } = (await call("ns_test_write", { value: "x" })).json;
+      const res = await call("ns_test_write", { value: "x", approvalId });
+      expect(res.isError).toBe(true);
+      expect(res.text).toMatch(/not been approved yet/);
+      expect(runs).toEqual([]);
+    });
+
+    it("marks the approval failed when the write fails", async () => {
+      const approvals = new StoredApprovals({ store: new MemoryApprovalStore(), approvers: new Set(["doma"]) });
+      const failing = defineTool({
+        name: "ns_test_write",
+        title: "Test write",
+        description: "test",
+        writes: true,
+        input: z.object({ value: z.string() }),
+        async describeChange() {
+          return "p";
+        },
+        async handler(): Promise<unknown> {
+          throw new NsHttpError(400, "INVALID_FLD_VALUE", "bad");
+        },
+      });
+      const { call } = await connect({
+        skills: [skill("writer", ["ns_test_write"], { writes: true })],
+        tools: [...ALL_TOOLS, failing as unknown as ToolDef],
+        approvals,
+      });
+      const { approvalId } = (await call("ns_test_write", { value: "x" })).json;
+      await approvals.decide(approvalId, { approver: "doma", approve: true });
+      expect((await call("ns_test_write", { value: "x", approvalId })).isError).toBe(true);
+      expect((await approvals.get(approvalId))?.status).toBe("failed");
+    });
+
+    it("adds approvalId to write tool schemas only", async () => {
+      const { client } = await setupFlow();
+      const { tools } = await client.listTools();
+      expect(Object.keys(tools[0]!.inputSchema.properties ?? {})).toEqual(["value", "approvalId"]);
+    });
+
+    it("refuses to start when a write tool has no describeChange", () => {
+      const bare = defineTool({
+        name: "ns_test_write",
+        title: "t",
+        description: "t",
+        writes: true,
+        input: z.object({}),
+        async handler() {
+          return {};
+        },
+      });
+      expect(() =>
+        createGateway({
+          ns: fakeNs(),
+          skills: [skill("writer", ["ns_test_write"], { writes: true })],
+          tools: [...ALL_TOOLS, bare as unknown as ToolDef],
+          audit: new MemoryAuditSink(),
+          approvals: new DenyAllApprovals(),
+          redactFields: new Set(),
+          accountId: "TSTDRV1755417",
+        }),
+      ).toThrow(/describeChange/);
+    });
   });
 
   it("validates tool input with the declared schema", async () => {
