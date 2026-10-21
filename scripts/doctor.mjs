@@ -4,7 +4,7 @@
  * Verifies every dependency and setting this repo needs, on the machine it runs on. Assumes nothing.
  * Uses only Node built-ins so it runs before `pnpm install`. Never prints secret values.
  */
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, openSync, readSync, closeSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,14 +14,15 @@ const toolsOnly = process.argv.includes("--tools-only");
 const results = [];
 const add = (group, name, status, detail, fix) => results.push({ group, name, status, detail, fix });
 
-/** Runs a command and returns combined output, or null when it is missing or fails. */
+/**
+ * Runs a command. Returns its output (stdout, or stderr when stdout is empty: `java -version` writes to stderr),
+ * "__FAILED__<output>" when it exits non-zero, or null when the command does not exist.
+ */
 function run(cmd, args, timeout = 30_000) {
-  try {
-    return execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout }).trim();
-  } catch (error) {
-    const out = `${error.stdout ?? ""}${error.stderr ?? ""}`.trim();
-    return error.code === "ENOENT" ? null : out ? `__FAILED__${out}` : null;
-  }
+  const r = spawnSync(cmd, args, { encoding: "utf8", timeout });
+  if (r.error) return r.error.code === "ENOENT" ? null : `__FAILED__${r.error.message}`;
+  const out = (r.stdout ?? "").trim() || (r.stderr ?? "").trim();
+  return r.status === 0 ? out : `__FAILED__${out}`;
 }
 const major = (v) => Number(String(v).replace(/^v/, "").split(".")[0]);
 
@@ -32,8 +33,8 @@ major(nodeV) >= 22
   : add("tools", "Node.js", "FAIL", `v${nodeV}; need 22 or newer`, "Install Node 22 LTS (nodejs.org or a version manager)");
 
 const pnpmV = run("pnpm", ["--version"]);
-if (!pnpmV || pnpmV.startsWith("__FAILED__")) add("tools", "pnpm", "FAIL", "not found", "Run `corepack enable` (ships with Node), then reopen the terminal");
-else if (major(pnpmV) !== 10) add("tools", "pnpm", "WARN", `${pnpmV}; repo pins pnpm 10`, "`corepack enable` makes pnpm follow the repo's packageManager pin");
+if (!pnpmV || pnpmV.startsWith("__FAILED__")) add("tools", "pnpm", "FAIL", "not found", major(nodeV) >= 25 ? "Run `npm install -g pnpm@10.28.0` (Node 25+ no longer ships corepack)" : "Run `corepack enable` (ships with Node 22-24), or `npm install -g pnpm@10.28.0`");
+else if (major(pnpmV) !== 10) add("tools", "pnpm", "WARN", `${pnpmV}; repo pins pnpm 10`, "Run `npm install -g pnpm@10.28.0`");
 else add("tools", "pnpm", "PASS", pnpmV);
 
 const gitV = run("git", ["--version"]);
@@ -49,8 +50,8 @@ else if (/LibreSSL/i.test(sslV))
 else add("tools", "OpenSSL", "PASS", sslV);
 
 const javaV = run("java", ["-version"]);
-if (!javaV || javaV.startsWith("__FAILED__") && /Unable to locate|No Java runtime/i.test(javaV))
-  add("tools", "Java (for SuiteCloud CLI)", "FAIL", "no JDK found", "Install JDK 17 or 21 (e.g. Oracle JDK or Temurin), then reopen the terminal");
+if (!javaV || javaV.startsWith("__FAILED__")) // missing, or the macOS stub "Unable to locate a Java Runtime" (exit 1)
+  add("tools", "Java (for SuiteCloud CLI)", "FAIL", "no JDK found", "Install JDK 21 (`brew install --cask temurin@21`, or Oracle JDK 21), then reopen the terminal");
 else {
   const m = /version "(\d+)/.exec(javaV);
   const jm = m ? Number(m[1]) : NaN;
@@ -63,6 +64,10 @@ const scV = run("suitecloud", ["--version"], 60_000);
 !scV || scV.startsWith("__FAILED__")
   ? add("tools", "SuiteCloud CLI", "FAIL", "`suitecloud` not on PATH", "`npm install -g @oracle/suitecloud-cli` (needed to deploy the explore RESTlet in CP1)")
   : add("tools", "SuiteCloud CLI", "PASS", scV.split("\n").at(-1));
+
+if (major(nodeV) !== 24)
+  add("tools", "Node.js for SuiteCloud CLI", "WARN", `Oracle supports Node 24 LTS for the SuiteCloud CLI; this is v${nodeV}`,
+    "If `suitecloud` commands fail, run them under Node 24 LTS (e.g. `brew install node@24`)");
 
 const claudeV = run("claude", ["--version"]);
 !claudeV || claudeV.startsWith("__FAILED__")
