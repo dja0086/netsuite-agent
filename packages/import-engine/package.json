@@ -1,0 +1,18 @@
+{
+  "name": "@ns-agent/import-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CSV parsing, column-to-field mapping and dry-run validation for record imports. Never writes to NetSuite.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ns-agent/ns-client": "workspace:*",
+    "@ns-agent/suiteql": "workspace:*"
+  }
+}

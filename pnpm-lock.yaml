@@ -48,6 +48,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
         version: 1.32.1(zod@4.6.7)
+      '@ns-agent/import-engine':
+        specifier: workspace:*
+        version: link:../../packages/import-engine
       '@ns-agent/ns-client':
         specifier: workspace:*
         version: link:../../packages/ns-client
@@ -66,6 +69,15 @@ importers:
       zod:
         specifier: ^4.6.7
         version: 4.6.7
+
+  packages/import-engine:
+    dependencies:
+      '@ns-agent/ns-client':
+        specifier: workspace:*
+        version: link:../ns-client
+      '@ns-agent/suiteql':
+        specifier: workspace:*
+        version: link:../suiteql
 
   packages/ns-client:
     dependencies:
