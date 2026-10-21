@@ -1,0 +1,14 @@
+# Prompts that SHOULD route to data-importer, and prompts that belong to other skills.
+should_route:
+  - Import this CSV of new customers.
+  - Check whether customers.csv is ready to load into NetSuite.
+  - Map the columns in vendors.csv to NetSuite vendor fields.
+  - Dry-run this contact list before we import it.
+  - What would go wrong if we imported new_customers.csv?
+  - Validate this spreadsheet of customers against NetSuite before loading it.
+
+should_not_route:
+  - How many active customers do we have?                                   # data-explorer
+  - Export open sales orders to CSV.                                         # reports
+  - Save a search of open invoices over 60 days so finance can reuse it.    # search-builder
+  - Add a checkbox field called Rush Order to sales orders.                 # custom-fields
