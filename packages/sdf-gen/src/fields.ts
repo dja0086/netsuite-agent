@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { SELECT_RECORD_TYPES } from "./select-record-types";
+import { formText, plainText } from "./text";
 import { SdfSpecError, elements, flag, sortedUnique, type SdfArtifact } from "./xml";
 
 /**
@@ -76,18 +78,21 @@ export const FieldSpec = z
     kind: z.enum(["body", "entity", "item"]),
     /** The part after the nsagent prefix, e.g. "rush" for custbody_nsagent_rush. */
     name: z.string().regex(NAME, "name is lowercase letters and digits separated by single underscores"),
-    label: z.string().trim().min(1).max(200),
+    label: formText(200).pipe(z.string().trim().min(1)),
     type: z.enum(FIELD_TYPES),
     appliesTo: z.array(z.string()).min(1),
-    description: z.string().max(4000).default(""),
-    help: z.string().max(4000).default(""),
+    description: plainText(4000).default(""),
+    help: formText(4000).default(""),
     mandatory: z.boolean().default(false),
     /** CHECKBOX only. */
     defaultChecked: z.boolean().default(false),
-    /** Standard record type id (a negative integer such as "-2" for customer); required for SELECT and MULTISELECT. */
+    /** Standard record type id from SELECT_RECORD_TYPES (e.g. "-2" customer); required for SELECT and MULTISELECT. */
     selectRecordType: z
       .string()
-      .regex(/^-[0-9]{1,4}$/, "selectRecordType is a standard record type id such as -2; custom lists are not supported yet")
+      .refine(
+        (v) => Object.hasOwn(SELECT_RECORD_TYPES, v),
+        "selectRecordType must be a standard record type id from the SDF list (e.g. -2 customer, -4 employee); custom lists are not supported yet",
+      )
       .optional(),
     showInList: z.boolean().default(false),
   })
@@ -100,7 +105,7 @@ export const FieldSpec = z
     }
     const allowed = APPLIES[f.kind];
     for (const [i, a] of f.appliesTo.entries()) {
-      if (!(a in allowed)) {
+      if (!Object.hasOwn(allowed, a)) {
         ctx.addIssue({ code: "custom", path: ["appliesTo", i], message: `${f.kind} fields apply to: ${Object.keys(allowed).join(", ")}` });
       }
     }
@@ -143,6 +148,8 @@ export function fieldArtifact(input: z.input<typeof FieldSpec>): SdfArtifact {
     .filter(([key]) => chosen.has(key))
     .map(([, a]) => [a.el, "T"] as [string, string]);
   const features = f.appliesTo.map((a) => applies[a]?.feature).filter((x): x is string => !!x);
+  const selectFeature = f.selectRecordType ? SELECT_RECORD_TYPES[f.selectRecordType] : null;
+  if (selectFeature) features.push(selectFeature);
 
   const lines: [string, string | undefined][] = [
     ["label", f.label],
