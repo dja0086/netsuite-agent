@@ -22,18 +22,107 @@ set -a; source .env; set +a
 pnpm ns:ping                         # must pass before anything else
 ```
 
-## SDF deploys (RESTlets, role)
+## SDF deploy pipeline (`deploy-sdf.yml`)
+
+Account changes (roles, scripts, custom fields, PDF templates) ship only as SDF objects in `netsuite/`, merged to main through a PR (ADR 0002), then deployed by `.github/workflows/deploy-sdf.yml`.
+
+> **Both stages target the demo account.** Owner decision 2026-10-22: there is no sandbox account, so the `sandbox` and `production` environments both point at TSTDRV1755417, each with its own approval. Running the workflow rehearses the PR → stage 1 → stage 2 path for CP3. **It is not a production deploy**, and nothing in this repo has been deployed to a real company account. When real accounts exist, only the environment variables and secrets change.
+
+### What runs where
+
+| Where | What | Account access |
+| --- | --- | --- |
+| Every PR and push to main (`ci.yml`, job `sdf-check`) | `scripts/sdf-check.mjs` (`pnpm sdf:check`, also part of `pnpm check`): well-formed XML, object file name = `scriptid`, no duplicate script IDs, every `[/SuiteScripts/...]` file present, each `advancedpdftemplate` has its `.template.xml`, `node --check` on every SuiteScript file. Then `suitecloud project:package` with the pinned CLI. | None, no secrets |
+| `deploy-sdf.yml`, started by hand (Actions → deploy-sdf → Run workflow, from main) | resolve `ref` → stage 1 `sandbox` → stage 2 `production`. Each stage: approval issue → authenticate → confirm the account → `project:validate` (server) → `project:deploy` | M2M certificate per environment |
+
+Why PRs do not run `suitecloud project:validate`: in SuiteCloud CLI 4.1.1 validation always runs on the server (`--server` is accepted and ignored) and needs an auth ID, so it cannot run without account credentials. `project:package` does no validation either. The server validation happens in each stage before its deploy; `validate_only: true` runs only that, in both stages, without deploying.
+
+Pipeline details:
+
+- **Pinned toolchain** (`.github/actions/suitecloud-setup`): Node 24 LTS (what the CLI supports), Temurin JDK 21, `@oracle/suitecloud-cli@4.1.1` (what runs locally). Change versions there only.
+- **One commit per run.** `ref` (branch, tag or SHA) is resolved once to a SHA. The run fails unless that SHA is reachable from `origin/main` and the workflow itself was started from main. Both stages check out that SHA, so a merge to main between the two approvals changes nothing.
+- **One deploy at a time.** `concurrency: deploy-sdf` without cancelling; GitHub keeps one more run pending behind the running one, and a newer dispatch replaces the pending run.
+- **Auth ID.** CLI 4.1.1 has no `--authid` on `project:validate` or `project:deploy`; both read `defaultAuthId` from `netsuite/project.json` (git-ignored). Each stage runs `account:setup:ci` with its own auth ID (`ns-agent-sandbox`, `ns-agent-production`), writes `project.json` with that ID, and stops unless `account:manageauth --info` reports the account in that environment's `*_ACCOUNT_ID`. CI mode needs `SUITECLOUD_CI=1` and a `SUITECLOUD_CI_PASSKEY`; the job generates a random passkey that lives only for that job.
+- **Key handling.** The PEM is written to `$RUNNER_TEMP` with `umask 077` (outside the workspace), and an `if: always()` step deletes it, `project.json` and the stored CI credentials.
+- **Evidence.** Each stage uploads `sdf-<environment>-<sha>` (validate and deploy logs and console output, kept 90 days), and the run summary links the approval issues and names the approvers.
+
+### Approvals
+
+Required reviewers on GitHub environments are only available for private repositories on GitHub Enterprise ([GitHub docs](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)); dja0086 is a personal account and the repo is private, so the workflow does not rely on them. Each stage instead runs `scripts/deploy-approval.sh`, which opens an issue ("deploy-sdf: sandbox deploy of abc1234 (run …)") and waits up to 60 minutes for a comment from a login in `NS_DEPLOY_APPROVERS`:
+
+- `/approve <first 12 characters of the SHA>` (the issue shows the exact text) continues the stage.
+- `/deny <reason>` stops the run. No decision within 60 minutes also stops it.
+
+This is the same convention as the gateway's GitHub approval channel (ADR 0004). Stage 2 opens its own issue only after stage 1 succeeded, so the two approvals are separate decisions. If the repo ever moves to a plan with environment reviewers, add them as well: they gate the job before the issue is opened. With a single owner, the person who starts the run also approves it; add a second approver when there is one.
+
+### Owner setup checklist (GitHub, dja0086/netsuite-agent)
+
+Nothing below exists yet except an empty `sandbox` environment; Claude does not create secrets or environments.
+
+NetSuite (demo account TSTDRV1755417), once:
+
+- [ ] Make a **new** key pair for CI deploys, outside the repo. Never reuse or overwrite the gateway key at `NS_PRIVATE_KEY_PATH` (overwriting it is what broke mapping C96V3…). With OpenSSL 3:
+  ```bash
+  mkdir -p ~/.netsuite-agent/sdf-ci && cd ~/.netsuite-agent/sdf-ci && openssl req -new -x509 -newkey rsa:4096 -sigopt rsa_padding_mode:pss -sha256 -sigopt rsa_pss_saltlen:64 -keyout sdf-ci-key.pem -out sdf-ci-cert.pem -nodes -days 365 -subj "/CN=ns-agent-sdf-ci"
+  ```
+- [ ] Setup → Integration → Manage Authentication → OAuth 2.0 Client Credentials (M2M) Setup → Create New: Entity = the user who deploys today, Role = Administrator (the role `nsagent-demo` uses), Application = **SuiteCloud Development Integration**, Certificate = `sdf-ci-cert.pem`. Note the certificate ID. (The gateway's "NS Agent Gateway" mapping cannot deploy: its role has no SDF permission.)
+- [ ] One mapping serves both environments while both point at the demo account. For real accounts, make one per account.
+
+GitHub → Settings → Environments:
+
+- [ ] Environment **`sandbox`**
+  - Deployment branches and tags: Selected branches and tags → `main`
+  - Variable `NS_SANDBOX_ACCOUNT_ID` = `TSTDRV1755417`
+  - Variable `NS_SANDBOX_SDF_CERT_ID` = the certificate ID from the M2M mapping
+  - Secret `NS_SANDBOX_SDF_PRIVATE_KEY` = the full contents of `sdf-ci-key.pem`
+- [ ] Environment **`production`** (still the demo account under the decision above)
+  - Deployment branches and tags: Selected branches and tags → `main`
+  - Variable `NS_PROD_ACCOUNT_ID` = `TSTDRV1755417`
+  - Variable `NS_PROD_SDF_CERT_ID` = the certificate ID
+  - Secret `NS_PROD_SDF_PRIVATE_KEY` = the full contents of `sdf-ci-key.pem`
+- [ ] Repository variable (Settings → Secrets and variables → Actions → Variables) **`NS_DEPLOY_APPROVERS`** = `dja0086` (comma-separated GitHub logins; these are the reviewers for both stages)
+- [ ] Required reviewers on either environment: not available on this plan (see Approvals); skip.
+
+The same from a terminal, with dja0086 active in `gh` (run from the folder with the key):
+
+```bash
+gh variable set NS_DEPLOY_APPROVERS --repo dja0086/netsuite-agent --body dja0086
+gh variable set NS_SANDBOX_ACCOUNT_ID --repo dja0086/netsuite-agent --env sandbox --body TSTDRV1755417
+gh variable set NS_SANDBOX_SDF_CERT_ID --repo dja0086/netsuite-agent --env sandbox --body '<certificate id>'
+gh secret set NS_SANDBOX_SDF_PRIVATE_KEY --repo dja0086/netsuite-agent --env sandbox < sdf-ci-key.pem
+gh variable set NS_PROD_ACCOUNT_ID --repo dja0086/netsuite-agent --env production --body TSTDRV1755417
+gh variable set NS_PROD_SDF_CERT_ID --repo dja0086/netsuite-agent --env production --body '<certificate id>'
+gh secret set NS_PROD_SDF_PRIVATE_KEY --repo dja0086/netsuite-agent --env production < sdf-ci-key.pem
+```
+
+The `production` environment must exist first (create it in Settings → Environments, where the branch rule is set too). If GitHub refuses environment secrets or variables on this plan, set the same names as repository secrets and variables instead: the workflow reads them the same way, but any workflow on any branch can then read them, so the branch rule no longer protects them.
+
+First run: Actions → deploy-sdf → Run workflow (branch main), `ref` = main, `validate_only` = true. That proves the credentials and the account check without changing the account.
+
+### Rollback
+
+An SDF deploy of an account customization project **never deletes anything** in the account. Objects and files removed from the project stay in the account; only sublist items are synced ([Oracle: deleting components deployed from a SuiteCloud project](https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/subsect_1522153967.html)). Objects that are in the project replace the account's copy on every deploy. So a rollback depends on what the bad change did:
+
+| The change… | Rollback |
+| --- | --- |
+| modified an object or file that existed before | Revert PR → merge → run deploy-sdf with `ref` = main. The previous definition replaces the bad one. |
+| added a new object (custom field, PDF template, script) | Revert PR → merge → run deploy-sdf (keeps the account consistent with main, but the object stays). Then a NetSuite admin deletes the object in the UI (Customization → Lists, Records & Fields, or Advanced PDF/HTML Templates). A field holding data, or referenced by a search, form or script, may refuse deletion until those are cleared; deleting a field destroys its data. |
+| added a SuiteScript file | Revert PR and redeploy as above; delete the file from the File Cabinet by hand if it must go. |
+
+Record the manual deletion (what, who, when) in the revert PR. For the CP3 rehearsal, revert a change that modifies an object (for example the label of the new field): the redeploy then shows the rollback working without manual steps.
+
+### Local deploys (before the pipeline is set up)
 
 The SuiteCloud CLI needs a JDK (17 or 21). Run these from `netsuite/`:
 
 ```bash
-suitecloud account:setup                        # browser sign-in to the demo account (one time; auth ID nsagent-demo)
+suitecloud account:setup                           # browser sign-in to the demo account (one time; auth ID nsagent-demo)
 suitecloud account:manageauth --info nsagent-demo  # every time: confirm the Account ID is TSTDRV1755417
-suitecloud project:validate --server
+suitecloud project:validate
 suitecloud project:deploy
 ```
 
-The first `account:setup` once linked a different (production) account, which is why the Account ID check comes before every deploy. Deployed so far: the role, the explore RESTlet and the search RESTlet. Deploys run locally until `deploy-sdf.yml` has its environments on dja0086 (Phase 3).
+The first `account:setup` once linked a different (production) account, which is why the Account ID check comes before every deploy. Deployed so far: the role, the explore RESTlet and the search RESTlet. Once the checklist above is done, deploy only through `deploy-sdf.yml`.
 
 `customrole_ns_agent` must exist first: the RESTlet deployment is restricted to it. After the role exists, import it into the repo (`docs/netsuite-role.md`) so the XML matches the account.
 
@@ -69,3 +158,5 @@ Writes need an approver: with the local channel, decide pending approvals with `
 | tool evals | `evals.json` names the failing case; reproduce with `pnpm skills:eval --mode tools --skill <name>` |
 | trigger evals | `FAIL` lines in the output and `triggers.json`; a prompt routed to the wrong skill means a skill description or trigger prompt needs fixing. Needs the `claude` CLI logged in. |
 | load test | `failures` in `load.json`; lower `NS_MAX_CONCURRENCY` or raise the integration's allocation |
+| sdf-check (CI) | The `FAIL` lines name the file; run `pnpm sdf:check` locally |
+| deploy-sdf | The stage's `sdf-<environment>-<sha>` artifact (validate/deploy logs); an "is empty" error means a variable or secret from the checklist is missing; an account mismatch means the certificate mapping belongs to another account |
