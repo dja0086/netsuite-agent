@@ -101,7 +101,7 @@ cases:
 
   - kind: tool
     id: generate-refuses-unchecked-entity-tables
-    description: An entity field cannot be proven unused on tables the role cannot query (partner, job), so generate needs acceptUnchecked.
+    description: An entity field cannot be proven unused on tables the role cannot query (employee, partner, job and other entity tables), so generate needs acceptUnchecked.
     tool: ns_field_generate
     input:
       kind: entity

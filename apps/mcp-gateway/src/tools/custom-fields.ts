@@ -1,6 +1,7 @@
-import { lstat, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { lstat, mkdir, open, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
-import { describeRecordSchema, suiteql, summarizeSchema, type FieldSummary } from "@ns-agent/ns-client";
+import { NsHttpError, describeRecordSchema, suiteql, summarizeSchema, type FieldSummary } from "@ns-agent/ns-client";
 import {
   FIELD_TYPES,
   SdfSpecError,
@@ -13,20 +14,23 @@ import {
 import { z } from "zod";
 import { ToolInputError, defineTool, type ToolContext, type ToolDef } from "../registry";
 
-/** The SDF project's src folder (holds manifest.xml and Objects/). */
-const sdfDir = () => process.env.NS_AGENT_SDF_DIR?.trim() || path.resolve("netsuite/src");
+/** The SDF project's src folder (holds manifest.xml and Objects/); NS_AGENT_SDF_DIR overrides the repo default. */
+const sdfOverride = () => process.env.NS_AGENT_SDF_DIR?.trim();
+const sdfDir = () => sdfOverride() || path.resolve("netsuite/src");
 
 /**
- * SuiteQL tables whose columns include a kind's custom fields whatever record types they apply to: `transaction`
- * and `item` list every body and item field (an item field applied only to service items shows on `item`), but
- * `entity` does not list a vendor-only field, so entity fields are probed per entity table. A table the role cannot
- * query (partner, job) is reported as unchecked.
+ * SuiteQL tables probed for a script ID. Checked live on the demo account: `item` lists an item field applied only
+ * to service items, and `transaction` lists body fields; whether it also lists one applied only to non-sales
+ * transactions could not be tested there (no such field exists). `entity` does not list a vendor-only field, so
+ * entity fields are probed on every entity table an entity field can apply to. The integration role cannot query
+ * employee, partner, job, othername, genericresource, entitygroup or projecttemplate, so those come back unchecked.
  */
-const ID_TABLES: Record<FieldKind, string[]> = {
+const ID_TABLES: Record<FieldKind, readonly string[]> = {
   body: ["transaction"],
   item: ["item"],
-  entity: ["customer", "vendor", "contact", "employee", "partner", "job"],
+  entity: ["customer", "vendor", "contact", "employee", "partner", "job", "othername", "genericresource", "entitygroup", "projecttemplate"],
 };
+const SCRIPT_ID = /^cust(body|entity|item)_nsagent_[a-z0-9_]+$/;
 
 /**
  * Record types whose REST metadata the label check reads, per applies-to target (labels only matter where the field
@@ -90,13 +94,19 @@ function artifactFor(args: FieldArgs): SdfArtifact {
 }
 
 async function projectRoot(): Promise<string> {
+  let root: string;
   try {
-    const root = await realpath(sdfDir());
+    root = await realpath(sdfDir());
     await stat(path.join(root, "manifest.xml"));
-    return root;
   } catch {
     throw new ToolInputError(`the SDF project folder ${sdfDir()} has no manifest.xml (NS_AGENT_SDF_DIR)`);
   }
+  // The repo default must be the real folder: a symlinked netsuite/ or netsuite/src committed to the repo must not
+  // redirect writes. An explicit NS_AGENT_SDF_DIR is the operator's choice and may resolve elsewhere.
+  if (!sdfOverride() && root !== path.resolve("netsuite/src")) {
+    throw new ToolInputError(`refusing to write: netsuite/src resolves to ${root} (symbolic link)`);
+  }
+  return root;
 }
 
 /** Resolves an artifact path under Objects/, refusing anything that would land outside it. */
@@ -113,7 +123,23 @@ const exists = (file: string) =>
     () => false,
   );
 
-/** Refuses a symlink at `file`: writeFile would follow it out of the project. */
+/** Writes a file without following a symbolic link at its path (O_NOFOLLOW closes the gap after the checks). */
+async function writeNoFollow(file: string, content: string): Promise<void> {
+  let handle;
+  try {
+    handle = await open(file, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o644);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ELOOP") throw new ToolInputError(`refusing to write through a symbolic link: ${file}`);
+    throw error;
+  }
+  try {
+    await handle.writeFile(content);
+  } finally {
+    await handle.close();
+  }
+}
+
+/** Refuses a symlink at `file`: a write would follow it out of the project. */
 async function refuseSymlink(file: string): Promise<void> {
   const info = await lstat(file).catch(() => undefined);
   if (info?.isSymbolicLink()) throw new ToolInputError(`refusing to write through a symbolic link: ${file}`);
@@ -138,26 +164,37 @@ async function safeTarget(root: string, rel: string): Promise<string> {
 
 type IdResult = "exists" | "absent" | "unchecked";
 
+/** NetSuite answers a query on an unknown column with HTTP 500 UNEXPECTED_ERROR (seen live on transaction, item, customer). */
+const isUnknownColumn = (error: unknown) => error instanceof NsHttpError && error.status === 500 && error.code === "UNEXPECTED_ERROR";
+
 /**
- * Account-wide script ID check. A successful probe proves the field exists. NetSuite answers an unknown column with a
- * generic error, so a failed probe counts as "absent" only when a control query on the same table succeeds;
- * otherwise the table is unchecked.
+ * Account-wide script ID check, per table. A control query runs first: if the role cannot query the table, it is
+ * unchecked. Then a successful probe proves the field exists. A failed probe counts as absent only when it fails
+ * the way an unknown column does, twice (a one-off server fault answers the same way); any other failure (throttle,
+ * timeout, auth, another HTTP status) leaves the table unchecked, never absent.
  */
 async function probeScriptId(ctx: ToolContext, kind: FieldKind, scriptId: string) {
-  // scriptId is built from the kind's prefix and a [a-z0-9_] name, so it is safe to place in the query.
+  // Columns cannot be bound, so the identifier is checked here, right before it is placed in the query.
+  if (!SCRIPT_ID.test(scriptId)) throw new ToolInputError(`unexpected script ID ${scriptId}`);
+  const reason = (error: unknown) => (error as Error).message.slice(0, 80);
   return Promise.all(
     ID_TABLES[kind].map(async (table): Promise<{ table: string; result: IdResult; reason?: string }> => {
+      if (!/^[a-z]+$/.test(table)) throw new Error(`bad table ${table}`);
       try {
-        await suiteql(ctx.ns, `SELECT COUNT(t.id) AS n FROM ${table} t WHERE t.${scriptId} IS NOT NULL`, { limit: 1 });
-        return { table, result: "exists" };
-      } catch {
+        await suiteql(ctx.ns, `SELECT t.id FROM ${table} t WHERE ROWNUM <= 1`, { limit: 1 });
+      } catch (error) {
+        return { table, result: "unchecked", reason: `the role cannot query ${table}: ${reason(error)}` };
+      }
+      const probe = `SELECT COUNT(t.id) AS n FROM ${table} t WHERE t.${scriptId} IS NOT NULL`;
+      for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          await suiteql(ctx.ns, `SELECT t.id FROM ${table} t WHERE ROWNUM <= 1`, { limit: 1 });
-          return { table, result: "absent" };
+          await suiteql(ctx.ns, probe, { limit: 1 });
+          return { table, result: "exists" };
         } catch (error) {
-          return { table, result: "unchecked", reason: `the role cannot query ${table}: ${(error as Error).message.slice(0, 80)}` };
+          if (!isUnknownColumn(error)) return { table, result: "unchecked", reason: `probe failed: ${reason(error)}` };
         }
       }
+      return { table, result: "absent" };
     }),
   );
 }
@@ -233,10 +270,11 @@ export const nsFieldPlan = defineTool({
   name: "ns_field_plan",
   title: "Plan a custom field",
   description:
-    "Validates a custom field spec (transaction body, entity or item field) and builds its SDF XML. Checks the whole " +
-    "account for the script ID with SuiteQL and the record types it applies to for a field with the same label. Changes " +
-    "nothing anywhere. Returns the script ID, the XML, the manifest features it needs, where the ID was checked and where " +
-    "it could not be, warnings, and ready=true only when the ID is proven unused and the field is not already in the project.",
+    "Validates a custom field spec (transaction body, entity or item field) and builds its SDF XML. Probes the script ID " +
+    "on the SuiteQL tables for its kind (scriptIdCheck: exists, absent or unchecked per table) and checks the record types " +
+    "it applies to for a field with the same label. Changes nothing anywhere. Returns the script ID, the XML, the manifest " +
+    "features it needs, warnings, and ready=true only when every probed table answered absent and the field is not " +
+    "already in the project.",
   writes: false,
   input: z.object(fieldInput),
   async handler(args, ctx) {
@@ -266,7 +304,8 @@ export const nsFieldGenerate = defineTool({
     "Writes the field's SDF XML to netsuite/src/Objects/fields/ and adds the manifest features it needs. Nothing reaches " +
     "NetSuite: the file ships through a pull request and the approved deploy (ADR 0002). Refuses a script ID found in " +
     "NetSuite unless the field is already in the SDF project and replace is true; refuses when the ID could not be checked " +
-    "on some table unless acceptUnchecked is true; refuses to overwrite a file unless replace is true. Run ns_field_plan " +
+    "on some table unless acceptUnchecked is true; refuses to overwrite a file unless replace is true, and never writes " +
+    "through a symbolic link. Run ns_field_plan " +
     "first and get the user's agreement.",
   writes: false,
   localWrites: true,
@@ -293,19 +332,26 @@ export const nsFieldGenerate = defineTool({
       );
     }
     const root = await projectRoot();
-    const written: string[] = [];
-    for (const f of artifact.files) {
-      const full = await safeTarget(root, f.path);
-      await writeFile(full, f.content);
-      written.push(`Objects/${f.path}`);
-    }
+    // Everything that can be refused is checked before the first write, so a refusal never leaves a file behind.
     const manifestPath = path.join(root, "manifest.xml");
     await refuseSymlink(manifestPath);
     const before = await readFile(manifestPath, "utf8");
-    const after = withRequiredFeatures(before, artifact.features);
+    let after: string;
+    try {
+      after = withRequiredFeatures(before, artifact.features);
+    } catch (error) {
+      if (error instanceof SdfSpecError) throw new ToolInputError(`manifest.xml: ${error.message}`);
+      throw error;
+    }
+    const targets = await Promise.all(artifact.files.map(async (f) => ({ f, full: await safeTarget(root, f.path) })));
+    const written: string[] = [];
+    for (const { f, full } of targets) {
+      await writeNoFollow(full, f.content);
+      written.push(`Objects/${f.path}`);
+    }
     const manifestFeaturesAdded = artifact.features.filter((f) => !new RegExp(`<feature required="true">${f}</feature>`).test(before));
     if (after !== before) {
-      await writeFile(manifestPath, after);
+      await writeNoFollow(manifestPath, after);
       written.push("manifest.xml");
     }
     return {

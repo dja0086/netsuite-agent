@@ -4,7 +4,7 @@
 
 **Agent:** calls `ns_field_plan` with `kind: body, name: rush, label: Rush order, type: CHECKBOX, appliesTo: [sale]`.
 
-**Agent:** The field would be `custbody_nsagent_rush`, a checkbox on sales transactions (sales orders and invoices both count as `sale`). No transaction anywhere in NetSuite has a field with that script ID, sales orders and invoices have no field with that label, and it needs no extra manifest features. Shall I write it into the SuiteCloud project?
+**Agent:** The field would be `custbody_nsagent_rush`, a checkbox on sales transactions (sales orders and invoices both count as `sale`). The script ID probe on the transaction table came back absent, sales orders and invoices have no field with that label, and it needs no extra manifest features. Shall I write it into the SuiteCloud project?
 
 **User:** Yes.
 

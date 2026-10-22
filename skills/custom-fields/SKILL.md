@@ -1,6 +1,6 @@
 ---
 name: custom-fields
-description: Design a NetSuite custom field (transaction body, customer/vendor/contact, or item field), check the account for clashes and write its SDF XML into the SuiteCloud project for a pull request. Use for "add a field", "we need a checkbox/date/list field on ...", "draft the field definition". Never creates fields live; the field reaches NetSuite only through a PR and the approved deploy. Not for reading field values (data-explorer) or PDF layouts (pdf-templates).
+description: Design a NetSuite custom field (transaction body, entity such as customer/vendor/contact, or item field), check the account for clashes and write its SDF XML into the SuiteCloud project for a pull request. Use for "add a field", "we need a checkbox/date/list field on ...", "draft the field definition". Never creates fields live; the field reaches NetSuite only through a PR and the approved deploy. Not for reading field values (data-explorer) or PDF layouts (pdf-templates).
 version: 0.1.0
 owner: "@dja0086"
 # Tools this skill may call. Each must exist in apps/mcp-gateway/src/tools/ (see custom-fields.ts).
@@ -15,7 +15,7 @@ governance_budget:
 
 # Custom fields
 
-Turns a request for a new field into an SDF object in `netsuite/src/Objects/fields/`. `ns_field_plan` validates the spec, builds the XML, checks the whole account for the script ID (SuiteQL) and checks the record types the field will show on for a field with the same label; it changes nothing. `ns_field_generate` writes the file (and any manifest features it needs) into the SuiteCloud project on the gateway host. Neither tool talks to NetSuite to create anything: the field ships through a pull request and the approved `deploy-sdf` workflow (ADR 0002, change-control skill).
+Turns a request for a new field into an SDF object in `netsuite/src/Objects/fields/`. `ns_field_plan` validates the spec, builds the XML, probes the script ID on the SuiteQL tables for its kind and checks the record types the field will show on for a field with the same label; it changes nothing. `ns_field_generate` writes the file (and any manifest features it needs) into the SuiteCloud project on the gateway host. Neither tool talks to NetSuite to create anything: the field ships through a pull request and the approved `deploy-sdf` workflow (ADR 0002, change-control skill).
 
 ## When to use
 
@@ -33,7 +33,8 @@ Hand off instead when: the user asks what an existing field means or which recor
    - `appliesTo`: where the field shows, for example `sale` for sales transactions. Only list what the user asked for.
 2. **Plan.** Call `ns_field_plan`. Show the script ID, the `scriptIdCheck` per table (`absent`, `exists` or `unchecked`), any `labelClashes`, the `warnings` and the manifest `features`. Show the XML only if the user asks.
    - `exists`: the ID is already used in NetSuite, even if on record types this field would not apply to. Deploying would overwrite that field.
-   - `unchecked`: the role cannot query that table (for entity fields: employee, partner and job today). A field there with this ID would be overwritten by the deploy, and nothing else catches it: the PR reviewer must confirm it does not exist.
+   - `unchecked`: the role cannot query that table, or the probe failed for another reason (throttling, timeout). For entity fields the role cannot query employee, partner, job, othername, genericresource, entitygroup or projecttemplate today, so entity fields always have unchecked tables. A field there with this ID would be overwritten by the deploy, and nothing else catches it: the PR reviewer must confirm it does not exist.
+   - `absent`: the table answered the probe the way NetSuite answers an unknown column, twice. For body fields this relies on the `transaction` table listing body fields of every transaction type, which could not be tested on the demo account for fields applied only to non-sales transactions.
 3. **Resolve clashes.** If the ID `exists`, propose another name, or ask whether the user means the existing field. A label clash is a warning: point it out and let the user decide. If `mandatory` is set, repeat the warning: every save of those records (UI, CSV, integrations, `ns_import_run`) then fails without a value.
 4. **Agree, then generate.** Ask the user to confirm the spec, and, if any table is `unchecked`, that the PR reviewer will confirm the ID is unused there. Only then call `ns_field_generate` with exactly the agreed arguments, plus `acceptUnchecked: true` only if the user agreed to that. Report `written` and `manifestFeaturesAdded`.
 5. **Hand over to change control.** The files are on disk, not in NetSuite. Say the next step is a branch and pull request, then the approved deploy (sandbox stage, then production stage). Do not claim the field exists in NetSuite.
@@ -49,7 +50,7 @@ These tools never write to NetSuite, so they need no approval from the gateway. 
 - overwriting a field file unless `replace` is true;
 - writing through a symbolic link.
 
-The script ID check is only as complete as the tables the role can query; `scriptIdCheck` says which ones it covered. Every file it writes is recorded in the gateway audit log.
+The script ID check covers only the tables listed in `scriptIdCheck`, and only those that answered `absent`. Every file it writes is recorded in the gateway audit log.
 
 ## Do not
 

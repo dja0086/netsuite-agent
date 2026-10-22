@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import type { NsRequest, NsRequester } from "@ns-agent/ns-client";
+import { NsHttpError, type NsRequest, type NsRequester } from "@ns-agent/ns-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DenyAllApprovals, MemoryAuditSink, createGateway, type LoadedSkill } from "../src";
 
@@ -40,10 +40,17 @@ const MANIFEST = `<manifest projecttype="ACCOUNTCUSTOMIZATION">
 interface FakeAccount {
   fields?: Record<string, Record<string, string>>;
   columns?: Record<string, string[]>;
+  /** Makes the nth probe (1-based, counted per table) fail with this error instead of answering. */
+  probeError?: (table: string, attempt: number) => Error | undefined;
 }
-const OPEN_TABLES = { transaction: [], item: [], customer: [], vendor: [], contact: [], employee: [], partner: [], job: [] };
+const ENTITY_TABLES = ["customer", "vendor", "contact", "employee", "partner", "job", "othername", "genericresource", "entitygroup", "projecttemplate"];
+const OPEN_TABLES: Record<string, string[]> = Object.fromEntries(["transaction", "item", ...ENTITY_TABLES].map((t) => [t, []]));
+/** What the demo account's integration role can query, as seen live. */
+const DEMO_TABLES: Record<string, string[]> = { transaction: [], item: [], customer: [], vendor: [], contact: [] };
+const unknownColumn = () => new NsHttpError(500, "UNEXPECTED_ERROR", "An unexpected error occurred. Error ID: x");
 
-function fakeNs({ fields = {}, columns = OPEN_TABLES }: FakeAccount) {
+function fakeNs({ fields = {}, columns = OPEN_TABLES, probeError }: FakeAccount) {
+  const probes = new Map<string, number>();
   const requests: NsRequest[] = [];
   const ns: NsRequester = {
     async request<T>(req: NsRequest): Promise<T> {
@@ -51,10 +58,16 @@ function fakeNs({ fields = {}, columns = OPEN_TABLES }: FakeAccount) {
       if (req.method === "POST" && req.path.endsWith("/suiteql")) {
         const q = (req.body as { q: string }).q;
         const table = /FROM (\w+) t/.exec(q)![1]!;
-        const cols = (columns as Record<string, string[]>)[table];
-        if (!cols) throw new Error(`Record '${table}' was not found.`);
+        const cols = columns[table];
+        if (!cols) throw new NsHttpError(400, "INVALID_PARAMETER", `Invalid search query. Record '${table}' was not found.`);
         const field = /WHERE t\.(\w+) IS NOT NULL/.exec(q)?.[1];
-        if (field && !cols.includes(field)) throw new Error("An unexpected error occurred.");
+        if (field) {
+          const attempt = (probes.get(table) ?? 0) + 1;
+          probes.set(table, attempt);
+          const injected = probeError?.(table, attempt);
+          if (injected) throw injected;
+          if (!cols.includes(field)) throw unknownColumn();
+        }
         return { items: [{ n: "0" }], hasMore: false, count: 1, offset: 0, totalResults: 1 } as T;
       }
       if (req.method !== "GET" || !req.path.includes("/metadata-catalog/")) throw new Error(`unexpected ${req.method} ${req.path}`);
@@ -135,21 +148,54 @@ describe("ns_field_plan", () => {
   });
 
   it("probes every entity table and is not ready when one cannot be queried", async () => {
-    const { partner, job, ...readable } = OPEN_TABLES;
-    void partner;
-    void job;
-    const { call } = await connect({ columns: { ...readable, vendor: ["custentity_nsagent_tier"] } });
+    const { call } = await connect({ columns: { ...DEMO_TABLES, vendor: ["custentity_nsagent_tier"] } });
     const r = await call("ns_field_plan", { kind: "entity", name: "tier", label: "Tier", type: "TEXT", appliesTo: ["customer"] });
     const check = r.json!.scriptIdCheck as Array<{ table: string; result: string }>;
     expect(Object.fromEntries(check.map((c) => [c.table, c.result]))).toEqual({
       customer: "absent",
       vendor: "exists",
       contact: "absent",
-      employee: "absent",
+      employee: "unchecked",
       partner: "unchecked",
       job: "unchecked",
+      othername: "unchecked",
+      genericresource: "unchecked",
+      entitygroup: "unchecked",
+      projecttemplate: "unchecked",
     });
     expect(r.json!.ready).toBe(false);
+  });
+
+  it("finds an entity field that exists only on other names", async () => {
+    const { call } = await connect({ columns: { ...OPEN_TABLES, othername: ["custentity_nsagent_tier"] } });
+    const r = await call("ns_field_plan", { kind: "entity", name: "tier", label: "Tier", type: "TEXT", appliesTo: ["customer"] });
+    expect(r.json).toMatchObject({ ready: false });
+    expect((r.json!.scriptIdCheck as Array<{ table: string; result: string }>).find((c) => c.table === "othername")).toEqual({ table: "othername", result: "exists" });
+  });
+
+  it.each([
+    ["a 503", new NsHttpError(503, undefined, "Service Unavailable")],
+    ["a throttle", new NsHttpError(429, "SSS_REQUEST_LIMIT_EXCEEDED", "Request limit exceeded")],
+    ["an auth failure", new NsHttpError(401, "INVALID_LOGIN", "Invalid login")],
+    ["a network error", new TypeError("fetch failed")],
+  ])("never reads %s on the probe as absent", async (_name, error) => {
+    // The field exists, but the probe fails for an unrelated reason: the table must come back unchecked.
+    const { call } = await connect({ columns: { ...OPEN_TABLES, transaction: ["custbody_nsagent_rush"] }, probeError: () => error });
+    const plan = await call("ns_field_plan", RUSH);
+    expect(plan.json).toMatchObject({ ready: false, scriptIdCheck: [{ table: "transaction", result: "unchecked" }] });
+    const gen = await call("ns_field_generate", RUSH);
+    expect(gen.isError).toBe(true);
+    expect(gen.text).toContain("could not prove");
+    expect(await readdir(path.join(dir, "Objects"))).toEqual([]);
+  });
+
+  it("repeats a probe that failed like an unknown column, so a one-off server fault does not read as absent", async () => {
+    const { call } = await connect({
+      columns: { ...OPEN_TABLES, transaction: ["custbody_nsagent_rush"] },
+      probeError: (_t, attempt) => (attempt === 1 ? unknownColumn() : undefined),
+    });
+    const r = await call("ns_field_plan", RUSH);
+    expect(r.json).toMatchObject({ ready: false, scriptIdCheck: [{ table: "transaction", result: "exists" }] });
   });
 
   it("reports a label clash and record types whose labels it could not read", async () => {
@@ -227,16 +273,15 @@ describe("ns_field_generate", () => {
   });
 
   it("refuses unchecked tables unless acceptUnchecked is true", async () => {
-    const { partner, job, ...readable } = OPEN_TABLES;
-    void partner;
-    void job;
-    const { call } = await connect({ columns: readable });
+    const { call } = await connect({ columns: DEMO_TABLES });
     const spec = { kind: "entity", name: "tier", label: "Tier", type: "TEXT", appliesTo: ["customer"] };
     const refused = await call("ns_field_generate", spec);
     expect(refused.isError).toBe(true);
-    expect(refused.text).toContain("could not prove custentity_nsagent_tier is unused on partner, job");
+    expect(refused.text).toContain("could not prove custentity_nsagent_tier is unused on employee, partner, job, othername");
     const accepted = await call("ns_field_generate", { ...spec, acceptUnchecked: true });
-    expect(accepted.json).toMatchObject({ uncheckedTables: ["partner", "job"] });
+    expect(accepted.json).toMatchObject({
+      uncheckedTables: ["employee", "partner", "job", "othername", "genericresource", "entitygroup", "projecttemplate"],
+    });
   });
 
   it("refuses to write through a symbolic link", async () => {
@@ -248,6 +293,45 @@ describe("ns_field_generate", () => {
     expect(r.isError).toBe(true);
     expect(r.text).toContain("symbolic link");
     expect(await readdir(outside)).toEqual([]);
+  });
+
+  it("refuses a bad manifest before writing any file", async () => {
+    await writeFile(path.join(dir, "manifest.xml"), "<manifest/>");
+    const { call } = await connect();
+    const r = await call("ns_field_generate", { kind: "item", name: "hazmat_class", label: "Hazmat class", type: "TEXT", appliesTo: ["inventory"] });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("manifest.xml: manifest has no <features> block");
+    expect(await readdir(path.join(dir, "Objects"))).toEqual([]);
+  });
+
+  it("refuses to replace a field file that is a symbolic link", async () => {
+    const outside = path.join(await mkdtemp(path.join(tmpdir(), "outside-")), "x.xml");
+    await writeFile(outside, "original");
+    await mkdir(path.join(dir, "Objects/fields"));
+    await symlink(outside, path.join(dir, "Objects/fields/custbody_nsagent_rush.xml"));
+    const { call } = await connect();
+    const r = await call("ns_field_generate", { ...RUSH, replace: true });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain("symbolic link");
+    expect(await readFile(outside, "utf8")).toBe("original");
+  });
+
+  it("refuses a symlinked netsuite/src when NS_AGENT_SDF_DIR is not set", async () => {
+    const repo = await mkdtemp(path.join(tmpdir(), "repo-"));
+    await mkdir(path.join(repo, "netsuite"));
+    await symlink(dir, path.join(repo, "netsuite/src"));
+    delete process.env.NS_AGENT_SDF_DIR;
+    const cwd = process.cwd();
+    process.chdir(repo);
+    try {
+      const { call } = await connect();
+      const r = await call("ns_field_generate", RUSH);
+      expect(r.isError).toBe(true);
+      expect(r.text).toContain("symbolic link");
+      expect(await readdir(path.join(dir, "Objects"))).toEqual([]);
+    } finally {
+      process.chdir(cwd);
+    }
   });
 
   it("refuses when the SDF project folder is missing", async () => {
