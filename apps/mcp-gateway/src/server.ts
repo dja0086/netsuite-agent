@@ -111,7 +111,7 @@ export function createGateway(options: GatewayOptions): Gateway {
         title: tool.title,
         description: tool.description,
         inputSchema: tool.writes ? tool.input.extend({ approvalId: APPROVAL_ID }) : tool.input,
-        annotations: { readOnlyHint: !tool.writes, destructiveHint: tool.writes, openWorldHint: false },
+        annotations: { readOnlyHint: !tool.writes && !tool.localWrites, destructiveHint: tool.writes, openWorldHint: false },
       },
       (async (input: Record<string, unknown>): Promise<CallToolResult> => {
         const started = Date.now();
