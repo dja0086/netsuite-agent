@@ -110,7 +110,7 @@
       <permlevel>VIEW</permlevel>
     </permission>
     <permission>
-      <permkey>[scriptid=customrecord_nsts_pwp_preferences]</permkey>
+      <permkey>LIST_CUSTRECORDENTRY</permkey>
       <permlevel>VIEW</permlevel>
     </permission>
     <permission>

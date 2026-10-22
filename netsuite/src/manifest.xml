@@ -10,9 +10,5 @@
       <feature required="false">ISSUEDB</feature>
       <feature required="false">CRM</feature>
     </features>
-    <objects>
-      <!-- Pay When Paid SuiteApp (NSTS); the role needs View on it, see docs/netsuite-role.md. -->
-      <object>customrecord_nsts_pwp_preferences</object>
-    </objects>
   </dependencies>
 </manifest>
