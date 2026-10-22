@@ -110,6 +110,10 @@
       <permlevel>VIEW</permlevel>
     </permission>
     <permission>
+      <permkey>LIST_CUSTRECORDENTRY</permkey>
+      <permlevel>VIEW</permlevel>
+    </permission>
+    <permission>
       <permkey>ADMI_LOGIN_OAUTH2</permkey>
       <permlevel>FULL</permlevel>
     </permission>

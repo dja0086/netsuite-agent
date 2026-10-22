@@ -19,9 +19,10 @@
     "release:check": "tsx scripts/release-check.ts",
     "new:skill": "tsx scripts/new-skill.ts",
     "skills:validate": "tsx scripts/validate-skills.ts",
+    "sdf:check": "node scripts/sdf-check.mjs",
     "approvals": "tsx scripts/approvals.ts",
     "skills:eval": "tsx scripts/run-evals.ts",
-    "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm skills:validate"
+    "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm skills:validate && pnpm sdf:check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

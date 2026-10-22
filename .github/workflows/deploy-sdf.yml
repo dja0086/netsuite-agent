@@ -1,72 +1,251 @@
 name: deploy-sdf
 
-# Deploys the SuiteCloud project. Sandbox first, then production.
-# Approval gates come from GitHub environment protection rules:
-#   environment "sandbox"     -> required reviewer: NetSuite admin
-#   environment "production"  -> required reviewers: NetSuite admin + security
+# Deploys the SuiteCloud project in netsuite/ in two stages: environment "sandbox", then
+# environment "production". Each stage first waits for an approver in a GitHub issue
+# (scripts/deploy-approval.sh): environment required reviewers are not available for private
+# repositories on personal GitHub plans. If they are configured, they gate the job as well.
+#
+# Owner decision 2026-10-22: there is no sandbox account, so BOTH environments point at the
+# demo account TSTDRV1755417. Running this rehearses the pipeline for CP3; it is not a real
+# production deploy. Setup checklist and rollback: docs/release.md ("SDF deploy pipeline").
+#
+# Every run deploys one commit: `ref` is resolved to a SHA that must be reachable from main,
+# and both stages check out that SHA, so main moving between approvals changes nothing.
 on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Git ref to deploy (merged commit on main)
+        description: Branch, tag or commit SHA to deploy; must be reachable from main
         required: true
         default: main
+      validate_only:
+        description: Server-validate in both stages without deploying
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+# One deploy at a time; a running deploy is never cancelled. GitHub keeps at most one run
+# pending behind the running one (a newer dispatch replaces the pending run).
+concurrency:
+  group: deploy-sdf
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
+  resolve:
+    name: resolve ref
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.ref.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve the ref and refuse anything not on main
+        id: ref
+        env:
+          REF: ${{ inputs.ref }}
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          if [ "$WORKFLOW_REF" != "refs/heads/main" ]; then
+            echo "::error::Run this workflow from main (it was started from $WORKFLOW_REF)."
+            exit 1
+          fi
+          if ! [[ "$REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+            echo "::error::ref must be a branch, tag or commit SHA."
+            exit 1
+          fi
+          sha=$(git rev-parse --verify --quiet "refs/remotes/origin/$REF^{commit}" \
+            || git rev-parse --verify --quiet "refs/tags/$REF^{commit}" \
+            || git rev-parse --verify --quiet "$REF^{commit}") || {
+            echo "::error::ref '$REF' was not found."
+            exit 1
+          }
+          if ! git merge-base --is-ancestor "$sha" refs/remotes/origin/main; then
+            echo "::error::$sha is not reachable from main. Merge the change through a PR first."
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          {
+            echo "### deploy-sdf"
+            echo "- ref: \`$REF\` -> \`$sha\`"
+            echo "- mode: ${{ inputs.validate_only && 'validate only' || 'validate and deploy' }}"
+            echo "- both environments target the demo account (rehearsal, not a production deploy)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   sandbox:
+    name: stage 1 (sandbox)
+    needs: resolve
     runs-on: ubuntu-latest
     environment: sandbox
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+    env:
+      AUTH_ID: ns-agent-sandbox
+      ACCOUNT: ${{ vars.NS_SANDBOX_ACCOUNT_ID }}
+      SUITECLOUD_CI: "1"
     steps:
+      # Pipeline tooling from the workflow's own commit; the SDF project from the resolved SHA.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+      - uses: actions/checkout@v4
         with:
-          node-version: 22
-      - run: npm install -g @oracle/suitecloud-cli
-      - name: Authenticate with M2M certificate (key written outside the workspace)
-        run: |
-          umask 077
-          printf '%s' "$KEY" > "$RUNNER_TEMP/sdf.pem"
-          suitecloud account:setup:ci --account "$ACCOUNT" --authid ns-agent-sandbox \
-            --certificateid "$CERT_ID" --privatekeypath "$RUNNER_TEMP/sdf.pem"
-        working-directory: netsuite
+          ref: ${{ needs.resolve.outputs.sha }}
+          path: deploy
+          persist-credentials: false
+      - name: Wait for approval (sandbox)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPROVERS: ${{ vars.NS_DEPLOY_APPROVERS }}
+          STAGE: sandbox
+          SHA: ${{ needs.resolve.outputs.sha }}
+          MODE: ${{ inputs.validate_only && 'validate' || 'deploy' }}
+        working-directory: deploy
+        run: ../scripts/deploy-approval.sh
+      - uses: ./.github/actions/suitecloud-setup
+      - name: Authenticate with the M2M certificate (key written outside the workspace)
+        working-directory: deploy/netsuite
         env:
           KEY: ${{ secrets.NS_SANDBOX_SDF_PRIVATE_KEY }}
-          ACCOUNT: ${{ vars.NS_SANDBOX_ACCOUNT_ID }}
           CERT_ID: ${{ vars.NS_SANDBOX_SDF_CERT_ID }}
-      - run: suitecloud project:validate --server
-        working-directory: netsuite
-      - run: suitecloud project:deploy
-        working-directory: netsuite
+        run: |
+          for v in KEY ACCOUNT CERT_ID; do
+            [ -n "${!v}" ] || { echo "::error::$v is empty: set it on the sandbox environment (docs/release.md)."; exit 1; }
+          done
+          # CI mode stores the credentials encrypted with this passkey; it lives only for this job.
+          passkey=$(openssl rand -hex 32)
+          echo "::add-mask::$passkey"
+          echo "SUITECLOUD_CI_PASSKEY=$passkey" >> "$GITHUB_ENV"
+          export SUITECLOUD_CI_PASSKEY="$passkey"
+          umask 077
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/sdf.pem"
+          suitecloud account:setup:ci --account "$ACCOUNT" --authid "$AUTH_ID" \
+            --certificateid "$CERT_ID" --privatekeypath "$RUNNER_TEMP/sdf.pem"
+      - name: Pin the project to this auth ID and confirm the account
+        working-directory: deploy/netsuite
+        run: |
+          # validate and deploy take no --authid in CLI 4.1.1; they use project.json's defaultAuthId.
+          printf '{\n  "defaultAuthId": "%s"\n}\n' "$AUTH_ID" > project.json
+          info=$(suitecloud account:manageauth --info "$AUTH_ID" | sed 's/\x1b\[[0-9;]*[A-Za-z]//g')
+          grep -E '^(Authentication ID|Account ID|Role|Account Type):' <<<"$info" || true
+          got=$(sed -n 's/^Account ID: *//p' <<<"$info")
+          norm() { tr '[:lower:]-' '[:upper:]_' <<<"$1"; }
+          if [ "$(norm "$got")" != "$(norm "$ACCOUNT")" ]; then
+            echo "::error::Auth ID $AUTH_ID points at '$got', not NS_SANDBOX_ACCOUNT_ID '$ACCOUNT'."
+            exit 1
+          fi
+      - name: Validate on the server
+        working-directory: deploy/netsuite
+        run: |
+          mkdir -p "$RUNNER_TEMP/sdf-logs"
+          suitecloud project:validate --log "$RUNNER_TEMP/sdf-logs" | tee "$RUNNER_TEMP/sdf-logs/validate-output.txt"
+      - name: Deploy
+        if: ${{ !inputs.validate_only }}
+        working-directory: deploy/netsuite
+        run: suitecloud project:deploy --log "$RUNNER_TEMP/sdf-logs" | tee "$RUNNER_TEMP/sdf-logs/deploy-output.txt"
+      - name: Upload deploy output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdf-sandbox-${{ needs.resolve.outputs.sha }}
+          path: ${{ runner.temp }}/sdf-logs/
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Delete the private key and stored credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sdf.pem" deploy/netsuite/project.json ~/.suitecloud-sdk/credentials_*.p12
 
   production:
-    needs: sandbox
+    name: stage 2 (production)
+    needs: [resolve, sandbox]
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+    env:
+      AUTH_ID: ns-agent-production
+      ACCOUNT: ${{ vars.NS_PROD_ACCOUNT_ID }}
+      SUITECLOUD_CI: "1"
     steps:
+      # Pipeline tooling from the workflow's own commit; the SDF project from the resolved SHA.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+      - uses: actions/checkout@v4
         with:
-          node-version: 22
-      - run: npm install -g @oracle/suitecloud-cli
-      - name: Authenticate with M2M certificate (key written outside the workspace)
-        run: |
-          umask 077
-          printf '%s' "$KEY" > "$RUNNER_TEMP/sdf.pem"
-          suitecloud account:setup:ci --account "$ACCOUNT" --authid ns-agent-production \
-            --certificateid "$CERT_ID" --privatekeypath "$RUNNER_TEMP/sdf.pem"
-        working-directory: netsuite
+          ref: ${{ needs.resolve.outputs.sha }}
+          path: deploy
+          persist-credentials: false
+      - name: Wait for approval (production)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPROVERS: ${{ vars.NS_DEPLOY_APPROVERS }}
+          STAGE: production
+          SHA: ${{ needs.resolve.outputs.sha }}
+          MODE: ${{ inputs.validate_only && 'validate' || 'deploy' }}
+        working-directory: deploy
+        run: ../scripts/deploy-approval.sh
+      - uses: ./.github/actions/suitecloud-setup
+      - name: Authenticate with the M2M certificate (key written outside the workspace)
+        working-directory: deploy/netsuite
         env:
           KEY: ${{ secrets.NS_PROD_SDF_PRIVATE_KEY }}
-          ACCOUNT: ${{ vars.NS_PROD_ACCOUNT_ID }}
           CERT_ID: ${{ vars.NS_PROD_SDF_CERT_ID }}
-      - run: suitecloud project:validate --server
-        working-directory: netsuite
-      - run: suitecloud project:deploy
-        working-directory: netsuite
+        run: |
+          for v in KEY ACCOUNT CERT_ID; do
+            [ -n "${!v}" ] || { echo "::error::$v is empty: set it on the production environment (docs/release.md)."; exit 1; }
+          done
+          # CI mode stores the credentials encrypted with this passkey; it lives only for this job.
+          passkey=$(openssl rand -hex 32)
+          echo "::add-mask::$passkey"
+          echo "SUITECLOUD_CI_PASSKEY=$passkey" >> "$GITHUB_ENV"
+          export SUITECLOUD_CI_PASSKEY="$passkey"
+          umask 077
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/sdf.pem"
+          suitecloud account:setup:ci --account "$ACCOUNT" --authid "$AUTH_ID" \
+            --certificateid "$CERT_ID" --privatekeypath "$RUNNER_TEMP/sdf.pem"
+      - name: Pin the project to this auth ID and confirm the account
+        working-directory: deploy/netsuite
+        run: |
+          # validate and deploy take no --authid in CLI 4.1.1; they use project.json's defaultAuthId.
+          printf '{\n  "defaultAuthId": "%s"\n}\n' "$AUTH_ID" > project.json
+          info=$(suitecloud account:manageauth --info "$AUTH_ID" | sed 's/\x1b\[[0-9;]*[A-Za-z]//g')
+          grep -E '^(Authentication ID|Account ID|Role|Account Type):' <<<"$info" || true
+          got=$(sed -n 's/^Account ID: *//p' <<<"$info")
+          norm() { tr '[:lower:]-' '[:upper:]_' <<<"$1"; }
+          if [ "$(norm "$got")" != "$(norm "$ACCOUNT")" ]; then
+            echo "::error::Auth ID $AUTH_ID points at '$got', not NS_PROD_ACCOUNT_ID '$ACCOUNT'."
+            exit 1
+          fi
+      - name: Validate on the server
+        working-directory: deploy/netsuite
+        run: |
+          mkdir -p "$RUNNER_TEMP/sdf-logs"
+          suitecloud project:validate --log "$RUNNER_TEMP/sdf-logs" | tee "$RUNNER_TEMP/sdf-logs/validate-output.txt"
+      - name: Deploy
+        if: ${{ !inputs.validate_only }}
+        working-directory: deploy/netsuite
+        run: suitecloud project:deploy --log "$RUNNER_TEMP/sdf-logs" | tee "$RUNNER_TEMP/sdf-logs/deploy-output.txt"
+      - name: Upload deploy output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdf-production-${{ needs.resolve.outputs.sha }}
+          path: ${{ runner.temp }}/sdf-logs/
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Delete the private key and stored credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sdf.pem" deploy/netsuite/project.json ~/.suitecloud-sdk/credentials_*.p12
