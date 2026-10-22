@@ -4,6 +4,7 @@ import { searchBuilderTools } from "./search-builder";
 import { reportsTools } from "./reports";
 import { dataImporterTools } from "./data-importer";
 import { recordDeleteTools } from "./record-delete";
+import { customFieldsTools } from "./custom-fields";
 // new-skill:imports (pnpm new:skill adds tool module imports above this line)
 
 /**
@@ -16,6 +17,7 @@ export const ALL_TOOLS: ToolDef[] = [
   ...reportsTools,
   ...dataImporterTools,
   ...recordDeleteTools,
+  ...customFieldsTools,
   // new-skill:tools (pnpm new:skill adds tool lists above this line)
 ];
 
