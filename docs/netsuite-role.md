@@ -28,6 +28,7 @@ Importing beats hand-writing the XML: permission keys are easy to get wrong, and
 | Lists | Subsidiaries, Currency, Accounts | View |
 | Transactions | Find Transaction, plus each transaction type the agent may read | View |
 | Lists | Custom record types the agent may read | View |
+| Custom record | NSTS \| PWP - Preferences (`customrecord_nsts_pwp_preferences`, Pay When Paid SuiteApp) | View. The SuiteApp reads it whenever a script loads an invoice, sales order, credit memo or vendor bill; without it `record.load` in the PDF preview RESTlet fails with `INSUFFICIENT_PERMISSION`. |
 
 Known exception (2026-10-20): NetSuite forces **Other Addresses (`LIST_OTHER_ADDRESS`) = Full** onto this role whenever it is saved. `VIEW` is not a valid level for that key, and removing it from the XML (PR #3) did not stick: the next deploy added it back. It stays in the XML so the repo matches the account. No gateway tool writes addresses: the only write tools are `ns_search_save`, `ns_import_run` (customers) and `ns_record_delete` (customers), each behind an approval (ADRs 0004-0006). Recheck this exception in the CP5 permission review.
 
