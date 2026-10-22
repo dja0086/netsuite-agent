@@ -4,7 +4,7 @@
 cases:
   - kind: tool
     id: plan-body-checkbox
-    description: The plan validates the spec, checks the account for clashes and returns the SDF XML without writing anything.
+    description: The plan validates the spec, checks the script ID account-wide and labels where the field shows, and returns the SDF XML without writing anything.
     tool: ns_field_plan
     input:
       kind: body
@@ -14,7 +14,7 @@ cases:
       appliesTo: [sale]
       help: Tick when the order ships the same day.
     expect:
-      has_keys: [scriptId, path, xml, features, checkedRecordTypes, uncheckedRecordTypes, collisions, warnings, ready]
+      has_keys: [scriptId, path, xml, features, scriptIdCheck, labelCheckedRecordTypes, labelUncheckedRecordTypes, labelClashes, warnings, ready]
 
   - kind: tool
     id: plan-rejects-long-name
@@ -84,6 +84,34 @@ cases:
     expect:
       ok: false
       error_contains: already in the SDF project
+
+  - kind: tool
+    id: plan-rejects-inherited-applies-to
+    description: Applies-to targets are checked as own keys, so names like constructor are refused.
+    tool: ns_field_plan
+    input:
+      kind: body
+      name: rush
+      label: Rush order
+      type: CHECKBOX
+      appliesTo: [constructor]
+    expect:
+      ok: false
+      error_contains: body fields apply to
+
+  - kind: tool
+    id: generate-refuses-unchecked-entity-tables
+    description: An entity field cannot be proven unused on tables the role cannot query (partner, job), so generate needs acceptUnchecked.
+    tool: ns_field_generate
+    input:
+      kind: entity
+      name: eval_tier
+      label: Eval tier
+      type: TEXT
+      appliesTo: [customer]
+    expect:
+      ok: false
+      error_contains: could not prove
 
   - kind: agent
     id: plan-before-generate
