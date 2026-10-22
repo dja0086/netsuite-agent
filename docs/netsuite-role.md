@@ -1,6 +1,6 @@
 # Integration role: customrole_ns_agent
 
-The gateway runs as one dedicated, web-services-only role with view-level permissions. Create it once by hand in the sandbox, then bring it under source control so every later permission change is reviewed.
+The gateway runs as one dedicated integration role: View on what the agent reads, Full on Customers for the approved import and delete tools, nothing else. It was created once by hand, then brought under source control so every later permission change is reviewed.
 
 ## Steps (NetSuite admin, Phase 0)
 
@@ -16,7 +16,7 @@ The gateway runs as one dedicated, web-services-only role with view-level permis
 
 Importing beats hand-writing the XML: permission keys are easy to get wrong, and an invalid key fails the deploy.
 
-## Permissions (Phase 1, read-only)
+## Permissions (current)
 
 | Area | Permission | Level |
 | --- | --- | --- |
@@ -29,11 +29,11 @@ Importing beats hand-writing the XML: permission keys are easy to get wrong, and
 | Transactions | Find Transaction, plus each transaction type the agent may read | View |
 | Lists | Custom record types the agent may read | View |
 
-Known exception (2026-10-20): NetSuite forces **Other Addresses (`LIST_OTHER_ADDRESS`) = Full** onto this role whenever it is saved. `VIEW` is not a valid level for that key, and removing it from the XML (PR #3) did not stick: the next deploy added it back. It stays in the XML so the repo matches the account. The risk is contained because the gateway exposes no write tools and the integration only calls the read-only explore RESTlet; revisit it if Phase 2 adds write paths.
+Known exception (2026-10-20): NetSuite forces **Other Addresses (`LIST_OTHER_ADDRESS`) = Full** onto this role whenever it is saved. `VIEW` is not a valid level for that key, and removing it from the XML (PR #3) did not stick: the next deploy added it back. It stays in the XML so the repo matches the account. No gateway tool writes addresses: the only write tools are `ns_search_save`, `ns_import_run` (customers) and `ns_record_delete` (customers), each behind an approval (ADRs 0004-0006). Recheck this exception in the CP5 permission review.
 
 Add more record types only through a PR, reviewed by the NetSuite admin and security (CODEOWNERS enforces this for `netsuite/src/Objects/`).
 
 ## Never
 
 - Administrator or any role with setup permissions beyond the two above. NetSuite's AI Connector refuses administrator roles by design; this gateway follows the same rule.
-- Edit, Create or Full on any record in Phase 1.
+- Edit, Create or Full on any record beyond what an accepted ADR needs (today: Customers = Full for ADRs 0005 and 0006).

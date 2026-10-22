@@ -30,7 +30,8 @@ The frontmatter schema is `SkillManifest` in `packages/schemas`. The agent host 
 | OWNERS, CHANGELOG entry for the version, CODEOWNERS line, ≥ 3 examples, no `[FILL]` | `skills:validate` | Enabled skills |
 | No keys, tokens, secrets or real account hostnames in the folder | `skills:validate` + gitleaks | Always |
 | Tool cases pass on the sandbox; safety cases 100% | `skills:eval --mode tools` (`skills-eval.yml`) | PRs touching skills or tools |
-| Trigger precision and agent cases | `skills:eval --mode triggers|agent` | Once an agent host adapter exists ([FILL]) |
+| Trigger precision | `skills:eval --mode triggers` (a `release:check` gate) | Every release |
+| Agent cases (rubric) | `skills:eval --mode agent` through the `claude` CLI (docs/agent-evals.md) | Skill changes that affect behaviour; about $10 per full run |
 
 Skills with `enabled: false` are under construction: rule failures are warnings, except tool existence, tool scope, prompt overlap and secrets, which are always errors.
 

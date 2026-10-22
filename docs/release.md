@@ -22,19 +22,22 @@ set -a; source .env; set +a
 pnpm ns:ping                         # must pass before anything else
 ```
 
-## First release of the explore RESTlet (SDF deploy)
+## SDF deploys (RESTlets, role)
 
 The SuiteCloud CLI needs a JDK (17 or 21). Run these from `netsuite/`:
 
 ```bash
-suitecloud account:setup             # browser sign-in to the demo account (one time)
+suitecloud account:setup                        # browser sign-in to the demo account (one time; auth ID nsagent-demo)
+suitecloud account:manageauth --info nsagent-demo  # every time: confirm the Account ID is TSTDRV1755417
 suitecloud project:validate --server
 suitecloud project:deploy
 ```
 
+The first `account:setup` once linked a different (production) account, which is why the Account ID check comes before every deploy. Deployed so far: the role, the explore RESTlet and the search RESTlet. Deploys run locally until `deploy-sdf.yml` has its environments on dja0086 (Phase 3).
+
 `customrole_ns_agent` must exist first: the RESTlet deployment is restricted to it. After the role exists, import it into the repo (`docs/netsuite-role.md`) so the XML matches the account.
 
-## CP1 release (read-only data explorer)
+## Checkpoint release (`release:check`)
 
 ```bash
 pnpm contracts:record                # once; review the fixture diff, then commit it
@@ -43,35 +46,19 @@ pnpm release:check                   # offline checks -> ns:ping -> contracts ->
 
 `release:check` stops at the first failing gate and writes `release-reports/<timestamp>/summary.json` (plus `evals.json`, `triggers.json`, `load.json`). It flags an uncommitted working tree; commit first so the report names a real commit.
 
-CP1 passes when:
+A checkpoint's automated part passes when (CP1 passed on 658a44d; the latest full run passed on 4810a2d; each checkpoint's own exit criteria are in the delivery plan):
 
 - [ ] `summary.json` shows `"pass": true` on a clean commit
 - [ ] Tool evals: 100% of safety cases, at least 90% overall
 - [ ] Load test: `peakActive <= maxConcurrency`, `failed: 0`
 - [ ] Contract fixtures committed (at least 6)
-- [ ] Sign-off: tech lead and skill owner (delivery plan, CP1 row)
+- [ ] Sign-off by the people named in the delivery plan's checkpoint row
 
 ## Connecting an agent for a demo
 
-```json
-{
-  "mcpServers": {
-    "netsuite-agent": {
-      "command": "pnpm",
-      "args": ["--dir", "/Users/<you>/dev/netsuite-agent", "gateway"],
-      "env": {
-        "NS_ACCOUNT_ID": "TSTDRV1755417",
-        "NS_CLIENT_ID": "<client id>",
-        "NS_CERT_ID": "<certificate id>",
-        "SECRETS_BACKEND": "file",
-        "NS_PRIVATE_KEY_PATH": "/Users/<you>/.netsuite-agent/private.pem"
-      }
-    }
-  }
-}
-```
+Claude Code: open the repo; its `.mcp.json` starts the gateway through `scripts/mcp-gateway.sh`, which loads `.env` (IDs only; the key stays at `NS_PRIVATE_KEY_PATH`). Other MCP clients: run `sh /path/to/netsuite-agent/scripts/mcp-gateway.sh` as a stdio server. Never put the client secret, key or key path into a client's JSON config.
 
-In Claude Code: `claude mcp add netsuite-agent --scope local -- pnpm --dir "$PWD" gateway` with the variables exported in the shell, or put the JSON above in the project's `.mcp.json` without secrets (IDs only).
+Writes need an approver: with the local channel, decide pending approvals with `pnpm approvals list|show|approve|deny`.
 
 ## If a gate fails
 
