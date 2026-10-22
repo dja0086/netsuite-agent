@@ -1,5 +1,9 @@
 # data-explorer changelog
 
+## 1.1.2 - 2026-10-22
+
+- Owner handle moved to @dja0086 (OWNERS, frontmatter, CODEOWNERS) after the repository moved to dja0086/netsuite-agent.
+
 ## 1.1.1 - 2026-10-21
 
 - Instructions: answer with one aggregated query, no exploratory queries first; show the exact SuiteQL run. Found by agent case `overdue-invoices-aggregate` (8 queries instead of one).

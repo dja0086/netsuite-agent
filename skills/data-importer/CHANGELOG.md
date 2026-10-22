@@ -1,5 +1,9 @@
 # data-importer changelog
 
+## 3.0.1 - 2026-10-22
+
+- Owner handle moved to @dja0086 (OWNERS, frontmatter, CODEOWNERS) after the repository moved to dja0086/netsuite-agent.
+
 ## 3.0.0 - 2026-10-21
 
 - **Deletes (ADR 0006):** `ns_record_delete_preview` (read-only: records plus a snapshot of their last-modified times) and `ns_record_delete` (write, approval-gated, bound to the snapshot; customers only; internal ids; at most 25). Requested by the owner to undo imports.

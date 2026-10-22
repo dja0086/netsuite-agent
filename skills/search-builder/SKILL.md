@@ -1,8 +1,8 @@
 ---
 name: search-builder
 description: Build, preview and save NetSuite saved searches. Use when the user wants a reusable search ("save a search", "build a saved search", "a search finance can reuse"). Previews are read-only; saving needs a named approver. Not for one-off questions (data-explorer), recurring exports (reports) or schema changes (change-control).
-version: 1.0.0
-owner: "@dja-cowboyallstar"
+version: 1.0.1
+owner: "@dja0086"
 # Tools this skill may call. Each must exist in apps/mcp-gateway/src/tools/ (see search-builder.ts).
 tools: [ns_search_preview, ns_search_save]
 writes: true

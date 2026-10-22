@@ -1,8 +1,8 @@
 ---
 name: change-control
 description: How any change to the NetSuite account moves from a pull request through sandbox to production, with approvals and rollback. Read whenever a request would create or modify a field, template, script, search or record. Its tools arrive in Phase 3; until then it explains the process.
-version: 0.1.2
-owner: "@dja-cowboyallstar"
+version: 0.1.3
+owner: "@dja0086"
 tools: []
 writes: false
 platform: true
