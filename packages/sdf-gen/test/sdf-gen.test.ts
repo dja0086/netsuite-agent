@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { SdfSpecError, fieldArtifact, templateArtifact, withRequiredFeatures } from "../src";
+import { SELECT_RECORD_TYPES, SdfSpecError, fieldArtifact, templateArtifact, templateSourceIssues, withRequiredFeatures } from "../src";
 
 const INVOICE_SOURCE = `<?xml version="1.0"?>
 <!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
@@ -158,6 +158,51 @@ describe("acceptance loop attempt 2 fixes", () => {
   it("allows a fixed image URL", () => {
     const source = INVOICE_SOURCE.replace("<table", '<img src="https://system.netsuite.com/core/media/media.nl?id=1"/><table');
     expect(() => templateArtifact({ record: "invoice", purpose: "standard", title: "NS Agent - Invoice", source })).not.toThrow();
+  });
+});
+
+describe("acceptance loop attempt 3 fixes", () => {
+  const base = { kind: "body", name: "rush", label: "Rush", type: "TEXT", appliesTo: ["sale"] };
+  const withSnippet = (snippet: string) => INVOICE_SOURCE.replace("<table", `${snippet}<table`);
+
+  it.each([
+    ["a quote inside a double-quoted URL", `<img src="https://system.netsuite.com/a'\${record.entity}"/>`, "FreeMarker inside"],
+    ["a macro called inside the URL", '<#macro d>${record.entity}</#macro><img src="https://system.netsuite.com/?d=<@d/>"/>', "FreeMarker inside"],
+    ["an unquoted value with built quotes", `<img src=\${'"'}https://system.netsuite.com/\${record.entity}\${'"'}/>`, "quoted value"],
+    ["numeric interpolation", '<img src="https://system.netsuite.com/?t=#{record.total}"/>', "FreeMarker inside"],
+    ["a record field as the whole URL", '<img src="${record.custbody_url}"/>', "FreeMarker inside"],
+    ["a comment between ? and the built-in", '<#assign t = "x"><@t?<#-- c -->interpret/>', "?interpret"],
+    ["CSS @import", '<style>@import "https://system.netsuite.com/x.css";</style>', "@import"],
+    ["a literal outside host", '<img src="https://evil.example/logo.png"/>', "only NetSuite addresses"],
+    ["a protocol-relative outside host", '<img src="//evil.example/logo.png"/>', "only NetSuite addresses"],
+    ["an outside host built into a string", `<#assign u = "https://evil.example/" + record.entity>`, "only NetSuite addresses"],
+    ["a file: address", '<img src="file:///etc/passwd"/>', "file: and ftp:"],
+  ])("rejects %s", (_name, snippet, message) => {
+    expect(() => templateArtifact({ record: "invoice", purpose: "standard", title: "NS Agent - Invoice", source: withSnippet(snippet) })).toThrow(message);
+  });
+
+  it("allows NetSuite fonts and the company logo, the way standard templates load them", () => {
+    const source = withSnippet('<link name="NotoSans" type="font" src="${nsfont.NotoSans_Regular}"/><img src="${companyInformation.logoUrl}"/>');
+    expect(templateSourceIssues(source)).toEqual([]);
+  });
+
+  it("flags only the record-driven URL in a real template from the demo account", async () => {
+    // test/fixtures/imported-invoice.template.xml: the .template.xml of custtmpl_bpc_inv_w_attach, imported from TSTDRV1755417.
+    const real = await readFile(new URL("fixtures/imported-invoice.template.xml", import.meta.url), "utf8");
+    expect(templateSourceIssues(real)).toEqual([
+      "FreeMarker inside a src, href or url() value is not allowed (${record.custbody_bpc_pdf_attach_url}): the renderer would fetch that address",
+    ]);
+  });
+
+  it("rejects U+FFFE and U+FFFF in text", () => {
+    expect(() => fieldArtifact({ ...base, label: "x￾y" } as never)).toThrow("control characters");
+    expect(() => fieldArtifact({ ...base, help: "x￿" } as never)).toThrow("control characters");
+  });
+
+  it("knows the MULTIBOOKV2 select types the first extraction missed", () => {
+    expect(SELECT_RECORD_TYPES["-252"]).toBe("MULTIBOOKV2");
+    expect(fieldArtifact({ ...base, type: "SELECT", selectRecordType: "-259" } as never).features).toEqual(["MULTIBOOKV2"]);
+    expect(Object.keys(SELECT_RECORD_TYPES)).toHaveLength(439);
   });
 
   it("writes only elements a template exported from the demo account also has", async () => {
