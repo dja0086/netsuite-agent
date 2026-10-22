@@ -380,7 +380,7 @@ Fields are generated as SDF XML and merged by pull request. `packages/sdf-gen/sr
 import { z } from "zod";
 
 export const BodyField = z.object({
-  scriptId: z.string().regex(/^custbody_nsagent_[a-z0-9_]{1,20}$/),
+  scriptId: z.string().regex(/^custbody_nsagent_[a-z0-9_]{1,21}$/), // 21 per ns-conventions 1.0.4 (SDF caps the ID at 38)
   label: z.string().min(1).max(200),
   type: z.enum(["CHECKBOX", "CURRENCY", "DATE", "FREEFORMTEXT", "INTEGER", "SELECT", "TEXTAREA"]),
   appliesTo: z.array(z.enum(["SALE", "PURCHASE", "JOURNAL"])).min(1),

