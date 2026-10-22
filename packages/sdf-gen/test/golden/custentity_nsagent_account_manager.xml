@@ -1,0 +1,18 @@
+<entitycustomfield scriptid="custentity_nsagent_account_manager">
+  <label>Account manager</label>
+  <fieldtype>SELECT</fieldtype>
+  <selectrecordtype>-4</selectrecordtype>
+  <description></description>
+  <help></help>
+  <storevalue>T</storevalue>
+  <displaytype>NORMAL</displaytype>
+  <ismandatory>F</ismandatory>
+  <defaultchecked>F</defaultchecked>
+  <showinlist>F</showinlist>
+  <globalsearch>F</globalsearch>
+  <encryptatrest>F</encryptatrest>
+  <accesslevel>2</accesslevel>
+  <searchlevel>2</searchlevel>
+  <appliestocustomer>T</appliestocustomer>
+  <appliestopartner>T</appliestopartner>
+</entitycustomfield>

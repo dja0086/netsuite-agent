@@ -84,7 +84,7 @@ Environment: `set -a; source .env; set +a` before live commands.
 
 ## Layout
 
-`packages/ns-client` (only NetSuite I/O) · `packages/suiteql` (query guards) · `packages/report-engine` (report definitions, CSV/XLSX) · `packages/import-engine` (CSV mapping, dry run) · `packages/schemas` (skill manifest + eval schemas) · `apps/mcp-gateway` (tools, policy, skill loading, validator) · `netsuite/` (SDF ACP) · `skills/` · `scripts/` · `tests/contract` · `docs/` (ADRs, release, lifecycle, agent evals, Phase 0 findings, role spec).
+`packages/ns-client` (only NetSuite I/O) · `packages/suiteql` (query guards) · `packages/report-engine` (report definitions, CSV/XLSX) · `packages/import-engine` (CSV mapping, dry run) · `packages/sdf-gen` (field and PDF template specs → SDF XML) · `packages/schemas` (skill manifest + eval schemas) · `apps/mcp-gateway` (tools, policy, skill loading, validator) · `netsuite/` (SDF ACP) · `skills/` · `scripts/` · `tests/contract` · `docs/` (ADRs, release, lifecycle, agent evals, Phase 0 findings, role spec).
 
 ## Account facts (demo account TSTDRV1755417)
 
