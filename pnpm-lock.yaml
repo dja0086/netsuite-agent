@@ -60,6 +60,9 @@ importers:
       '@ns-agent/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      '@ns-agent/sdf-gen':
+        specifier: workspace:*
+        version: link:../../packages/sdf-gen
       '@ns-agent/suiteql':
         specifier: workspace:*
         version: link:../../packages/suiteql
