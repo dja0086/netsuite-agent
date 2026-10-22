@@ -14,7 +14,7 @@
     "doctor": "node scripts/doctor.mjs",
     "ns:ping": "tsx scripts/ns-ping.ts",
     "contracts:record": "tsx scripts/record-contracts.ts",
-    "test:contract": "vitest run tests",
+    "test:contract": "vitest run tests --exclude '.claude/**'",
     "load:test": "tsx scripts/load-test.ts",
     "release:check": "tsx scripts/release-check.ts",
     "new:skill": "tsx scripts/new-skill.ts",
