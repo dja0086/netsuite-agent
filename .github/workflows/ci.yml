@@ -28,6 +28,27 @@ jobs:
       - name: Validate skills (manifests, tools, evals, owners)
         run: pnpm skills:validate
 
+  sdf-check:
+    # SuiteCloud CLI 4.x validates only on the server, with an account and credentials, so pull
+    # requests get offline checks instead (scripts/sdf-check.mjs) plus a package build with the
+    # pinned CLI the deploy uses. No secrets. deploy-sdf.yml server-validates before each deploy.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/suitecloud-setup
+      - name: Install xmllint
+        run: command -v xmllint || (sudo apt-get update -q && sudo apt-get install -y -q libxml2-utils)
+      - name: Check the SDF project offline (XML, object ids, file references, SuiteScript syntax)
+        run: node scripts/sdf-check.mjs
+      - name: Package the project with the SuiteCloud CLI
+        working-directory: netsuite
+        run: |
+          suitecloud project:package
+          ls build/*.zip
+
   secret-scan:
     # Gitleaks CLI (MIT) via its public container image; no licensed action required.
     runs-on: ubuntu-latest
