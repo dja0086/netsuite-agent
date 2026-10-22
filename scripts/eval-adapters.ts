@@ -16,6 +16,7 @@ import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import type { LoadedSkill } from "@ns-agent/mcp-gateway";
+import { tempSdfProject } from "./lib/eval-sdf";
 
 export interface AgentRun {
   /** Agent replies and simulated user replies, in order. */
@@ -138,6 +139,7 @@ export class ClaudeCodeAdapter implements AgentHostAdapter {
                 // Same synthetic files as the tool evals; exports go to the temp folder and are removed.
                 NS_AGENT_IMPORT_DIR: path.join(this.repoRoot, "skills/data-importer/evals/fixtures"),
                 NS_AGENT_EXPORT_DIR: path.join(dir, "exports"),
+                NS_AGENT_SDF_DIR: await tempSdfProject(this.repoRoot, dir),
               },
             },
           },

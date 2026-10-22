@@ -24,6 +24,7 @@ import { NsClient } from "@ns-agent/ns-client";
 import { TaskEvals, TriggerEvals, type TaskCase } from "@ns-agent/schemas";
 import { parse as parseYaml } from "yaml";
 import { agentHostAdapter } from "./eval-adapters";
+import { tempSdfProject } from "./lib/eval-sdf";
 import { requireLiveTarget } from "./lib/target";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -72,6 +73,8 @@ async function runToolEvals(): Promise<CaseResult[]> {
   // Evals exercise every declared tool, including skills still disabled.
   // Import evals read only the synthetic fixtures, never files a user staged in ./imports.
   process.env.NS_AGENT_IMPORT_DIR = path.join(repoRoot, "skills/data-importer/evals/fixtures");
+  // Generated SDF objects go to a throwaway project, never netsuite/src.
+  process.env.NS_AGENT_SDF_DIR = await tempSdfProject(repoRoot);
   const ns = NsClient.fromEnv();
   const { server } = createGateway({
     ns,
