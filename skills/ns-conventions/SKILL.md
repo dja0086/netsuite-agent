@@ -1,7 +1,7 @@
 ---
 name: ns-conventions
 description: House rules every NetSuite skill follows - script ID prefixes, naming, SuiteQL idioms, governance budgets and data handling. Read alongside any other NetSuite skill; it has no tools of its own.
-version: 1.0.3
+version: 1.0.4
 owner: "@dja0086"
 tools: []
 writes: false
@@ -27,7 +27,13 @@ Everything this agent creates in NetSuite carries the `nsagent` marker, so it is
 | Saved CSV import | `custimport_nsagent_<record>` | `custimport_nsagent_customer` |
 | Script / deployment | `customscript_ns_agent_<name>` / `customdeploy_ns_agent_<name>` | `customscript_ns_agent_explore_rl` |
 
-Use lowercase, words separated by `_`, at most 30 characters after the prefix. Phase 0 checks found no existing `nsagent` objects in the account, so these prefixes are free.
+Use lowercase, words separated by single `_`. Length after the prefix:
+
+- Custom fields: at most 21 characters. SDF caps the whole script ID at 38 characters (40 for entity fields), prefix included, so `custbody_nsagent_` leaves 21.
+- PDF templates: the purpose after `custtmpl_nsagent_<record>_` is at most 40 characters.
+- Saved searches and everything else: at most 30 characters.
+
+`packages/sdf-gen` enforces the field and template limits. Phase 0 checks found no existing `nsagent` objects in the account, so these prefixes are free.
 
 ## SuiteQL idioms
 

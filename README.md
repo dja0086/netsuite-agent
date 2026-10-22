@@ -12,6 +12,7 @@ packages/ns-client/    The only code that talks to NetSuite: OAuth 2.0 M2M, limi
 packages/suiteql/      Query guards (single SELECT only, literal/identifier helpers)
 packages/report-engine/ Report definitions, CSV/XLSX export
 packages/import-engine/ CSV mapping and dry run for imports
+packages/sdf-gen/      Typed specs to SDF XML: custom fields, Advanced PDF/HTML templates (no NetSuite calls)
 packages/schemas/      Zod schemas: skill manifests, eval files
 netsuite/              SuiteCloud project (ACP): RESTlets, script objects; fields/templates land here via PR
 skills/                One folder per skill: SKILL.md, evals/, examples/, CHANGELOG.md, OWNERS
