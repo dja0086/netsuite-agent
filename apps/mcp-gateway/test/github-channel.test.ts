@@ -102,3 +102,42 @@ describe("approvalsFromEnv with the GitHub channel", () => {
     expect(gh.enabled).toBe(true);
   });
 });
+
+describe("GitHub decisions in the audit log and the agent hint", () => {
+  it("audits a decision made on GitHub, and tells the agent where to approve", async () => {
+    const { MemoryAuditSink, createGateway, defineTool, ALL_TOOLS } = await import("../src");
+    const { z } = await import("zod");
+    const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+    const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
+    const gh = fakeGitHub();
+    const audit = new MemoryAuditSink();
+    const approvals = new StoredApprovals({
+      store: new MemoryApprovalStore(),
+      approvers: new Set(["dja-cowboyallstar"]),
+      channel: new GitHubIssueChannel({ api: gh.api, repo: "o/r" }),
+      audit,
+    });
+    const tool = defineTool({
+      name: "ns_test_write", title: "t", description: "t", writes: true, input: z.object({ v: z.string() }),
+      async describeChange() { return "Write"; },
+      async handler() { return { ok: true }; },
+    });
+    const { server } = createGateway({
+      ns: { request: async () => ({}) as never },
+      skills: [{ dir: "/s", body: "", manifest: { name: "w", description: "test skill description long enough", version: "1.0.0", owner: "@t", tools: ["ns_test_write"], writes: true, enabled: true, platform: false, deprecated: false, governance_budget: { max_calls_per_invocation: 5, max_concurrency: 1 } } }],
+      tools: [...ALL_TOOLS, tool as never], audit, approvals, redactFields: new Set(), accountId: "TSTDRV1755417", requestedBy: "doma",
+    });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    const client = new Client({ name: "t", version: "0" });
+    await client.connect(ct);
+    const first = JSON.parse(((await client.callTool({ name: "ns_test_write", arguments: { v: "x" } })).content as Array<{ text: string }>)[0]!.text);
+    expect(first.next).toContain("https://github.com/o/r/issues/101");
+    expect(first.next).not.toContain("pnpm approvals");
+    const prefix = (await approvals.get(first.approvalId))!.payloadHash.slice(0, 12);
+    gh.say(101, "dja-cowboyallstar", `/approve ${prefix}`);
+    await client.callTool({ name: "ns_test_write", arguments: { v: "x", approvalId: first.approvalId } });
+    expect(audit.entries.map((e) => e.event)).toEqual(["approval.requested", "approval.decided", "tool.call"]);
+    expect(audit.entries[1]).toMatchObject({ ok: true, approvalId: first.approvalId, approvedBy: "dja-cowboyallstar", actor: "dja-cowboyallstar" });
+  });
+});
