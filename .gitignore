@@ -16,6 +16,7 @@ secrets/
 # SuiteCloud CLI local state
 netsuite/project.json
 netsuite/.sdf*
+netsuite/build/
 .suitecloud*
 
 # Gateway runtime output
