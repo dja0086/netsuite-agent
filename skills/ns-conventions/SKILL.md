@@ -1,8 +1,8 @@
 ---
 name: ns-conventions
 description: House rules every NetSuite skill follows - script ID prefixes, naming, SuiteQL idioms, governance budgets and data handling. Read alongside any other NetSuite skill; it has no tools of its own.
-version: 1.0.2
-owner: "@dja-cowboyallstar"
+version: 1.0.3
+owner: "@dja0086"
 tools: []
 writes: false
 platform: true

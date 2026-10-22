@@ -137,7 +137,7 @@ export function createGateway(options: GatewayOptions): Gateway {
             // With writes switched off, refuse before describeChange so a blocked write never touches NetSuite.
             if (!options.approvals.enabled) {
               throw new ApprovalDeniedError(
-                `${tool.name} writes to NetSuite and writes are not enabled in this release. No change was made.`,
+                `${tool.name} writes to NetSuite and writes are not enabled: no approvers are configured (set NS_AGENT_APPROVERS). No change was made.`,
               );
             }
             if (!presented) {

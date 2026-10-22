@@ -200,6 +200,7 @@ describe("gateway", () => {
     const res = await call("ns_test_write", { value: "x" });
     expect(res.isError).toBe(true);
     expect(res.text).toMatch(/writes are not enabled/);
+    expect(res.text).toMatch(/no approvers are configured \(set NS_AGENT_APPROVERS\)/);
     expect(ran).toBe(false);
     expect(audit.entries[0]).toMatchObject({ writes: true, ok: false, errorCode: "APPROVAL_DENIED" });
   });

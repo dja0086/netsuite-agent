@@ -1,8 +1,8 @@
 ---
 name: reports
 description: Produce NetSuite reports as CSV or Excel files - AR aging, open sales orders, vendor bills due, or any SELECT exported to a file. Use when the user wants a file, a spreadsheet or "the report". Read-only. Not for a quick number or short list in chat (data-explorer) or a reusable NetSuite saved search (search-builder).
-version: 1.0.0
-owner: "@dja-cowboyallstar"
+version: 1.0.1
+owner: "@dja0086"
 # Tools this skill may call. Each must exist in apps/mcp-gateway/src/tools/ (see reports.ts).
 tools: [ns_report_list, ns_report_run, ns_report_export_query]
 writes: false

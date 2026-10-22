@@ -1,5 +1,9 @@
 # reports changelog
 
+## 1.0.1 - 2026-10-22
+
+- Owner handle moved to @dja0086 (OWNERS, frontmatter, CODEOWNERS) after the repository moved to dja0086/netsuite-agent.
+
 ## 1.0.0 - 2026-10-21
 
 - Enabled. Acceptance: validator clean with `enabled: true`; live tool evals 8/8 on TSTDRV1755417; exports spot-checked (row counts match the account, no E notation, XLSX valid); owner approved.

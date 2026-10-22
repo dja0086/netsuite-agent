@@ -1,8 +1,8 @@
 ---
 name: data-importer
 description: Import a CSV into NetSuite and undo it - map the columns to record fields, dry-run every row (required fields, types, references, duplicates), create the records after a named approver approves, and delete records (for example a mistaken import) after approval. Use for "import this CSV", "is this file ready to load", "load these customers", "delete the customers we imported". Customers only for now. Not for exports (reports) or questions about existing data (data-explorer).
-version: 3.0.0
-owner: "@dja-cowboyallstar"
+version: 3.0.1
+owner: "@dja0086"
 # Tools this skill may call. Each must exist in apps/mcp-gateway/src/tools/ (see data-importer.ts).
 tools: [ns_import_plan, ns_import_dry_run, ns_import_run, ns_record_delete_preview, ns_record_delete]
 writes: true

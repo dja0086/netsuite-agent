@@ -2,22 +2,22 @@
 # NetSuite admin, security) when more people join.
 # Later rules win, so the most specific paths come last.
 
-*                                   @dja-cowboyallstar
+*                                   @dja0086
 
 # Anything that talks to NetSuite or changes the account
-/packages/ns-client/                @dja-cowboyallstar
-/netsuite/                          @dja-cowboyallstar
-/netsuite/src/Objects/              @dja-cowboyallstar
-/.github/workflows/deploy-sdf.yml   @dja-cowboyallstar
+/packages/ns-client/                @dja0086
+/netsuite/                          @dja0086
+/netsuite/src/Objects/              @dja0086
+/.github/workflows/deploy-sdf.yml   @dja0086
 
 # Policy: approvals, audit, redaction
-/apps/mcp-gateway/src/policy/       @dja-cowboyallstar
+/apps/mcp-gateway/src/policy/       @dja0086
 
 # Skills: one line per skill, added by `pnpm new:skill`
-/skills/_template/                  @dja-cowboyallstar
-/skills/ns-conventions/             @dja-cowboyallstar
-/skills/change-control/             @dja-cowboyallstar
-/skills/data-explorer/              @dja-cowboyallstar
-/skills/search-builder/             @dja-cowboyallstar
-/skills/reports/                    @dja-cowboyallstar
-/skills/data-importer/              @dja-cowboyallstar
+/skills/_template/                  @dja0086
+/skills/ns-conventions/             @dja0086
+/skills/change-control/             @dja0086
+/skills/data-explorer/              @dja0086
+/skills/search-builder/             @dja0086
+/skills/reports/                    @dja0086
+/skills/data-importer/              @dja0086

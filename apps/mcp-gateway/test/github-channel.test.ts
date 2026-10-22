@@ -39,7 +39,7 @@ const TARGET = { tool: "ns_search_save", accountId: "TSTDRV1755417", payloadHash
 function setup() {
   const gh = fakeGitHub();
   const channel = new GitHubIssueChannel({ api: gh.api, repo: "o/r" });
-  const approvals = new StoredApprovals({ store: new MemoryApprovalStore(), approvers: new Set(["dja-cowboyallstar"]), channel });
+  const approvals = new StoredApprovals({ store: new MemoryApprovalStore(), approvers: new Set(["dja0086"]), channel });
   const open = () => approvals.request({ ...TARGET, preview: "Save search 'Open AR'", payload: { title: "x" }, requestedBy: "doma" });
   return { gh, approvals, open };
 }
@@ -62,11 +62,11 @@ describe("GitHub issue approval channel (ADR 0004)", () => {
     const req = await open();
     await expect(approvals.consume(req.approvalId, TARGET)).rejects.toBeInstanceOf(ApprovalPendingError);
     gh.say(101, "mallory", "/approve ab12cd34ef56");
-    gh.say(101, "dja-cowboyallstar", "/approve 000000000000");
-    gh.say(101, "dja-cowboyallstar", "looks good");
+    gh.say(101, "dja0086", "/approve 000000000000");
+    gh.say(101, "dja0086", "looks good");
     await expect(approvals.consume(req.approvalId, TARGET)).rejects.toBeInstanceOf(ApprovalPendingError);
-    gh.say(101, "dja-cowboyallstar", "/approve ab12cd34ef56");
-    await expect(approvals.consume(req.approvalId, TARGET)).resolves.toEqual({ approvalId: req.approvalId, approvedBy: "dja-cowboyallstar" });
+    gh.say(101, "dja0086", "/approve ab12cd34ef56");
+    await expect(approvals.consume(req.approvalId, TARGET)).resolves.toEqual({ approvalId: req.approvalId, approvedBy: "dja0086" });
     await approvals.complete(req.approvalId, true);
     const issue = gh.issues.get(101)!;
     expect(issue.open).toBe(false);
@@ -76,16 +76,16 @@ describe("GitHub issue approval channel (ADR 0004)", () => {
   it("records a /deny with its reason and closes the issue", async () => {
     const { gh, approvals, open } = setup();
     const req = await open();
-    gh.say(101, "dja-cowboyallstar", "/deny wrong subsidiary");
+    gh.say(101, "dja0086", "/deny wrong subsidiary");
     const err = await approvals.consume(req.approvalId, TARGET).catch((e: unknown) => e);
-    expect((err as Error).message).toMatch(/denied by dja-cowboyallstar: wrong subsidiary/);
+    expect((err as Error).message).toMatch(/denied by dja0086: wrong subsidiary/);
     expect(gh.issues.get(101)!.open).toBe(false);
   });
 
   it("refuses CLI decisions on requests that went through GitHub", async () => {
     const { approvals, open } = setup();
     const req = await open();
-    await expect(approvals.decide(req.approvalId, { approver: "dja-cowboyallstar", approve: true, via: "cli" })).rejects.toThrow(
+    await expect(approvals.decide(req.approvalId, { approver: "dja0086", approve: true, via: "cli" })).rejects.toThrow(
       ApprovalInvalidError,
     );
   });
@@ -94,7 +94,7 @@ describe("GitHub issue approval channel (ADR 0004)", () => {
 describe("approvalsFromEnv with the GitHub channel", () => {
   it("needs a repo, and is the only channel allowed in production", async () => {
     const { approvalsFromEnv } = await import("../src");
-    const base = { NS_AGENT_APPROVERS: "dja-cowboyallstar", NS_AGENT_APPROVALS_DB: ":memory:" };
+    const base = { NS_AGENT_APPROVERS: "dja0086", NS_AGENT_APPROVALS_DB: ":memory:" };
     expect(() => approvalsFromEnv({ ...base, NS_TARGET_KIND: "production" })).toThrow(/CLI approval channel is for demo and sandbox/);
     expect(() => approvalsFromEnv({ ...base, NS_TARGET_KIND: "demo", NS_AGENT_APPROVAL_CHANNEL: "github" })).toThrow(/NS_AGENT_GITHUB_REPO/);
     expect(() => approvalsFromEnv({ ...base, NS_TARGET_KIND: "demo", NS_AGENT_APPROVAL_CHANNEL: "slack" })).toThrow(/unknown approval channel/);
@@ -113,7 +113,7 @@ describe("GitHub decisions in the audit log and the agent hint", () => {
     const audit = new MemoryAuditSink();
     const approvals = new StoredApprovals({
       store: new MemoryApprovalStore(),
-      approvers: new Set(["dja-cowboyallstar"]),
+      approvers: new Set(["dja0086"]),
       channel: new GitHubIssueChannel({ api: gh.api, repo: "o/r" }),
       audit,
     });
@@ -135,9 +135,9 @@ describe("GitHub decisions in the audit log and the agent hint", () => {
     expect(first.next).toContain("https://github.com/o/r/issues/101");
     expect(first.next).not.toContain("pnpm approvals");
     const prefix = (await approvals.get(first.approvalId))!.payloadHash.slice(0, 12);
-    gh.say(101, "dja-cowboyallstar", `/approve ${prefix}`);
+    gh.say(101, "dja0086", `/approve ${prefix}`);
     await client.callTool({ name: "ns_test_write", arguments: { v: "x", approvalId: first.approvalId } });
     expect(audit.entries.map((e) => e.event)).toEqual(["approval.requested", "approval.decided", "tool.call"]);
-    expect(audit.entries[1]).toMatchObject({ ok: true, approvalId: first.approvalId, approvedBy: "dja-cowboyallstar", actor: "dja-cowboyallstar" });
+    expect(audit.entries[1]).toMatchObject({ ok: true, approvalId: first.approvalId, approvedBy: "dja0086", actor: "dja0086" });
   });
 });

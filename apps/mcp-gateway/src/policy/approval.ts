@@ -106,12 +106,12 @@ export class DenyAllApprovals implements ApprovalService {
 
   async request(input: NewChangeRequest): Promise<ChangeRequest> {
     throw new ApprovalDeniedError(
-      `${input.tool} writes to NetSuite and writes are not enabled in this release. No change was made.`,
+      `${input.tool} writes to NetSuite and writes are not enabled: no approvers are configured (set NS_AGENT_APPROVERS). No change was made.`,
     );
   }
 
   async consume(): Promise<ApprovalDecision> {
-    throw new ApprovalDeniedError("Writes are not enabled in this release. No change was made.");
+    throw new ApprovalDeniedError("Writes are not enabled: no approvers are configured (set NS_AGENT_APPROVERS). No change was made.");
   }
 
   async complete(): Promise<void> {}

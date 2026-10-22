@@ -25,7 +25,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm skills:validate
 
+      # Until the repo has the NS_SANDBOX_* variables and key, skip the live evals instead of failing.
+      - name: Check for live eval credentials
+        id: creds
+        run: |
+          if [ -n "$KEY" ] && [ -n "$ACCOUNT" ] && [ -n "$CLIENT" ] && [ -n "$CERT" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Live tool evals skipped::NS_SANDBOX_* variables or key not configured; only skills:validate ran."
+          fi
+        env:
+          KEY: ${{ secrets.NS_SANDBOX_M2M_PRIVATE_KEY }}
+          ACCOUNT: ${{ vars.NS_SANDBOX_ACCOUNT_ID }}
+          CLIENT: ${{ vars.NS_SANDBOX_CLIENT_ID }}
+          CERT: ${{ vars.NS_SANDBOX_CERT_ID }}
+
       - name: Write sandbox key to a temp file outside the workspace
+        if: steps.creds.outputs.present == 'true'
         run: |
           umask 077
           printf '%s' "$NS_M2M_PRIVATE_KEY" > "$RUNNER_TEMP/ns_m2m.pem"
@@ -33,6 +50,7 @@ jobs:
           NS_M2M_PRIVATE_KEY: ${{ secrets.NS_SANDBOX_M2M_PRIVATE_KEY }}
 
       - name: Run tool evals against the sandbox
+        if: steps.creds.outputs.present == 'true'
         run: pnpm skills:eval --mode tools --report "$RUNNER_TEMP/eval-report.json"
         env:
           NS_ACCOUNT_ID: ${{ vars.NS_SANDBOX_ACCOUNT_ID }}
@@ -43,7 +61,7 @@ jobs:
           NS_PRIVATE_KEY_PATH: ${{ runner.temp }}/ns_m2m.pem
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.creds.outputs.present == 'true'
         with:
           name: eval-report
           path: ${{ runner.temp }}/eval-report.json

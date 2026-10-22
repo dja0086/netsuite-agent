@@ -29,3 +29,6 @@ exports/
 
 # CSV files staged for ns_import_plan / ns_import_dry_run
 imports/
+
+# macOS Finder metadata
+.DS_Store
