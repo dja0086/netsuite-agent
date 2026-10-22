@@ -1,0 +1,14 @@
+# Prompts that SHOULD route to custom-fields, and prompts that belong to other skills.
+should_route:
+  - Add a checkbox field called Rush Order to sales orders.
+  - We need a Hazmat Class text field on inventory items.
+  - Create a custom field on customers for the account manager.
+  - Put a date field for the contract renewal on invoices and sales orders.
+  - Draft the SDF XML for a new transaction body field called Approval Tier.
+  - Is custbody_nsagent_rush free to use, and what would the field definition look like?
+
+should_not_route:
+  - What does the field custbody_approval_tier mean on sales orders?      # data-explorer
+  - Which sales orders have the rush flag ticked?                          # data-explorer
+  - Import this CSV of new customers.                                       # data-importer
+  - Change the invoice PDF so it shows the PO number.                       # pdf-templates
