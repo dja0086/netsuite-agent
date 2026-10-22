@@ -159,7 +159,11 @@ export function createGateway(options: GatewayOptions): Gateway {
                 expiresAt: request.expiresAt,
                 next:
                   "Nothing was changed. Show the preview to the user. After a named approver approves it " +
-                  `(pnpm approvals approve ${request.approvalId}), call this tool again with the same arguments and this approvalId.`,
+                  (request.channelRef
+                    ? `(by commenting /approve ${request.payloadHash.slice(0, 12)} on ${request.channelRef})`
+                    : `(pnpm approvals approve ${request.approvalId})`) +
+                  ", call this tool again with the same arguments and this approvalId.",
+                ...(request.channelRef ? { approvalIssue: request.channelRef } : {}),
               };
               return { content: [{ type: "text", text: JSON.stringify(value) }] };
             }

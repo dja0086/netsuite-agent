@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { AuditSink } from "./audit";
 
 /**
  * Approvals for data writes (ADR 0004). A write tool's first call creates a pending change request and runs
@@ -127,6 +128,8 @@ export interface StoredApprovalsOptions {
   defaultTtlMinutes?: number;
   /** Where approvers decide. Without one, decisions come from the local CLI. */
   channel?: ApprovalChannel;
+  /** Records decisions picked up from the channel (the CLI audits its own). */
+  audit?: AuditSink;
 }
 
 const MINUTE = 60_000;
@@ -139,9 +142,11 @@ export class StoredApprovals implements ApprovalService {
   private readonly pendingTtlMinutes: number;
   private readonly defaultTtlMinutes: number;
   private readonly channel?: ApprovalChannel;
+  private readonly audit?: AuditSink;
 
   constructor(options: StoredApprovalsOptions) {
     this.channel = options.channel;
+    this.audit = options.audit;
     this.store = options.store;
     this.approvers = options.approvers;
     this.now = options.now ?? Date.now;
@@ -225,6 +230,18 @@ export class StoredApprovals implements ApprovalService {
     const found = await this.channel.poll(request, this.approvers);
     if (!found) return request;
     const decided = await this.decide(request.approvalId, { ...found, via: "channel" });
+    await this.audit?.write({
+      ts: decided.decidedAt ?? this.iso(),
+      event: "approval.decided",
+      tool: decided.tool,
+      writes: true,
+      ok: decided.status === "approved",
+      ms: 0,
+      inputHash: decided.payloadHash,
+      approvalId: decided.approvalId,
+      approvedBy: decided.status === "approved" ? found.approver : undefined,
+      actor: found.approver,
+    });
     await this.channel.report(
       decided,
       decided.status === "approved"

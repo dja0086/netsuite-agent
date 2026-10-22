@@ -1,6 +1,7 @@
 import path from "node:path";
 import { DenyAllApprovals, StoredApprovals, type ApprovalService } from "./approval";
 import { SqliteApprovalStore } from "./approval-store";
+import { auditSinkFromEnv } from "./audit";
 import { GhCliGitHubApi, GitHubIssueChannel, RestGitHubApi } from "./github-channel";
 
 /** Named approvers from NS_AGENT_APPROVERS (comma-separated). */
@@ -35,7 +36,12 @@ export function approvalsFromEnv(env: NodeJS.ProcessEnv = process.env): Approval
     if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error("NS_AGENT_APPROVAL_CHANNEL=github needs NS_AGENT_GITHUB_REPO=<owner>/<repo>");
     const token = env.NS_AGENT_GITHUB_TOKEN?.trim();
     const api = token ? new RestGitHubApi(repo, token) : new GhCliGitHubApi(repo);
-    return new StoredApprovals({ store: new SqliteApprovalStore(approvalsDbPath(env)), approvers, channel: new GitHubIssueChannel({ api, repo }) });
+    return new StoredApprovals({
+      store: new SqliteApprovalStore(approvalsDbPath(env)),
+      approvers,
+      channel: new GitHubIssueChannel({ api, repo }),
+      audit: auditSinkFromEnv(env),
+    });
   }
   if (channel !== "cli") throw new Error(`unknown approval channel "${channel}"; use cli or github`);
   if (kind !== "demo" && kind !== "sandbox") {
