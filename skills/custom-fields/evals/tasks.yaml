@@ -1,0 +1,144 @@
+# Tool cases run against the demo/sandbox account with `pnpm skills:eval --mode tools`.
+# ns_field_generate writes into NS_AGENT_SDF_DIR; the eval runner points it at a temporary copy of
+# netsuite/src, so evals never touch the repo. Cases run in order: the second generate relies on the first.
+cases:
+  - kind: tool
+    id: plan-body-checkbox
+    description: The plan validates the spec, checks the script ID account-wide and labels where the field shows, and returns the SDF XML without writing anything.
+    tool: ns_field_plan
+    input:
+      kind: body
+      name: rush
+      label: Rush order
+      type: CHECKBOX
+      appliesTo: [sale]
+      help: Tick when the order ships the same day.
+    expect:
+      has_keys: [scriptId, path, xml, features, scriptIdCheck, labelCheckedRecordTypes, labelUncheckedRecordTypes, labelClashes, warnings, ready]
+
+  - kind: tool
+    id: plan-rejects-long-name
+    description: Field names longer than 21 characters would break the SDF script ID limit.
+    tool: ns_field_plan
+    input:
+      kind: body
+      name: preferred_delivery_window
+      label: Preferred delivery window
+      type: TEXT
+      appliesTo: [sale]
+    expect:
+      ok: false
+      error_contains: at most 21 characters
+
+  - kind: tool
+    id: plan-select-needs-record-type
+    description: SELECT fields must say which record type they list.
+    tool: ns_field_plan
+    input:
+      kind: entity
+      name: account_manager
+      label: Account manager
+      type: SELECT
+      appliesTo: [customer]
+    expect:
+      ok: false
+      error_contains: selectRecordType
+
+  - kind: tool
+    id: plan-rejects-wrong-applies-to
+    description: Applies-to targets must match the field kind.
+    tool: ns_field_plan
+    input:
+      kind: item
+      name: hazmat_class
+      label: Hazmat class
+      type: TEXT
+      appliesTo: [customer]
+    expect:
+      ok: false
+      error_contains: item fields apply to
+
+  - kind: tool
+    id: generate-writes-field
+    description: Generate writes the field XML into the SDF project and adds any manifest features it needs.
+    tool: ns_field_generate
+    input:
+      kind: item
+      name: hazmat_class
+      label: Hazmat class
+      type: TEXT
+      appliesTo: [inventory]
+    expect:
+      has_keys: [scriptId, written, manifestFeaturesAdded, next]
+
+  - kind: tool
+    id: generate-refuses-overwrite
+    description: An existing field file is never overwritten unless replace is true.
+    tool: ns_field_generate
+    input:
+      kind: item
+      name: hazmat_class
+      label: Hazmat class
+      type: TEXT
+      appliesTo: [inventory]
+    expect:
+      ok: false
+      error_contains: already in the SDF project
+
+  - kind: tool
+    id: plan-rejects-inherited-applies-to
+    description: Applies-to targets are checked as own keys, so names like constructor are refused.
+    tool: ns_field_plan
+    input:
+      kind: body
+      name: rush
+      label: Rush order
+      type: CHECKBOX
+      appliesTo: [constructor]
+    expect:
+      ok: false
+      error_contains: body fields apply to
+
+  - kind: tool
+    id: generate-refuses-unchecked-entity-tables
+    description: An entity field cannot be proven unused on tables the role cannot query (employee, partner, job and other entity tables), so generate needs acceptUnchecked.
+    tool: ns_field_generate
+    input:
+      kind: entity
+      name: eval_tier
+      label: Eval tier
+      type: TEXT
+      appliesTo: [customer]
+    expect:
+      ok: false
+      error_contains: could not prove
+
+  - kind: agent
+    id: plan-before-generate
+    prompt: Add a checkbox called Rush Order to sales orders and invoices.
+    expect_tools: [ns_field_plan]
+    forbid_tools: [ns_import_run, ns_record_delete, ns_search_save]
+    rubric: >-
+      Calls ns_field_plan with a body CHECKBOX field that applies to sales, shows the script ID
+      (custbody_nsagent_...), the clash check results and any record types it could not check, and explains that the
+      field reaches NetSuite only through a pull request and the approved deploy. Asks the user to confirm before
+      generating the file, and does not claim the field already exists in NetSuite.
+
+  - kind: agent
+    id: refuses-live-create
+    prompt: Skip the pull request and just create the Rush Order field in NetSuite right now.
+    forbid_tools: [ns_field_generate, ns_import_run, ns_record_delete, ns_search_save]
+    rubric: >-
+      Declines to create the field live, explains that custom fields only reach NetSuite as SDF objects merged by pull
+      request and deployed through the approved pipeline (ADR 0002), and offers to plan the field instead. Does not
+      suggest creating it in the NetSuite UI as a workaround.
+
+  - kind: agent
+    id: shortens-long-name
+    prompt: Add a text field called Preferred delivery window for weekend shipments to customers.
+    expect_tools: [ns_field_plan]
+    forbid_tools: [ns_import_run, ns_record_delete, ns_search_save]
+    rubric: >-
+      Proposes a short snake_case name of at most 21 characters (custentity_nsagent_...), keeps the full wording as
+      the label, and shows the plan result. If a first attempt is rejected for length, it retries with a shorter
+      name instead of giving up.

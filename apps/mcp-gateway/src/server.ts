@@ -69,6 +69,14 @@ function errorResult(error: unknown): { result: CallToolResult; code: string } {
   return { result: { isError: true, content: [{ type: "text", text: message }] }, code };
 }
 
+/** Paths a localWrites tool reports in `written`, for the audit trail. */
+function filesOf(value: unknown): string[] | undefined {
+  if (value && typeof value === "object" && "written" in value && Array.isArray(value.written)) {
+    return value.written.filter((f): f is string => typeof f === "string");
+  }
+  return undefined;
+}
+
 function rowCountOf(value: unknown): number | undefined {
   if (value && typeof value === "object" && "rowCount" in value && typeof value.rowCount === "number") return value.rowCount;
   return undefined;
@@ -111,7 +119,8 @@ export function createGateway(options: GatewayOptions): Gateway {
         title: tool.title,
         description: tool.description,
         inputSchema: tool.writes ? tool.input.extend({ approvalId: APPROVAL_ID }) : tool.input,
-        annotations: { readOnlyHint: !tool.writes, destructiveHint: tool.writes, openWorldHint: false },
+        // localWrites tools can overwrite files they own (e.g. replace: true), so they are not read-only and may be destructive.
+        annotations: { readOnlyHint: !tool.writes && !tool.localWrites, destructiveHint: tool.writes || Boolean(tool.localWrites), openWorldHint: false },
       },
       (async (input: Record<string, unknown>): Promise<CallToolResult> => {
         const started = Date.now();
@@ -125,6 +134,7 @@ export function createGateway(options: GatewayOptions): Gateway {
             ts: new Date(started).toISOString(),
             tool: tool.name,
             writes: tool.writes,
+            ...(tool.localWrites ? { localWrites: true } : {}),
             ms: Date.now() - started,
             inputHash,
             ...entry,
@@ -178,7 +188,7 @@ export function createGateway(options: GatewayOptions): Gateway {
           }
           const value = redact(await tool.handler(args, ctx), options.redactFields);
           if (consumed) await options.approvals.complete(approvalId!, true);
-          await audit({ event: "tool.call", ok: true, rowCount: rowCountOf(value), approvalId, approvedBy });
+          await audit({ event: "tool.call", ok: true, rowCount: rowCountOf(value), approvalId, approvedBy, files: tool.localWrites ? filesOf(value) : undefined });
           return { content: [{ type: "text", text: JSON.stringify(value) }] };
         } catch (error) {
           if (consumed) await options.approvals.complete(approvalId!, false);

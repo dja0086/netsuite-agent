@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { plainText, templateSourceIssues } from "./text";
 import { SdfSpecError, elements, type SdfArtifact } from "./xml";
 
 /**
@@ -29,8 +30,8 @@ export const TemplateSpec = z
     record: z.enum(Object.keys(TEMPLATE_RECORDS) as [TemplateRecord, ...TemplateRecord[]]),
     /** The part after the record, e.g. "standard" for custtmpl_nsagent_invoice_standard. */
     purpose: z.string().regex(NAME, "purpose is lowercase letters and digits separated by single underscores").max(40),
-    title: z.string().trim().min(3).max(297),
-    description: z.string().max(4000).default(""),
+    title: plainText(297).pipe(z.string().trim().min(3)),
+    description: plainText(4000).default(""),
     /** BFO + FreeMarker source, written verbatim to <scriptid>.template.xml. */
     source: z.string().max(TEMPLATE_SOURCE_MAX),
   })
@@ -44,8 +45,9 @@ export const TemplateSpec = z
     if (!src.startsWith("<?xml")) ctx.addIssue({ code: "custom", path: ["source"], message: "source must start with <?xml" });
     if (!/<!DOCTYPE\s+pdf\b/.test(src)) ctx.addIssue({ code: "custom", path: ["source"], message: "source needs the BFO <!DOCTYPE pdf ...> declaration" });
     if (!/<pdf(set)?[\s>]/.test(src)) ctx.addIssue({ code: "custom", path: ["source"], message: "source needs a <pdf> or <pdfset> root" });
-    // A template must stand alone: SDF does not validate template contents, and includes pull in files the PR does not show.
-    if (/<#(include|import)\b/.test(src)) ctx.addIssue({ code: "custom", path: ["source"], message: "<#include> and <#import> are not allowed" });
+    // SDF does not validate template contents. This lint catches the usual mistakes; it cannot prove a template safe
+    // (see templateSourceIssues), so PR review of the .template.xml is the control for deployed templates.
+    for (const message of templateSourceIssues(src)) ctx.addIssue({ code: "custom", path: ["source"], message });
   });
 export type TemplateSpec = z.output<typeof TemplateSpec>;
 

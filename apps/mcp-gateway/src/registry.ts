@@ -16,6 +16,11 @@ export interface ToolDef<S extends z.ZodObject = z.ZodObject> {
   description: string;
   /** Write tools change NetSuite data and always pass through the approval service. */
   writes: boolean;
+  /**
+   * Tools that write files on the gateway host (never NetSuite), e.g. SDF objects for a pull request. They skip
+   * approvals, since nothing reaches NetSuite without the PR and the approved deploy, but are not read-only to clients.
+   */
+  localWrites?: boolean;
   input: S;
   handler(args: z.infer<S>, ctx: ToolContext): Promise<unknown>;
   /**

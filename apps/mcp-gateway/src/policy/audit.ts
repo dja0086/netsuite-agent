@@ -10,6 +10,8 @@ export interface AuditEntry {
   event: AuditEvent;
   tool: string;
   writes: boolean;
+  /** Set for tools that write files on the gateway host (never NetSuite). */
+  localWrites?: boolean;
   ok: boolean;
   ms: number;
   /** sha256 of the canonical input. Inputs and results are never stored, only their fingerprint. */
@@ -21,6 +23,8 @@ export interface AuditEntry {
   approvedBy?: string;
   /** Who made an approval decision or requested the change. */
   actor?: string;
+  /** Files a localWrites tool wrote (paths relative to its folder), never their contents. */
+  files?: string[];
 }
 
 export interface AuditSink {

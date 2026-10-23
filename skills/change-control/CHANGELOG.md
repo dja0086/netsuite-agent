@@ -1,5 +1,9 @@
 # change-control changelog
 
+## 0.1.4 - 2026-10-22
+
+- Review step: for PDF templates, PR review is named as the security control, with what the reviewer checks (resource addresses, FreeMarker that builds addresses or shadows variables). The sdf-gen template check is a lint (SuiteCloud acceptance loop on #6). Description and evals unchanged.
+
 ## 0.1.3 - 2026-10-22
 
 - Owner handle moved to @dja0086 (OWNERS, frontmatter, CODEOWNERS) after the repository moved to dja0086/netsuite-agent.
