@@ -1,11 +1,14 @@
 name: skills-eval
 
-# Runs on any change under skills/ or the gateway tools. Tool evals hit the SANDBOX only.
+# Runs on any change under skills/ or the gateway tools. Tool evals hit the demo account (NS_TARGET_KIND=demo); there
+# is no sandbox account (owner decision 2026-10-22). The job uses no GitHub environment: the deploy environments
+# (sandbox, production) accept only protected branches, so a pull request's merge ref could never start this job.
 on:
   pull_request:
     paths:
       - "skills/**"
       - "apps/mcp-gateway/src/tools/**"
+      - ".github/workflows/skills-eval.yml"
   workflow_dispatch:
 
 permissions:
@@ -14,7 +17,6 @@ permissions:
 jobs:
   eval:
     runs-on: ubuntu-latest
-    environment: sandbox # holds sandbox-only secrets; never production
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,7 +27,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm skills:validate
 
-      # Until the repo has the NS_SANDBOX_* variables and key, skip the live evals instead of failing.
+      # Until the repo has the NS_EVAL_* variables and key (docs/release.md), skip the live evals instead of failing.
       - name: Check for live eval credentials
         id: creds
         run: |
@@ -33,30 +35,31 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Live tool evals skipped::NS_SANDBOX_* variables or key not configured; only skills:validate ran."
+            echo "::notice title=Live tool evals skipped::NS_EVAL_* variables or key not configured; only skills:validate ran."
           fi
         env:
-          KEY: ${{ secrets.NS_SANDBOX_M2M_PRIVATE_KEY }}
-          ACCOUNT: ${{ vars.NS_SANDBOX_ACCOUNT_ID }}
-          CLIENT: ${{ vars.NS_SANDBOX_CLIENT_ID }}
-          CERT: ${{ vars.NS_SANDBOX_CERT_ID }}
+          KEY: ${{ secrets.NS_EVAL_M2M_PRIVATE_KEY }}
+          ACCOUNT: ${{ vars.NS_EVAL_ACCOUNT_ID }}
+          CLIENT: ${{ vars.NS_EVAL_CLIENT_ID }}
+          CERT: ${{ vars.NS_EVAL_CERT_ID }}
 
-      - name: Write sandbox key to a temp file outside the workspace
+      - name: Write the eval key to a temp file outside the workspace
         if: steps.creds.outputs.present == 'true'
         run: |
           umask 077
           printf '%s' "$NS_M2M_PRIVATE_KEY" > "$RUNNER_TEMP/ns_m2m.pem"
         env:
-          NS_M2M_PRIVATE_KEY: ${{ secrets.NS_SANDBOX_M2M_PRIVATE_KEY }}
+          NS_M2M_PRIVATE_KEY: ${{ secrets.NS_EVAL_M2M_PRIVATE_KEY }}
 
-      - name: Run tool evals against the sandbox
+      - name: Run tool evals against the demo account
         if: steps.creds.outputs.present == 'true'
         run: pnpm skills:eval --mode tools --report "$RUNNER_TEMP/eval-report.json"
         env:
-          NS_ACCOUNT_ID: ${{ vars.NS_SANDBOX_ACCOUNT_ID }}
-          NS_CLIENT_ID: ${{ vars.NS_SANDBOX_CLIENT_ID }}
-          NS_CERT_ID: ${{ vars.NS_SANDBOX_CERT_ID }}
-          NS_MAX_CONCURRENCY: ${{ vars.NS_SANDBOX_MAX_CONCURRENCY }}
+          NS_TARGET_KIND: demo
+          NS_ACCOUNT_ID: ${{ vars.NS_EVAL_ACCOUNT_ID }}
+          NS_CLIENT_ID: ${{ vars.NS_EVAL_CLIENT_ID }}
+          NS_CERT_ID: ${{ vars.NS_EVAL_CERT_ID }}
+          NS_MAX_CONCURRENCY: ${{ vars.NS_EVAL_MAX_CONCURRENCY }}
           SECRETS_BACKEND: file
           NS_PRIVATE_KEY_PATH: ${{ runner.temp }}/ns_m2m.pem
 
