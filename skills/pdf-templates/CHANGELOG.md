@@ -1,5 +1,13 @@
 # pdf-templates changelog
 
+## 0.2.0 - unreleased
+
+- New tool `ns_pdf_template_generate` (Phase 3 PR 5, skill still disabled). It writes an agreed BFO + FreeMarker draft as an `advancedpdftemplate` object (`custtmpl_nsagent_<record>_<purpose>`) and its `.template.xml` under `netsuite/src/Objects/templates/` with `packages/sdf-gen`, and adds the manifest features it needs. It never calls NetSuite (ADR 0002) and never marks the template preferred.
+  - It refuses sources that fail the sdf-gen template lint, overwrites without `replace`, and writes through symbolic links. It returns the source's sha256 and the resource values and assignments the PR reviewer must read (`templateReviewPoints`). Its writes are audited.
+  - Invoice, sales order, estimate, credit memo and purchase order only: sdf-gen has no standard template mapping for vendor bills yet, so those can be previewed but not generated.
+- "How to work" gains the generate step and the hand-over to `ns_change_open_pr` (change-control 0.2.0, not released yet).
+- Evals first: 6 tool cases and 2 agent cases; 3 more should-route prompts and 1 more should-not-route prompt.
+
 ## 0.1.0 - unreleased
 
 - New skill (Phase 3, shipped disabled).
