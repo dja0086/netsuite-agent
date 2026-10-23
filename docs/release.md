@@ -65,13 +65,13 @@ Stage 2 is approved only after stage 1 succeeded, so the two approvals are separ
 
 ### Owner setup checklist (GitHub, dja0086/netsuite-agent)
 
-Nothing below exists yet except an empty `sandbox` environment (no secrets or variables anywhere, checked 2026-10-23). Claude does not create secrets; setting the protections from a Claude session was refused by its permission checks, so the owner applies them.
+The protections are in place (applied 2026-10-23 with the owner's permission, commands below); the credentials are not (no secrets or variables anywhere, checked 2026-10-23). Claude does not create secrets.
 
 GitHub, first: the protections, before any secret exists.
 
-- [ ] Branch protection on `main` (Settings → Branches → Add rule): require a pull request before merging, require the status checks `checks`, `secret-scan` and `sdf-check`, and block force pushes and deletion.
-- [ ] Environment **`sandbox`**: Required reviewers = `dja0086`; Deployment branches and tags = **Protected branches only**.
-- [ ] Environment **`production`** (create it): the same two settings.
+- [x] Branch protection on `main` (Settings → Branches → Add rule): require a pull request before merging, require the status checks `checks`, `secret-scan` and `sdf-check`, and block force pushes and deletion.
+- [x] Environment **`sandbox`**: Required reviewers = `dja0086`; Deployment branches and tags = **Protected branches only**.
+- [x] Environment **`production`** (create it): the same two settings.
 
 The same from a terminal:
 
