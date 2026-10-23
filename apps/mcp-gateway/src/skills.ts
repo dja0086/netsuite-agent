@@ -53,7 +53,12 @@ export function selectSkills(skills: LoadedSkill[], allowList?: string): LoadedS
   return skills.filter((s) => s.manifest.enabled && (!allowed?.length || allowed.includes(s.manifest.name)));
 }
 
-/** Tool names declared by the given skills. Only these are registered with the MCP server. */
+/** Tool names declared by the given skills, minus their disabled_tools. Only these are registered with the MCP server. */
 export function declaredTools(skills: LoadedSkill[]): Set<string> {
-  return new Set(skills.flatMap((s) => s.manifest.tools));
+  return new Set(skills.flatMap((s) => s.manifest.tools.filter((t) => !s.manifest.disabled_tools?.includes(t))));
+}
+
+/** The same skills with every declared tool switched on, for tool evals (they exercise tools not released yet). */
+export function withAllToolsEnabled(skills: LoadedSkill[]): LoadedSkill[] {
+  return skills.map((s) => ({ ...s, manifest: { ...s.manifest, disabled_tools: [] } }));
 }

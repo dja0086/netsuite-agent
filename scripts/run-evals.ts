@@ -19,6 +19,7 @@ import {
   createGateway,
   loadSkills,
   redactFieldsFromEnv,
+  withAllToolsEnabled,
 } from "@ns-agent/mcp-gateway";
 import { NsClient } from "@ns-agent/ns-client";
 import { TaskEvals, TriggerEvals, type TaskCase } from "@ns-agent/schemas";
@@ -78,7 +79,7 @@ async function runToolEvals(): Promise<CaseResult[]> {
   const ns = NsClient.fromEnv();
   const { server } = createGateway({
     ns,
-    skills,
+    skills: withAllToolsEnabled(skills),
     audit: new MemoryAuditSink(),
     // Evals never get an approval: every write tool must stay blocked here.
     approvals: new DenyAllApprovals(),

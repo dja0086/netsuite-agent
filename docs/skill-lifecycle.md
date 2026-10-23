@@ -15,7 +15,7 @@ skills/<name>/
 └── OWNERS              # skill owner + backup reviewer
 ```
 
-The frontmatter schema is `SkillManifest` in `packages/schemas`. The agent host reads `name` and `description`; the gateway and CI read `version`, `tools`, `writes`, `enabled`, `platform`, `deprecated` and `governance_budget`.
+The frontmatter schema is `SkillManifest` in `packages/schemas`. The agent host reads `name` and `description`; the gateway and CI read `version`, `tools`, `disabled_tools`, `writes`, `enabled`, `platform`, `deprecated` and `governance_budget`.
 
 ## What enforces what
 
@@ -34,6 +34,8 @@ The frontmatter schema is `SkillManifest` in `packages/schemas`. The agent host 
 | Agent cases (rubric) | `skills:eval --mode agent` through the `claude` CLI (docs/agent-evals.md) | Skill changes that affect behaviour; about $10 per full run |
 
 Skills with `enabled: false` are under construction: rule failures are warnings, except tool existence, tool scope, prompt overlap and secrets, which are always errors.
+
+A platform skill is always served, so a new tool on one ships disabled by listing it in both `tools` and `disabled_tools`: the gateway does not serve it, tool evals still run it. Release it by removing it from `disabled_tools` (minor version).
 
 ## Acceptance thresholds (starting points)
 

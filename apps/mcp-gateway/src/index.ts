@@ -1,6 +1,6 @@
 export { createGateway, type Gateway, type GatewayOptions } from "./server";
 export { ALL_TOOLS, toolByName } from "./tools";
-export { declaredTools, loadSkills, parseSkillMd, selectSkills, type LoadedSkill } from "./skills";
+export { declaredTools, loadSkills, parseSkillMd, selectSkills, withAllToolsEnabled, type LoadedSkill } from "./skills";
 export {
   ApprovalDeniedError,
   ApprovalInvalidError,
