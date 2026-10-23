@@ -45,7 +45,8 @@ export const TemplateSpec = z
     if (!src.startsWith("<?xml")) ctx.addIssue({ code: "custom", path: ["source"], message: "source must start with <?xml" });
     if (!/<!DOCTYPE\s+pdf\b/.test(src)) ctx.addIssue({ code: "custom", path: ["source"], message: "source needs the BFO <!DOCTYPE pdf ...> declaration" });
     if (!/<pdf(set)?[\s>]/.test(src)) ctx.addIssue({ code: "custom", path: ["source"], message: "source needs a <pdf> or <pdfset> root" });
-    // SDF does not validate template contents, so the spec does: no includes, no render-time code, no data in URLs.
+    // SDF does not validate template contents. This lint catches the usual mistakes; it cannot prove a template safe
+    // (see templateSourceIssues), so PR review of the .template.xml is the control for deployed templates.
     for (const message of templateSourceIssues(src)) ctx.addIssue({ code: "custom", path: ["source"], message });
   });
 export type TemplateSpec = z.output<typeof TemplateSpec>;

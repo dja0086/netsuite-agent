@@ -21,7 +21,28 @@ const SAFE_EXPRESSION = /^\$\{(nsfont\.[A-Za-z0-9_]+|companyInformation\.logoUrl
 /** Hosts a template may load resources from: NetSuite's own (fonts, media, company logo). */
 const ALLOWED_HOST = /(^|\.)netsuite\.com$/i;
 
-const stripComments = (source: string) => source.replace(/<#--[\s\S]*?-->/g, " ").replace(/\[#--[\s\S]*?--\]/g, " ");
+/** Comments removed entirely, so text split by a comment (s<#-- -->rc) reads joined, as FreeMarker outputs it. */
+const stripComments = (source: string) => source.replace(/<#--[\s\S]*?-->/g, "").replace(/\[#--[\s\S]*?--\]/g, "");
+
+/** XML character references and the five named entities decoded, as the XML parser does before BFO sees a value. */
+const decodeEntities = (source: string) =>
+  source
+    .replace(/&#x([0-9a-f]+);?/gi, (_, h: string) => String.fromCodePoint(Number.parseInt(h, 16)))
+    .replace(/&#([0-9]+);?/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&(lt|gt|quot|apos|amp);/g, (_, n: string) => ({ lt: "<", gt: ">", quot: '"', apos: "'", amp: "&" })[n]!);
+
+/**
+ * The host an absolute or protocol-relative address points at, or an issue when it cannot be trusted. Userinfo
+ * (x.netsuite.com@evil.example) is refused outright: URL parsers take the host after the "@".
+ */
+function hostIssue(address: string): string | undefined {
+  const m = /^(?:[a-z][a-z0-9+.-]*:)?\/\/([^/?#\s"'<>)\\]*)/i.exec(address.trim());
+  if (!m) return undefined;
+  const authority = m[1]!;
+  if (authority.includes("@")) return `addresses with a user part are not allowed (${authority.slice(0, 60)})`;
+  const host = authority.replace(/:[0-9]*$/, "").toLowerCase();
+  return ALLOWED_HOST.test(host) ? undefined : `only NetSuite addresses may be referenced, found ${host || "(empty host)"}`;
+}
 
 /** Values of src/href attributes and CSS url(...) references, or an issue when one is not a plain quoted value. */
 function resourceValues(source: string, issues: string[]): string[] {
@@ -40,18 +61,7 @@ function resourceValues(source: string, issues: string[]): string[] {
   return values;
 }
 
-/**
- * Problems with an Advanced PDF/HTML template source that make it unsafe to render or deploy, beyond its shape:
- * pulling in other files, building code at render time, or loading a resource from an address built from record data
- * or outside NetSuite (BFO fetches images, fonts and stylesheets while rendering, which would send data out of
- * NetSuite). Used by the template spec; the PDF preview path must apply it too before rendering a draft.
- *
- * This is a pattern check, not a FreeMarker parser: a template that assembles a URL from string pieces can still get
- * past it, so the rule that templates reach production only through PR review stays in force.
- */
-export function templateSourceIssues(source: string): string[] {
-  const issues: string[] = [];
-  const src = stripComments(source);
+function scan(src: string, issues: string[]): void {
   if (/[<[]#(include|import)\b/.test(src)) issues.push("<#include> and <#import> are not allowed (in either bracket syntax)");
   if (/\?\s*(interpret|eval|new)\b/.test(src)) issues.push("the ?interpret, ?eval and ?new built-ins are not allowed");
   if (/@import\b/i.test(src)) issues.push("CSS @import is not allowed");
@@ -61,13 +71,34 @@ export function templateSourceIssues(source: string): string[] {
     if (FREEMARKER.test(value)) {
       issues.push(`FreeMarker inside a src, href or url() value is not allowed (${value.slice(0, 60)}): the renderer would fetch that address`);
     }
-    if (/^(file|ftp):/i.test(value)) issues.push(`file: and ftp: addresses are not allowed (${value.slice(0, 60)})`);
-    const relativeHost = /^\/\/([A-Za-z0-9.-]+)/.exec(value)?.[1];
-    if (relativeHost && !ALLOWED_HOST.test(relativeHost)) issues.push(`only NetSuite addresses may be referenced, found ${relativeHost}`);
+    if (/^(file|ftp|jar):/i.test(value)) issues.push(`file:, ftp: and jar: addresses are not allowed (${value.slice(0, 60)})`);
+    const host = hostIssue(value);
+    if (host) issues.push(host);
   }
-  // Any literal http(s) address anywhere (attribute, string, style) must be NetSuite's own.
-  for (const m of src.matchAll(/\bhttps?:\/\/([A-Za-z0-9.-]+)/gi)) {
-    if (!ALLOWED_HOST.test(m[1]!)) issues.push(`only NetSuite addresses may be referenced, found ${m[1]}`);
+  // Any literal absolute address anywhere (attribute, string, style) must be NetSuite's own.
+  for (const m of src.matchAll(/\bhttps?:\/\/[^\s"'<>)]*/gi)) {
+    const host = hostIssue(m[0]);
+    if (host) issues.push(host);
   }
+}
+
+/**
+ * A LINT for Advanced PDF/HTML template sources, not a security boundary. It flags the patterns that usually mean
+ * trouble: pulling in other files, building code at render time, or loading a resource from an address built from
+ * record data or outside NetSuite (BFO fetches images, fonts and stylesheets while rendering).
+ *
+ * FreeMarker can build any text at render time (shadowing a variable, assembling an attribute from pieces), so no
+ * check of the source can prove a template safe; three review rounds found new bypasses each time. The controls are:
+ * - deployed templates: pull request review (change-control), where the reviewer reads every src, href and url();
+ * - previews: pdf_rl.js renders the template to markup first and checks the rendered resource addresses before
+ *   making a PDF.
+ *
+ * Each check runs on the source as written, with comments removed, and with XML entities decoded, so hiding a
+ * pattern behind one of those does not hide it from all three.
+ */
+export function templateSourceIssues(source: string): string[] {
+  const issues: string[] = [];
+  const views = [source, stripComments(source)];
+  for (const view of [...views, ...views.map(decodeEntities)]) scan(view, issues);
   return [...new Set(issues)];
 }
