@@ -6,9 +6,13 @@ should_route:
   - What would our sales order printout look like with the ship date in the header?
   - Draft a purchase order PDF layout with the vendor's address on the right.
   - Render my draft credit memo template against credit memo 812 so I can check it.
+  - Save this approved invoice layout as an Advanced PDF template in the SDF project.
+  - Turn the sales order printout we agreed on into an advancedpdftemplate object.
+  - Write the credit memo template the finance team signed off into netsuite/src.
 
 should_not_route:
   - Which invoices are more than 60 days overdue?                          # data-explorer
   - Add a checkbox field called Rush Order to sales orders.                # custom-fields
   - Send me a monthly AR aging report as Excel.                            # reports
   - Import this CSV of new customers.                                      # data-importer
+  - Roll back the field we deployed yesterday.                             # change-control

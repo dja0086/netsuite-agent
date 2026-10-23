@@ -6,6 +6,8 @@ import { dataImporterTools } from "./data-importer";
 import { recordDeleteTools } from "./record-delete";
 import { customFieldsTools } from "./custom-fields";
 import { pdfTemplatesTools } from "./pdf-templates";
+import { pdfTemplateGenerateTools } from "./pdf-template-generate";
+import { changeControlTools } from "./change-control";
 // new-skill:imports (pnpm new:skill adds tool module imports above this line)
 
 /**
@@ -20,6 +22,8 @@ export const ALL_TOOLS: ToolDef[] = [
   ...recordDeleteTools,
   ...customFieldsTools,
   ...pdfTemplatesTools,
+  ...pdfTemplateGenerateTools,
+  ...changeControlTools,
   // new-skill:tools (pnpm new:skill adds tool lists above this line)
 ];
 

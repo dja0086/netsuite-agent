@@ -12,6 +12,11 @@ export const SkillManifest = z
     version: z.string().regex(SEMVER, "semver, e.g. 1.0.0"),
     owner: z.string().min(1),
     tools: z.array(z.string().regex(TOOL_NAME, "tool names start with ns_")).default([]),
+    /**
+     * Declared tools the gateway does not serve yet: a new tool on an always-served (platform) skill ships disabled
+     * this way (docs/skill-lifecycle.md). Tool evals still run them.
+     */
+    disabled_tools: z.array(z.string().regex(TOOL_NAME, "tool names start with ns_")).optional(),
     writes: z.boolean(),
     enabled: z.boolean().default(true),
     platform: z.boolean().default(false),
@@ -26,6 +31,9 @@ export const SkillManifest = z
   .superRefine((m, ctx) => {
     if (m.deprecated && !m.replacement) {
       ctx.addIssue({ code: "custom", path: ["replacement"], message: "a deprecated skill must name its replacement" });
+    }
+    for (const t of m.disabled_tools ?? []) {
+      if (!m.tools.includes(t)) ctx.addIssue({ code: "custom", path: ["disabled_tools"], message: `${t} is not in tools` });
     }
     // A skill under construction ships with enabled: false and may not have tools yet.
     if (!m.platform && m.enabled && m.tools.length === 0) {

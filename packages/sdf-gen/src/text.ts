@@ -102,3 +102,13 @@ export function templateSourceIssues(source: string): string[] {
   for (const view of [...views, ...views.map(decodeEntities)]) scan(view, issues);
   return [...new Set(issues)];
 }
+
+/**
+ * What a reviewer must read in a template (change-control): every src, href and url() value, and every variable the
+ * template assigns (an assignment can shadow a NetSuite variable such as nsfont). A pointer list, not a verdict.
+ */
+export function templateReviewPoints(source: string): { resources: string[]; assignments: string[] } {
+  const resources = resourceValues(decodeEntities(source), []).map((v) => v.trim());
+  const assignments = [...source.matchAll(/[<[]#(?:assign|global|local)\s+([A-Za-z_][\w.]*)/g)].map((m) => m[1]!);
+  return { resources: [...new Set(resources)], assignments: [...new Set(assignments)] };
+}

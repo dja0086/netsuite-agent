@@ -69,12 +69,11 @@ function errorResult(error: unknown): { result: CallToolResult; code: string } {
   return { result: { isError: true, content: [{ type: "text", text: message }] }, code };
 }
 
-/** Paths a localWrites tool reports in `written`, for the audit trail. */
+/** Paths a localWrites tool reports in `written` (files on disk) or `committed` (files pushed in a PR), for the audit trail. */
 function filesOf(value: unknown): string[] | undefined {
-  if (value && typeof value === "object" && "written" in value && Array.isArray(value.written)) {
-    return value.written.filter((f): f is string => typeof f === "string");
-  }
-  return undefined;
+  if (!value || typeof value !== "object") return undefined;
+  const files = "written" in value ? value.written : "committed" in value ? value.committed : undefined;
+  return Array.isArray(files) ? files.filter((f): f is string => typeof f === "string") : undefined;
 }
 
 function rowCountOf(value: unknown): number | undefined {
