@@ -40,6 +40,12 @@ describe("repository skills", () => {
     for (const s of skills) for (const t of s.manifest.tools) expect(known, `${s.manifest.name} -> ${t}`).toContain(t);
   });
 
+  it("does not serve ns_change_open_pr until change-control releases it", async () => {
+    const served = declaredTools(selectSkills(await loadSkills(repoSkills)));
+    expect(served.has("ns_change_open_pr")).toBe(false);
+    expect(served.has("ns_pdf_template_generate")).toBe(false);
+  });
+
   it("honours the NS_AGENT_SKILLS allow-list", async () => {
     const skills = await loadSkills(repoSkills);
     expect(selectSkills(skills, "data-explorer").map((s) => s.manifest.name)).toEqual(["data-explorer"]);
