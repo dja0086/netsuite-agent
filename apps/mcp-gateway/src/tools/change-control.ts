@@ -29,18 +29,22 @@ export const commands = {
       const child = spawn(cmd, args, {
         cwd: opts.cwd,
         env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GH_PROMPT_DISABLED: "1", ...opts.env },
-        stdio: ["pipe", "pipe", "pipe"],
+        // stdin only when there is input: writing to a child that exits without reading it raises EPIPE.
+        stdio: [opts.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
         timeout: 120_000,
       });
       let out = "";
       let err = "";
-      child.stdout.on("data", (d) => (out += d));
-      child.stderr.on("data", (d) => (err += d));
+      child.stdout!.on("data", (d) => (out += d));
+      child.stderr!.on("data", (d) => (err += d));
       child.on("error", reject);
       child.on("close", (code) =>
         code === 0 ? resolve(out) : reject(new CommandError(`${cmd} ${args[0]} failed: ${err.trim().slice(0, 300)}`)),
       );
-      child.stdin.end(opts.input ?? "");
+      if (child.stdin) {
+        child.stdin.on("error", reject);
+        child.stdin.end(opts.input);
+      }
     });
   },
 };
