@@ -99,6 +99,16 @@ The `production` environment must exist first (create it in Settings → Environ
 
 First run: Actions → deploy-sdf → Run workflow (branch main), `ref` = main, `validate_only` = true. That proves the credentials and the account check without changing the account.
 
+**Live tool evals in CI (optional).** `skills-eval.yml` runs `skills:validate` on every pull request that touches skills or gateway tools. It runs the live tool evals against the demo account only when these repository-level settings exist. They are repository-level because the job uses no environment: the deploy environments only accept protected branches, and a pull request's merge ref is not one. They hold the gateway's M2M key (the "NS Agent Gateway" mapping), not the SDF deploy key, so any workflow on any branch can read it: use a separate certificate mapping for CI (a new key pair made like the SDF one above, never the gateway's own key at `NS_PRIVATE_KEY_PATH`) so it can be revoked on its own, and skip this if that is not acceptable.
+
+```bash
+gh variable set NS_EVAL_ACCOUNT_ID --repo dja0086/netsuite-agent --body TSTDRV1755417
+gh variable set NS_EVAL_CLIENT_ID --repo dja0086/netsuite-agent --body '<NS Agent Gateway client id>'
+gh variable set NS_EVAL_CERT_ID --repo dja0086/netsuite-agent --body '<certificate id of a CI-only mapping>'
+gh variable set NS_EVAL_MAX_CONCURRENCY --repo dja0086/netsuite-agent --body 2
+gh secret set NS_EVAL_M2M_PRIVATE_KEY --repo dja0086/netsuite-agent < ci-eval-key.pem
+```
+
 ### Rollback
 
 An SDF deploy of an account customization project **never deletes anything** in the account. Objects and files removed from the project stay in the account; only sublist items are synced ([Oracle: deleting components deployed from a SuiteCloud project](https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/subsect_1522153967.html)). Objects that are in the project replace the account's copy on every deploy. So a rollback depends on what the bad change did:
