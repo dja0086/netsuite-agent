@@ -5,7 +5,14 @@ import { describe, expect, it } from "vitest";
 
 // Load the SuiteScript AMD module as NetSuite would: run it with a define() that hands back the factory's result.
 const file = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../netsuite/src/FileCabinet/SuiteScripts/ns_agent/lib/resource_scan.js");
-let scan!: { renderedResourceIssues(markup: unknown): string[]; addressIssue(address: string): string | undefined };
+interface Options {
+  fontDirectory?: string;
+}
+let scan!: {
+  renderedResourceIssues(markup: unknown, options?: Options): string[];
+  addressIssue(address: string, options?: Options): string | undefined;
+  fontDirectoryFrom(rendered: unknown): string | undefined;
+};
 new Function("define", readFileSync(file, "utf8"))((deps: string[], factory: () => typeof scan) => {
   expect(deps).toEqual([]);
   scan = factory();
@@ -58,6 +65,39 @@ describe("renderedResourceIssues (pdf_rl.js render-then-scan)", () => {
   ])("refuses %s", (_name, body, message, head = "") => {
     const issues = scan.renderedResourceIssues(doc(body, head));
     expect(issues.join("\n")).toContain(message);
+  });
+
+  // Seen live on TSTDRV1755417: ${nsfont.NotoSans_Regular} renders to a file: path on the NetSuite server.
+  const FONTS = "file:///opt/deploy/netledger-all/netledger/WEB-INF/fonts";
+  const fontLink = (src: string) => `<link name="NotoSans" type="font" subtype="truetype" src="${src}" src-bold="${FONTS}/NotoSans-Bold.ttf" bytes="2"/>`;
+
+  it("learns the font folder from the probe output", () => {
+    expect(scan.fontDirectoryFrom(`<?xml version="1.0"?>\n<pdf><body>${FONTS}/NotoSans-Regular.ttf</body></pdf>`)).toBe(FONTS);
+    expect(scan.fontDirectoryFrom("<pdf><body></body></pdf>")).toBeUndefined();
+    expect(scan.fontDirectoryFrom("<pdf><body>file:///opt/../etc/NotoSans-Regular.ttf</body></pdf>")).toBeUndefined();
+    expect(scan.fontDirectoryFrom(undefined)).toBeUndefined();
+  });
+
+  it("allows NetSuite font files in the learned folder", () => {
+    const markup = doc("<p>x</p>", fontLink(`${FONTS}/NotoSans-Regular.ttf`) + `<link name="CJK" type="font" src="${FONTS}/NotoSansCJKsc-Regular.otf"/>`);
+    expect(scan.renderedResourceIssues(markup, { fontDirectory: FONTS })).toEqual([]);
+  });
+
+  it.each([
+    ["without a learned folder", `${FONTS}/NotoSans-Regular.ttf`, undefined],
+    ["a server file outside the folder", "file:///etc/passwd", FONTS],
+    ["a path climbing out of the folder", `${FONTS}/../../../../etc/passwd`, FONTS],
+    ["a subfolder", `${FONTS}/sub/NotoSans-Regular.ttf`, FONTS],
+    ["another extension", `${FONTS}/NotoSans-Regular.xml`, FONTS],
+    ["a folder-name prefix", `${FONTS}-evil/NotoSans-Regular.ttf`, FONTS],
+  ])("refuses a file: font %s", (_name, src, fontDirectory) => {
+    const issues = scan.renderedResourceIssues(doc("<p>x</p>", `<link name="X" type="font" src="${src}"/>`), { fontDirectory });
+    expect(issues.join("\n")).toContain("scheme not allowed");
+  });
+
+  it("checks src-bold and the other font variants", () => {
+    const markup = doc("<p>x</p>", '<link name="X" type="font" src="/core/media/x.ttf" src-italic="https://evil.example/x.ttf"/>');
+    expect(scan.renderedResourceIssues(markup, { fontDirectory: FONTS }).join("\n")).toContain("src-italic: address outside NetSuite");
   });
 
   it("caps the number of issues reported", () => {

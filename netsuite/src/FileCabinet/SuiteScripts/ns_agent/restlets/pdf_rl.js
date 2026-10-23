@@ -47,6 +47,14 @@ define(['N/render', 'N/record', 'N/error', '../lib/governance', '../lib/resource
     return value;
   };
 
+  /** NetSuite's font folder, learned by rendering a fixed probe template; see lib/resource_scan.js. */
+  const FONT_PROBE = '<?xml version="1.0"?>\n<pdf><body>${nsfont.NotoSans_Regular}</body></pdf>';
+  const fontDirectory = () => {
+    const probe = render.create();
+    probe.templateContent = FONT_PROBE;
+    return resourceScan.fontDirectoryFrom(probe.renderAsString());
+  };
+
   const preview = (body) => {
     governance.requireUsage(100);
     const type = recordType(body.recordType);
@@ -57,7 +65,7 @@ define(['N/render', 'N/record', 'N/error', '../lib/governance', '../lib/resource
     renderer.addRecord({ templateName: 'record', record: record.load({ type, id }) });
     // FreeMarker only: no PDF yet, so nothing has been fetched.
     const markup = renderer.renderAsString();
-    const issues = resourceScan.renderedResourceIssues(markup);
+    const issues = resourceScan.renderedResourceIssues(markup, { fontDirectory: fontDirectory() });
     if (issues.length > 0) {
       fail(`the rendered template loads resources from outside NetSuite or in a way that is not allowed: ${issues.join('; ')}`);
     }
