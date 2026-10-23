@@ -48,16 +48,42 @@ Pipeline details:
 
 ### Approvals
 
-Required reviewers on GitHub environments are only available for private repositories on GitHub Enterprise ([GitHub docs](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)); dja0086 is a personal account and the repo is private, so the workflow does not rely on them. Each stage instead runs `scripts/deploy-approval.sh`, which opens an issue ("deploy-sdf: sandbox deploy of abc1234 (run …)") and waits up to 60 minutes for a comment from a login in `NS_DEPLOY_APPROVERS`:
+**The repo is public (owner decision 2026-10-23)**, so GitHub's environment protections apply on the free plan. Two layers gate each stage:
 
-- `/approve <first 12 characters of the SHA>` (the issue shows the exact text) continues the stage.
-- `/deny <reason>` stops the run. No decision within 60 minutes also stops it.
+1. **GitHub environment protection (the security control).** Both environments allow deployments only from protected branches (`main`), and both require approval from `dja0086` in GitHub's own review screen before the job starts and before it can read the environment's secrets. Neither can be skipped by editing the workflow on a branch, because GitHub enforces them, not the workflow.
+2. **The issue approval inside the workflow** (`scripts/deploy-approval.sh`, same convention as ADR 0004). It opens an issue ("deploy-sdf: sandbox deploy of abc1234 (run …)") and waits up to 60 minutes for a comment from a login in `NS_DEPLOY_APPROVERS`:
+   - `/approve <first 12 characters of the SHA>` (the issue shows the exact text) continues the stage.
+   - `/deny <reason>` stops the run. No decision within 60 minutes also stops it.
 
-This is the same convention as the gateway's GitHub approval channel (ADR 0004). Stage 2 opens its own issue only after stage 1 succeeded, so the two approvals are separate decisions. If the repo ever moves to a plan with environment reviewers, add them as well: they gate the job before the issue is opened. With a single owner, the person who starts the run also approves it; add a second approver when there is one.
+   This leaves an audit trail tied to the commit, but on its own it is not a control: the workflow file that runs it could be edited.
+
+Stage 2 is approved only after stage 1 succeeded, so the two approvals are separate decisions. With a single owner, the person who starts the run also approves it (`prevent_self_review` is off); add a second reviewer when there is one.
+
+> **Rule: deploy secrets live only in the two environments, never at repository level.** A repository secret is readable by any workflow on any branch, which is exactly the bypass the environment rules close. The pipeline is not usable until the protections below are in place, and deploys stay local (`nsagent-demo`, below) until then.
+>
+> **Before making the repo private again**, upgrade to a plan that supports environment protection for private repositories (GitHub Team or Enterprise), or delete the deploy secrets first. On a free private repo the environment rules stop applying, and the bypass returns.
 
 ### Owner setup checklist (GitHub, dja0086/netsuite-agent)
 
-Nothing below exists yet except an empty `sandbox` environment; Claude does not create secrets or environments.
+Nothing below exists yet except an empty `sandbox` environment (no secrets or variables anywhere, checked 2026-10-23). Claude does not create secrets; setting the protections from a Claude session was refused by its permission checks, so the owner applies them.
+
+GitHub, first: the protections, before any secret exists.
+
+- [ ] Branch protection on `main` (Settings → Branches → Add rule): require a pull request before merging, require the status checks `checks`, `secret-scan` and `sdf-check`, and block force pushes and deletion.
+- [ ] Environment **`sandbox`**: Required reviewers = `dja0086`; Deployment branches and tags = **Protected branches only**.
+- [ ] Environment **`production`** (create it): the same two settings.
+
+The same from a terminal:
+
+```bash
+gh api -X PUT repos/dja0086/netsuite-agent/branches/main/protection --input - <<'JSON'
+{"required_status_checks": {"strict": false, "contexts": ["checks", "secret-scan", "sdf-check"]}, "enforce_admins": false, "required_pull_request_reviews": {"required_approving_review_count": 0}, "restrictions": null, "allow_force_pushes": false, "allow_deletions": false}
+JSON
+for e in sandbox production; do gh api -X PUT "repos/dja0086/netsuite-agent/environments/$e" --input - <<JSON
+{"prevent_self_review": false, "reviewers": [{"type": "User", "id": $(gh api users/dja0086 --jq .id)}], "deployment_branch_policy": {"protected_branches": true, "custom_branch_policies": false}}
+JSON
+done
+```
 
 NetSuite (demo account TSTDRV1755417), once:
 
@@ -68,20 +94,17 @@ NetSuite (demo account TSTDRV1755417), once:
 - [ ] Setup → Integration → Manage Authentication → OAuth 2.0 Client Credentials (M2M) Setup → Create New: Entity = the user who deploys today, Role = Administrator (the role `nsagent-demo` uses), Application = **SuiteCloud Development Integration**, Certificate = `sdf-ci-cert.pem`. Note the certificate ID. (The gateway's "NS Agent Gateway" mapping cannot deploy: its role has no SDF permission.)
 - [ ] One mapping serves both environments while both point at the demo account. For real accounts, make one per account.
 
-GitHub → Settings → Environments:
+Then the credentials, in the protected environments (GitHub → Settings → Environments):
 
 - [ ] Environment **`sandbox`**
-  - Deployment branches and tags: Selected branches and tags → `main`
   - Variable `NS_SANDBOX_ACCOUNT_ID` = `TSTDRV1755417`
   - Variable `NS_SANDBOX_SDF_CERT_ID` = the certificate ID from the M2M mapping
   - Secret `NS_SANDBOX_SDF_PRIVATE_KEY` = the full contents of `sdf-ci-key.pem`
 - [ ] Environment **`production`** (still the demo account under the decision above)
-  - Deployment branches and tags: Selected branches and tags → `main`
   - Variable `NS_PROD_ACCOUNT_ID` = `TSTDRV1755417`
   - Variable `NS_PROD_SDF_CERT_ID` = the certificate ID
   - Secret `NS_PROD_SDF_PRIVATE_KEY` = the full contents of `sdf-ci-key.pem`
 - [ ] Repository variable (Settings → Secrets and variables → Actions → Variables) **`NS_DEPLOY_APPROVERS`** = `dja0086` (comma-separated GitHub logins; these are the reviewers for both stages)
-- [ ] Required reviewers on either environment: not available on this plan (see Approvals); skip.
 
 The same from a terminal, with dja0086 active in `gh` (run from the folder with the key):
 
@@ -95,7 +118,7 @@ gh variable set NS_PROD_SDF_CERT_ID --repo dja0086/netsuite-agent --env producti
 gh secret set NS_PROD_SDF_PRIVATE_KEY --repo dja0086/netsuite-agent --env production < sdf-ci-key.pem
 ```
 
-The `production` environment must exist first (create it in Settings → Environments, where the branch rule is set too). If GitHub refuses environment secrets or variables on this plan, set the same names as repository secrets and variables instead: the workflow reads them the same way, but any workflow on any branch can then read them, so the branch rule no longer protects them.
+Never set these as repository secrets or variables (see the rule under Approvals).
 
 First run: Actions → deploy-sdf → Run workflow (branch main), `ref` = main, `validate_only` = true. That proves the credentials and the account check without changing the account.
 
