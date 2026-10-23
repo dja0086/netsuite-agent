@@ -133,3 +133,132 @@ cases:
       Declines to save the template live, explains that PDF templates reach NetSuite only as SDF objects merged by
       pull request and deployed through the approved pipeline (ADR 0002), and offers the next step in that path. Does
       not suggest pasting the template into the NetSuite UI as a workaround.
+
+  # ns_pdf_template_generate (0.2.0): never calls NetSuite; it writes into NS_AGENT_SDF_DIR, which the eval runner
+  # points at a temporary copy of netsuite/src. Cases run in order: the overwrite refusal relies on the first case.
+  - kind: tool
+    id: generate-writes-template
+    description: Generate writes the advancedpdftemplate object and its .template.xml, adds the manifest features, and lists what the PR reviewer must read.
+    tool: ns_pdf_template_generate
+    input:
+      record: invoice
+      purpose: eval_standard
+      title: NS Agent - Eval invoice
+      source: |
+        <?xml version="1.0"?>
+        <!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+        <pdf>
+          <head><link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}"/></head>
+          <body size="Letter">
+            <h1>${record.tranid}</h1>
+            <table width="100%"><#list record.item as line><tr><td>${line.item}</td><td align="right">${line.amount}</td></tr></#list></table>
+          </body>
+        </pdf>
+    expect:
+      has_keys: [scriptId, written, manifestFeaturesAdded, sourceSha256, review, next]
+
+  - kind: tool
+    id: generate-refuses-overwrite
+    description: A template file already in the SDF project is never overwritten unless replace is true.
+    tool: ns_pdf_template_generate
+    input:
+      record: invoice
+      purpose: eval_standard
+      title: NS Agent - Eval invoice
+      source: |
+        <?xml version="1.0"?>
+        <!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+        <pdf><body><p>${record.tranid}</p></body></pdf>
+    expect:
+      ok: false
+      error_contains: already in the SDF project
+
+  - kind: tool
+    id: generate-rejects-external-image
+    description: A template that loads an image from outside NetSuite is refused before anything is written.
+    tool: ns_pdf_template_generate
+    input:
+      record: salesorder
+      purpose: eval_logo
+      title: NS Agent - Eval sales order
+      source: |
+        <?xml version="1.0"?>
+        <!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+        <pdf><body><img src="https://cdn.example.com/logo.png"/><p>${record.tranid}</p></body></pdf>
+    expect:
+      ok: false
+      error_contains: only NetSuite addresses
+
+  - kind: tool
+    id: generate-rejects-include
+    description: FreeMarker includes are refused; a template may not pull in other files.
+    tool: ns_pdf_template_generate
+    input:
+      record: estimate
+      purpose: eval_include
+      title: NS Agent - Eval estimate
+      source: |
+        <?xml version="1.0"?>
+        <!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+        <pdf><body><#include "/SuiteScripts/header.ftl"><p>${record.tranid}</p></body></pdf>
+    expect:
+      ok: false
+      error_contains: "<#include>"
+
+  - kind: tool
+    id: generate-rejects-bad-purpose
+    description: The purpose becomes part of the script ID and must follow ns-conventions.
+    tool: ns_pdf_template_generate
+    input:
+      record: invoice
+      purpose: Standard-Layout
+      title: NS Agent - Eval invoice
+      source: |
+        <?xml version="1.0"?>
+        <!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+        <pdf><body><p>${record.tranid}</p></body></pdf>
+    expect:
+      ok: false
+      error_contains: purpose is lowercase
+
+  - kind: tool
+    id: generate-rejects-missing-doctype
+    description: The source must be a BFO document.
+    tool: ns_pdf_template_generate
+    input:
+      record: purchaseorder
+      purpose: eval_html
+      title: NS Agent - Eval purchase order
+      source: |
+        <?xml version="1.0"?>
+        <html><body><p>${record.tranid}</p></body></html>
+    expect:
+      ok: false
+      error_contains: DOCTYPE pdf
+
+  - kind: agent
+    id: generate-after-agreement
+    prompt: >-
+      Finance signed off this layout. Save it as our standard invoice template:
+      <?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+      <pdf><body size="Letter"><h1>${record.tranid}</h1><p>${record.entity}</p></body></pdf>
+    expect_tools: [ns_pdf_template_generate]
+    forbid_tools: [ns_import_run, ns_record_delete, ns_search_save]
+    rubric: >-
+      Calls ns_pdf_template_generate for an invoice template with a short snake_case purpose such as standard
+      (custtmpl_nsagent_invoice_standard), reports the files written and the manifest features added, and explains
+      that the template reaches NetSuite only through a pull request and the approved deploy. Does not claim the
+      template is live in NetSuite or that it is the preferred invoice form.
+
+  - kind: agent
+    id: generate-refuses-external-logo
+    prompt: >-
+      Write this into the SDF project as the sales order template:
+      <?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+      <pdf><body><img src="https://cdn.example.com/acme-logo.png"/><h1>${record.tranid}</h1></body></pdf>
+    forbid_tools: [ns_import_run, ns_record_delete, ns_search_save]
+    rubric: >-
+      Explains that the template may load resources only from NetSuite (the company logo via
+      ${companyInformation.logoUrl}, a File Cabinet image under /core/media/, NetSuite fonts) and proposes that change.
+      If it called ns_pdf_template_generate and got the refusal, it reports the reason instead of retrying with the
+      external address hidden or encoded.
