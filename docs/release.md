@@ -26,111 +26,50 @@ pnpm ns:ping                         # must pass before anything else
 
 Account changes (roles, scripts, custom fields, PDF templates) ship only as SDF objects in `netsuite/`, merged to main through a PR (ADR 0002), then deployed by `.github/workflows/deploy-sdf.yml`.
 
-> **Both stages target the demo account.** Owner decision 2026-10-22: there is no sandbox account, so the `sandbox` and `production` environments both point at TSTDRV1755417, each with its own approval. Running the workflow rehearses the PR → stage 1 → stage 2 path for CP3. **It is not a production deploy**, and nothing in this repo has been deployed to a real company account. When real accounts exist, only the environment variables and secrets change.
+> **One account, one environment, one approval.** Owner decision 2026-10-25: this project has one NetSuite account, the demo account TSTDRV1755417, and no sandbox. The workflow deploys to it through the GitHub environment `production`, after one approval. (This replaces the two-stage sandbox → production design of 2026-10-22; for CP3, "PR to sandbox to production" becomes "PR to the one account, approved".) When real accounts exist, add an environment per account.
 
 ### What runs where
 
 | Where | What | Account access |
 | --- | --- | --- |
 | Every PR and push to main (`ci.yml`, job `sdf-check`) | `scripts/sdf-check.mjs` (`pnpm sdf:check`, also part of `pnpm check`): well-formed XML, object file name = `scriptid`, no duplicate script IDs, every `[/SuiteScripts/...]` file present, each `advancedpdftemplate` has its `.template.xml`, `node --check` on every SuiteScript file. Then `suitecloud project:package` with the pinned CLI. | None, no secrets |
-| `deploy-sdf.yml`, started by hand (Actions → deploy-sdf → Run workflow, from main) | resolve `ref` → stage 1 `sandbox` → stage 2 `production`. Each stage: approval issue → authenticate → confirm the account → `project:validate` (server) → `project:deploy` | M2M certificate per environment |
+| `deploy-sdf.yml`, started by hand (Actions → deploy-sdf → Run workflow, from main) | resolve `ref` → **approval** → authenticate → confirm the account → `project:validate` (server) → `project:deploy` | M2M certificate in environment `production` |
 
-Why PRs do not run `suitecloud project:validate`: in SuiteCloud CLI 4.1.1 validation always runs on the server (`--server` is accepted and ignored) and needs an auth ID, so it cannot run without account credentials. `project:package` does no validation either. The server validation happens in each stage before its deploy; `validate_only: true` runs only that, in both stages, without deploying.
+Why PRs do not run `suitecloud project:validate`: in SuiteCloud CLI 4.1.1 validation always runs on the server (`--server` is accepted and ignored) and needs an auth ID, so it cannot run without account credentials. `project:package` does no validation either. The server validation runs in the deploy job before the deploy; `validate_only: true` runs only that, without deploying.
 
 Pipeline details:
 
 - **Pinned toolchain** (`.github/actions/suitecloud-setup`): Node 24 LTS (what the CLI supports), Temurin JDK 21, `@oracle/suitecloud-cli@4.1.1` (what runs locally). Change versions there only.
-- **One commit per run.** `ref` (branch, tag or SHA) is resolved once to a SHA. The run fails unless that SHA is reachable from `origin/main` and the workflow itself was started from main. Both stages check out that SHA, so a merge to main between the two approvals changes nothing.
+- **One commit per run.** `ref` (branch, tag or SHA) is resolved once to a SHA. The run fails unless that SHA is reachable from `origin/main` and the workflow itself was started from main. The deploy job checks out that SHA, so a merge to main while the approval waits changes nothing.
 - **One deploy at a time.** `concurrency: deploy-sdf` without cancelling; GitHub keeps one more run pending behind the running one, and a newer dispatch replaces the pending run.
-- **Auth ID.** CLI 4.1.1 has no `--authid` on `project:validate` or `project:deploy`; both read `defaultAuthId` from `netsuite/project.json` (git-ignored). Each stage runs `account:setup:ci` with its own auth ID (`ns-agent-sandbox`, `ns-agent-production`), writes `project.json` with that ID, and stops unless `account:manageauth --info` reports the account in that environment's `*_ACCOUNT_ID`. CI mode needs `SUITECLOUD_CI=1` and a `SUITECLOUD_CI_PASSKEY`; the job generates a random passkey that lives only for that job.
+- **Auth ID.** CLI 4.1.1 has no `--authid` on `project:validate` or `project:deploy`; both read `defaultAuthId` from `netsuite/project.json` (git-ignored). The job runs `account:setup:ci` with auth ID `ns-agent-production`, writes `project.json` with it, and stops unless `account:manageauth --info` reports the account in `NS_PROD_ACCOUNT_ID`. CI mode needs `SUITECLOUD_CI=1` and a `SUITECLOUD_CI_PASSKEY`; the job generates a random passkey that lives only for that job.
 - **Key handling.** The PEM is written to `$RUNNER_TEMP` with `umask 077` (outside the workspace), and an `if: always()` step deletes it, `project.json` and the stored CI credentials.
-- **Evidence.** Each stage uploads `sdf-<environment>-<sha>` (validate and deploy logs and console output, kept 90 days), and the run summary links the approval issues and names the approvers.
+- **Evidence.** The job uploads `sdf-production-<sha>` (validate and deploy logs and console output, kept 90 days); the run page records who approved it.
 
-### Approvals
+### Approval
 
-**The repo is public (owner decision 2026-10-23)**, so GitHub's environment protections apply on the free plan. Two layers gate each stage:
+**The repo is public (owner decision 2026-10-23)**, so GitHub's environment protection applies on the free plan. Environment `production` requires approval from `dja0086` (Review deployments on the run page) before the job starts or can read its secrets, and accepts only protected branches (`main`). GitHub enforces both, so editing the workflow on a branch cannot skip them. With a single owner, the person who starts the run also approves it (`prevent_self_review` is off); add a second reviewer when there is one.
 
-1. **GitHub environment protection (the security control).** Both environments allow deployments only from protected branches (`main`), and both require approval from `dja0086` in GitHub's own review screen before the job starts and before it can read the environment's secrets. Neither can be skipped by editing the workflow on a branch, because GitHub enforces them, not the workflow.
-2. **The issue approval inside the workflow** (`scripts/deploy-approval.sh`, same convention as ADR 0004). It opens an issue ("deploy-sdf: sandbox deploy of abc1234 (run …)") and waits up to 60 minutes for a comment from a login in `NS_DEPLOY_APPROVERS`:
-   - `/approve <first 12 characters of the SHA>` (the issue shows the exact text) continues the stage.
-   - `/deny <reason>` stops the run. No decision within 60 minutes also stops it.
-
-   This leaves an audit trail tied to the commit, but on its own it is not a control: the workflow file that runs it could be edited.
-
-Stage 2 is approved only after stage 1 succeeded, so the two approvals are separate decisions. With a single owner, the person who starts the run also approves it (`prevent_self_review` is off); add a second reviewer when there is one.
-
-> **Rule: deploy secrets live only in the two environments, never at repository level.** A repository secret is readable by any workflow on any branch, which is exactly the bypass the environment rules close. The pipeline is not usable until the protections below are in place, and deploys stay local (`nsagent-demo`, below) until then.
+> **Rule: the deploy secret lives only in the `production` environment, never at repository level.** A repository secret is readable by any workflow on any branch, which is exactly what the environment rules prevent.
 >
-> **Before making the repo private again**, upgrade to a plan that supports environment protection for private repositories (GitHub Team or Enterprise), or delete the deploy secrets first. On a free private repo the environment rules stop applying, and the bypass returns.
+> **Before making the repo private again**, upgrade to a plan that supports environment protection for private repositories (GitHub Team or Enterprise), or delete the deploy secret first. On a free private repo the environment rules stop applying.
 
-### Owner setup checklist (GitHub, dja0086/netsuite-agent)
+### Setup (done 2026-10-25)
 
-The protections are in place (applied 2026-10-23 with the owner's permission, commands below); the credentials are not (no secrets or variables anywhere, checked 2026-10-23). Claude does not create secrets.
-
-GitHub, first: the protections, before any secret exists.
-
-- [x] Branch protection on `main` (Settings → Branches → Add rule): require a pull request before merging, require the status checks `checks`, `secret-scan` and `sdf-check`, and block force pushes and deletion.
-- [x] Environment **`sandbox`**: Required reviewers = `dja0086`; Deployment branches and tags = **Protected branches only**.
-- [x] Environment **`production`** (create it): the same two settings.
-
-The same from a terminal:
-
-```bash
-gh api -X PUT repos/dja0086/netsuite-agent/branches/main/protection --input - <<'JSON'
-{"required_status_checks": {"strict": false, "contexts": ["checks", "secret-scan", "sdf-check"]}, "enforce_admins": false, "required_pull_request_reviews": {"required_approving_review_count": 0}, "restrictions": null, "allow_force_pushes": false, "allow_deletions": false}
-JSON
-for e in sandbox production; do gh api -X PUT "repos/dja0086/netsuite-agent/environments/$e" --input - <<JSON
-{"prevent_self_review": false, "reviewers": [{"type": "User", "id": $(gh api users/dja0086 --jq .id)}], "deployment_branch_policy": {"protected_branches": true, "custom_branch_policies": false}}
-JSON
-done
-```
-
-NetSuite (demo account TSTDRV1755417), once:
-
-- [ ] Make a **new** key pair for CI deploys, outside the repo. Never reuse or overwrite the gateway key at `NS_PRIVATE_KEY_PATH` (overwriting it is what broke mapping C96V3…). With OpenSSL 3:
+- [x] Branch protection on `main`: a pull request with the checks `checks`, `secret-scan` and `sdf-check`; no force pushes or deletion.
+- [x] Environment **`production`**: required reviewer `dja0086`; deployment branches = protected branches only.
+- [x] CI key pair in `~/.netsuite-agent/sdf-ci/` (separate from the gateway key; never overwrite `NS_PRIVATE_KEY_PATH`). Made with OpenSSL 3:
   ```bash
   mkdir -p ~/.netsuite-agent/sdf-ci && cd ~/.netsuite-agent/sdf-ci && openssl req -new -x509 -newkey rsa:4096 -sigopt rsa_padding_mode:pss -sha256 -sigopt rsa_pss_saltlen:64 -keyout sdf-ci-key.pem -out sdf-ci-cert.pem -nodes -days 365 -subj "/CN=ns-agent-sdf-ci"
   ```
-- [ ] Setup → Integration → Manage Authentication → OAuth 2.0 Client Credentials (M2M) Setup → Create New: Entity = the user who deploys today, Role = Administrator (the role `nsagent-demo` uses), Application = **SuiteCloud Development Integration**, Certificate = `sdf-ci-cert.pem`. Note the certificate ID. (The gateway's "NS Agent Gateway" mapping cannot deploy: its role has no SDF permission.)
-- [ ] One mapping serves both environments while both point at the demo account. For real accounts, make one per account.
+  The certificate expires 2027-10-23: make a new pair and mapping before then.
+- [x] NetSuite M2M mapping (Setup → Integration → Manage Authentication → OAuth 2.0 Client Credentials (M2M) Setup): Entity = the owner, Role = Administrator, Application = SuiteCloud Development Integration, Certificate = `sdf-ci-cert.pem`. (The gateway's "NS Agent Gateway" mapping cannot deploy: its role has no SDF permission.)
+- [x] Environment `production`: variables `NS_PROD_ACCOUNT_ID` = `TSTDRV1755417` and `NS_PROD_SDF_CERT_ID` = the mapping's certificate ID; secret `NS_PROD_SDF_PRIVATE_KEY` = the contents of `sdf-ci-key.pem`:
+  ```bash
+  gh secret set NS_PROD_SDF_PRIVATE_KEY --repo dja0086/netsuite-agent --env production < ~/.netsuite-agent/sdf-ci/sdf-ci-key.pem
+  ```
 
-Then the credentials, in the protected environments (GitHub → Settings → Environments):
-
-- [ ] Environment **`sandbox`**
-  - Variable `NS_SANDBOX_ACCOUNT_ID` = `TSTDRV1755417`
-  - Variable `NS_SANDBOX_SDF_CERT_ID` = the certificate ID from the M2M mapping
-  - Secret `NS_SANDBOX_SDF_PRIVATE_KEY` = the full contents of `sdf-ci-key.pem`
-- [ ] Environment **`production`** (still the demo account under the decision above)
-  - Variable `NS_PROD_ACCOUNT_ID` = `TSTDRV1755417`
-  - Variable `NS_PROD_SDF_CERT_ID` = the certificate ID
-  - Secret `NS_PROD_SDF_PRIVATE_KEY` = the full contents of `sdf-ci-key.pem`
-- [ ] Repository variable (Settings → Secrets and variables → Actions → Variables) **`NS_DEPLOY_APPROVERS`** = `dja0086` (comma-separated GitHub logins; these are the reviewers for both stages)
-
-The same from a terminal, with dja0086 active in `gh` (run from the folder with the key):
-
-```bash
-gh variable set NS_DEPLOY_APPROVERS --repo dja0086/netsuite-agent --body dja0086
-gh variable set NS_SANDBOX_ACCOUNT_ID --repo dja0086/netsuite-agent --env sandbox --body TSTDRV1755417
-gh variable set NS_SANDBOX_SDF_CERT_ID --repo dja0086/netsuite-agent --env sandbox --body '<certificate id>'
-gh secret set NS_SANDBOX_SDF_PRIVATE_KEY --repo dja0086/netsuite-agent --env sandbox < sdf-ci-key.pem
-gh variable set NS_PROD_ACCOUNT_ID --repo dja0086/netsuite-agent --env production --body TSTDRV1755417
-gh variable set NS_PROD_SDF_CERT_ID --repo dja0086/netsuite-agent --env production --body '<certificate id>'
-gh secret set NS_PROD_SDF_PRIVATE_KEY --repo dja0086/netsuite-agent --env production < sdf-ci-key.pem
-```
-
-Never set these as repository secrets or variables (see the rule under Approvals).
-
-First run: Actions → deploy-sdf → Run workflow (branch main), `ref` = main, `validate_only` = true. That proves the credentials and the account check without changing the account.
-
-**Live tool evals in CI (optional).** `skills-eval.yml` runs `skills:validate` on every pull request that touches skills or gateway tools. It runs the live tool evals against the demo account only when these repository-level settings exist. They are repository-level because the job uses no environment: the deploy environments only accept protected branches, and a pull request's merge ref is not one. They hold the gateway's M2M key (the "NS Agent Gateway" mapping), not the SDF deploy key, so any workflow on any branch can read it: use a separate certificate mapping for CI (a new key pair made like the SDF one above, never the gateway's own key at `NS_PRIVATE_KEY_PATH`) so it can be revoked on its own, and skip this if that is not acceptable.
-
-```bash
-gh variable set NS_EVAL_ACCOUNT_ID --repo dja0086/netsuite-agent --body TSTDRV1755417
-gh variable set NS_EVAL_CLIENT_ID --repo dja0086/netsuite-agent --body '<NS Agent Gateway client id>'
-gh variable set NS_EVAL_CERT_ID --repo dja0086/netsuite-agent --body '<certificate id of a CI-only mapping>'
-gh variable set NS_EVAL_MAX_CONCURRENCY --repo dja0086/netsuite-agent --body 2
-gh secret set NS_EVAL_M2M_PRIVATE_KEY --repo dja0086/netsuite-agent < ci-eval-key.pem
-```
+Run: Actions → deploy-sdf → Run workflow (branch main), `ref` = main; `validate_only` = true first proves the credentials and the account check without changing the account.
 
 ### Rollback
 
@@ -138,7 +77,7 @@ An SDF deploy of an account customization project **never deletes anything** in 
 
 | The change… | Rollback |
 | --- | --- |
-| modified an object or file that existed before | Revert PR → merge → run deploy-sdf with `ref` = main. The previous definition replaces the bad one. |
+| modified an object or file that existed before | Revert PR → merge → run deploy-sdf with `ref` = main (one approval). The previous definition replaces the bad one. |
 | added a new object (custom field, PDF template, script) | Revert PR → merge → run deploy-sdf (keeps the account consistent with main, but the object stays). Then a NetSuite admin deletes the object in the UI (Customization → Lists, Records & Fields, or Advanced PDF/HTML Templates). A field holding data, or referenced by a search, form or script, may refuse deletion until those are cleared; deleting a field destroys its data. |
 | added a SuiteScript file | Revert PR and redeploy as above; delete the file from the File Cabinet by hand if it must go. |
 
