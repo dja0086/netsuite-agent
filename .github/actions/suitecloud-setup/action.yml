@@ -1,7 +1,7 @@
 name: suitecloud-setup
 description: Node 24 LTS, Temurin JDK 21 and the pinned SuiteCloud CLI (the toolchain that runs locally).
 
-# One place for the versions: ci.yml (sdf-check) and deploy-sdf.yml (both stages) use this action.
+# One place for the versions: ci.yml (sdf-check) and deploy-sdf.yml (deploy job) use this action.
 # SuiteCloud CLI 4.1.1 supports Node 24 LTS and needs a JDK for its SDK jar, which its
 # postinstall downloads from Oracle. SUITECLOUD_CLI_ACCEPT_LICENSE accepts the Oracle Free Use
 # Terms for that download, as the CLI's README describes for CI installs.
