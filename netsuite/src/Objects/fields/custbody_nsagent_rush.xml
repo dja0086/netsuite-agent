@@ -1,5 +1,5 @@
 <transactionbodycustomfield scriptid="custbody_nsagent_rush">
-  <label>Rush order (same day)</label>
+  <label>Rush order</label>
   <fieldtype>CHECKBOX</fieldtype>
   <description></description>
   <help>Tick when the order ships the same day.</help>
