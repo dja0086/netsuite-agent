@@ -9,6 +9,7 @@
       <feature required="false">SUBSIDIARIES</feature>
       <feature required="false">ISSUEDB</feature>
       <feature required="false">CRM</feature>
+      <feature required="true">ACCOUNTING</feature>
     </features>
   </dependencies>
 </manifest>

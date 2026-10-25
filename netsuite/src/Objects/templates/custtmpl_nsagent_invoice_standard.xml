@@ -1,0 +1,9 @@
+<advancedpdftemplate scriptid="custtmpl_nsagent_invoice_standard" standard="STDTMPLCUSTINVC">
+  <title>NS Agent - Invoice</title>
+  <description>CP3: one PDF template through the approved SDF pipeline. Not preferred: no printout changes.</description>
+  <displaysourcecode>T</displaysourcecode>
+  <isinactive>F</isinactive>
+  <preferred>F</preferred>
+  <printtype>TRANSACTION</printtype>
+  <trantype>CUSTINVC</trantype>
+</advancedpdftemplate>

@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+  <link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
+  <style type="text/css">
+    * { font-family: NotoSans, sans-serif; font-size: 9pt; }
+    h1 { font-size: 16pt; margin: 0; }
+    table.items { width: 100%; margin-top: 12pt; }
+    table.items th { background-color: #eeeeee; font-weight: bold; padding: 4px; }
+    table.items td { padding: 4px; border-bottom: 1px solid #dddddd; }
+    td.num, th.num { align: right; }
+  </style>
+</head>
+<body size="Letter" padding="0.5in">
+  <table width="100%">
+    <tr>
+      <td><#if companyInformation.logoUrl?length != 0><img src="${companyInformation.logoUrl}" style="width: 150px; height: 50px;" /></#if></td>
+      <td align="right"><h1>Invoice ${record.tranid}</h1><p>Date: ${record.trandate}<br />Due: ${record.duedate}</p></td>
+    </tr>
+  </table>
+  <p><b>Bill to</b><br />${record.billaddress}</p>
+  <#if record.item?has_content>
+  <table class="items">
+    <thead><tr><th>Item</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+    <#list record.item as line>
+    <tr><td>${line.item}</td><td>${line.description}</td><td class="num">${line.quantity}</td><td class="num">${line.rate}</td><td class="num">${line.amount}</td></tr>
+    </#list>
+  </table>
+  </#if>
+  <table width="100%" style="margin-top: 12pt;">
+    <tr><td align="right"><b>Total: ${record.total}</b></td></tr>
+  </table>
+</body>
+</pdf>
