@@ -1,6 +1,6 @@
 # netsuite-agent: notes for Claude Code
 
-MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1 and CP2 passed; customer imports and deletes shipped (ADRs 0005, 0006); next is the rest of Phase 3 (custom fields, PDF templates)**.
+MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1 and CP2 passed; CP3 evidence complete (`docs/cp3-evidence.md`), waiting for the owner's sign-off.** Next after sign-off: Phase 4 (CP4), only when the owner starts it.
 
 ## Start of every session
 
@@ -9,14 +9,13 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 3. Read "Current state" below, then continue at the first unchecked item in "Next work".
 4. Before live commands: `set -a; source .env; set +a`.
 
-## Current state (2026-10-22)
+## Current state (2026-10-25)
 
 ### GitHub
 
 - **Account rule (2026-10-22, full rule in ~/.claude/CLAUDE.md):** all pushes, new repos and PRs go to github.com/dja0086, never dja-cowboyallstar. Before pushing: if `git remote get-url origin` is not https://github.com/dja0086/netsuite-agent.git, repoint it with `git remote set-url origin https://github.com/dja0086/netsuite-agent.git` (create the repo under dja0086 first if it does not exist, private), and run `gh auth switch --user dja0086` if that account is not active. Approval-channel settings (`NS_AGENT_GITHUB_REPO`, `NS_AGENT_APPROVERS`) must name dja0086 too.
 - **The repo is public (owner decision 2026-10-23)**, so GitHub environment protections work on the free plan. Gitleaks found no secrets in the full history before it was opened; the owner accepted publishing account IDs and commit emails. **Before making it private again, upgrade to a plan with environment protection for private repos (Team or Enterprise), or delete the deploy secrets first.** The deploy secret goes only in the `production` environment, never at repository level (`docs/release.md`, "Approval").
 - History: PRs #1-#30 were merged on the old dja-cowboyallstar repo, where GitHub Actions never ran. On dja0086 Actions works (owner confirmed 2026-10-22): CI (`ci.yml`: typecheck, tests, skills validation, gitleaks) gates merges. Run `pnpm check` locally before pushing; local gitleaks (`docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest detect --source /repo --redact --no-banner`, needs `colima start`) is optional.
-- Owner handles in `.github/CODEOWNERS`, `skills/*/OWNERS`, the skill manifests' `owner` and `.env.example` still say dja-cowboyallstar: see "Housekeeping" in Next work.
 
 ### NetSuite access
 
@@ -33,12 +32,13 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 
 ### Skills, tools and approvals
 
-- The gateway serves 15 tools. Enabled skills: data-explorer 1.1.1 (read-only), reports 1.0.0 (read-only; definitions ar-aging, open-sales-orders, vendor-bills-due in `skills/reports/definitions/`; files go to `exports/`, git-ignored), search-builder 1.0.0 (`ns_search_preview`; `ns_search_save` approval-gated), data-importer 3.0.0 (`ns_import_plan`, `ns_import_dry_run`; `ns_import_run` creates customers from a dry-run-clean CSV, bound to the file's sha256, ADR 0005; `ns_record_delete_preview` + `ns_record_delete`, customers only, internal ids, max 25, bound to a last-modified snapshot, ADR 0006). CSVs are read only from `imports/` (`NS_AGENT_IMPORT_DIR`, git-ignored); evals use `skills/data-importer/evals/fixtures`. Platform skills: change-control, ns-conventions.
+- The gateway serves 15 tools. Disabled skills (not served): custom-fields 0.1.0 (`ns_field_plan`, `ns_field_generate`; script ID probed account-wide with SuiteQL, fails safe). Open, not merged: #10 (`ns_pdf_preview` and the pdf-templates skill, passed the SuiteCloud acceptance loop) and #11 (`ns_pdf_template_generate`, `ns_change_open_pr`; failed the loop: `ns_change_open_pr` pushes without approval). Neither is needed for CP3. Enabled skills: data-explorer 1.1.1 (read-only), reports 1.0.0 (read-only; definitions ar-aging, open-sales-orders, vendor-bills-due in `skills/reports/definitions/`; files go to `exports/`, git-ignored), search-builder 1.0.0 (`ns_search_preview`; `ns_search_save` approval-gated), data-importer 3.0.0 (`ns_import_plan`, `ns_import_dry_run`; `ns_import_run` creates customers from a dry-run-clean CSV, bound to the file's sha256, ADR 0005; `ns_record_delete_preview` + `ns_record_delete`, customers only, internal ids, max 25, bound to a last-modified snapshot, ADR 0006). CSVs are read only from `imports/` (`NS_AGENT_IMPORT_DIR`, git-ignored); evals use `skills/data-importer/evals/fixtures`. Platform skills: change-control 0.1.4 (PR review is the control for PDF templates; sdf-gen's `templateSourceIssues` is a lint), ns-conventions 1.0.4 (field names at most 21 characters after the prefix).
 - Approvals (ADR 0004): `StoredApprovals` is used when `NS_AGENT_APPROVERS` is set (demo/sandbox only); approvals live in `audit/approvals.sqlite`; decide with `pnpm approvals list|show|approve|deny`. `.env` has `NS_AGENT_APPROVERS=doma` (local channel). The GitHub issue channel (`NS_AGENT_APPROVAL_CHANNEL=github`, `NS_AGENT_GITHUB_REPO`, approvers = GitHub logins) is the only channel allowed in production; it was tested live on the old repo (issue #29) and decisions are audited as `approval.decided`. It is not switched on in `.env` yet; when it is, use `dja0086/netsuite-agent` and approver `dja0086`.
 - Live writes so far, each approved by the user and each replay refused:
   - Saved search `customsearch_nsagent_ar_over_60` "NS Agent - Open invoices over 60 days" (internal id 2822, private; approval c26582ed…).
   - Saved search `customsearch_nsagent_github_approval_test` (internal id 2922, kept; approved on GitHub issue #29).
   - Customers `nsagent-cp3-test-001/002` (internal ids 2828, 2829; approval ff6b6b4f…), deleted again through the approved delete path (approval 52fd1781…); SuiteQL confirms they are gone.
+- Account changes deployed through `deploy-sdf` (each owner-approved, 0 errors; details in `docs/cp3-evidence.md`): field `custbody_nsagent_rush` "Rush order" (#9; relabelled in #14 and reverted in #15 for the rollback rehearsal), template `custtmpl_nsagent_invoice_standard` "NS Agent - Invoice" (#16, not preferred). Both stay in the account; removing them is a manual UI step.
 - Evals: `pnpm skills:eval --mode tools|agent|triggers` (agent and trigger modes need the `claude` CLI logged in; a full agent run costs about $10). Agent cases 12/13 on the last full run, the remaining data-importer case fixed and passing (`docs/agent-evals.md`). CP1 hand trials: `docs/cp1-agent-trials.md`.
 
 ### Checkpoints and release evidence
@@ -47,7 +47,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 - CP1 PASSED (owner sign-off 2026-10-21): `release:check` on clean commit 658a44d, `release-reports/2026-10-21T00-35-07-849Z/summary.json` (evals 7/7, load 40/40 at concurrency 2, no throttling).
 - CP2 PASSED (owner sign-off 2026-10-22).
 - Latest `release:check`: PASSED on 4810a2d (`release-reports/2026-10-21T13-20-34-917Z/summary.json`: tool evals 30/30, triggers 45/45, load 40/40; p50 latency 17.8 s vs 3.1 s at CP1, NetSuite slower that day, no throttling).
-- CP3: customer imports and deletes shipped; custom fields and PDF templates not started (see Next work).
+- CP3: all four criteria met (field #9, template #16, rollback #14/#15, importer by ADR 0005); evidence in `docs/cp3-evidence.md`. **Waiting for the owner's sign-off.**
 
 ### Findings worth remembering
 
@@ -107,17 +107,18 @@ Environment: `set -a; source .env; set +a` before live commands.
 
 ### Housekeeping (before Phase 3)
 
-- [ ] Follow the GitHub account rule: repoint `origin`, push, and open PRs on dja0086 only.
-- [ ] Replace the dja-cowboyallstar owner handle with dja0086 in `.github/CODEOWNERS`, every `skills/*/OWNERS`, the skill manifests' `owner`, the `.env.example` example and `apps/mcp-gateway/test/github-channel.test.ts`; patch-bump each changed skill with a CHANGELOG entry; `pnpm check` clean. Leave old CHANGELOG lines as history.
+- [x] Follow the GitHub account rule: repoint `origin`, push, and open PRs on dja0086 only.
+- [x] Replace the dja-cowboyallstar owner handle with dja0086 in `.github/CODEOWNERS`, every `skills/*/OWNERS`, the skill manifests' `owner`, the `.env.example` example and `apps/mcp-gateway/test/github-channel.test.ts`; patch-bump each changed skill with a CHANGELOG entry; `pnpm check` clean. Leave old CHANGELOG lines as history.
 - [ ] Switch approvals to the GitHub channel in `.env` (`NS_AGENT_APPROVAL_CHANNEL=github`, `NS_AGENT_GITHUB_REPO=dja0086/netsuite-agent`, `NS_AGENT_APPROVERS=dja0086`); tell the user what token access is needed instead of creating one.
 
 ### Phase 3 → CP3 (tasks as in the Delivery plan)
 
-- [ ] Build `sdf-gen` for the needed field types and `advancedpdftemplate`
-- [ ] Deploy `pdf_rl.js`; wire `ns_pdf_preview`
-- [ ] Wire `deploy-sdf.yml` with an approval step (DECIDED 2026-10-25 by the owner: one account, one environment `production` = demo, one approval; no sandbox stage)
-- [ ] Push one field and one template through to production
-- [ ] Rehearse rollback with a revert PR
+- [x] Build `sdf-gen` for the needed field types and `advancedpdftemplate` (#3, #6)
+- [ ] Deploy `pdf_rl.js` (done: #2, #7, deployed 2026-10-23); wire `ns_pdf_preview` (#10, passed review, not merged; not needed for CP3)
+- [x] Wire `deploy-sdf.yml` with an approval step (#4, #8, #13) (DECIDED 2026-10-25 by the owner: one account, one environment `production` = demo, one approval; no sandbox stage)
+- [x] Push one field and one template through to production (#9, #16)
+- [x] Rehearse rollback with a revert PR (#14, #15)
+- [ ] **Owner sign-off on CP3** in the Delivery plan (evidence: `docs/cp3-evidence.md`)
 - [x] ~~Deploy `import_rl.js` and the first saved import map~~ Superseded by ADR 0005: imports use the REST Record API, not a CSV import RESTlet.
 - [x] ~~Run a sandbox import, reconcile it, then enable `ns_import_run` (minor release)~~ `ns_import_run` enabled under ADR 0005 (data-importer 2.0.0). DECIDED 2026-10-22 by the owner: ADR 0005's acceptance counts for CP3's importer criterion; no row-for-row reconciliation file is needed.
 
