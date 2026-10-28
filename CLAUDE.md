@@ -1,6 +1,6 @@
 # netsuite-agent: notes for Claude Code
 
-MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1 and CP2 passed; CP3 evidence complete (`docs/cp3-evidence.md`), waiting for the owner's sign-off.** Next after sign-off: Phase 4 (CP4), only when the owner starts it.
+MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1, CP2 and CP3 passed** (CP3 owner sign-off 2026-10-28, evidence in `docs/cp3-evidence.md`). Next: Phase 4 (CP4), only when the owner starts it.
 
 ## Start of every session
 
@@ -9,7 +9,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 3. Read "Current state" below, then continue at the first unchecked item in "Next work".
 4. Before live commands: `set -a; source .env; set +a`.
 
-## Current state (2026-10-25)
+## Current state (2026-10-28)
 
 ### GitHub
 
@@ -47,7 +47,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 - CP1 PASSED (owner sign-off 2026-10-21): `release:check` on clean commit 658a44d, `release-reports/2026-10-21T00-35-07-849Z/summary.json` (evals 7/7, load 40/40 at concurrency 2, no throttling).
 - CP2 PASSED (owner sign-off 2026-10-22).
 - Latest `release:check`: PASSED on 4810a2d (`release-reports/2026-10-21T13-20-34-917Z/summary.json`: tool evals 30/30, triggers 45/45, load 40/40; p50 latency 17.8 s vs 3.1 s at CP1, NetSuite slower that day, no throttling).
-- CP3: all four criteria met (field #9, template #16, rollback #14/#15, importer by ADR 0005); evidence in `docs/cp3-evidence.md`. **Waiting for the owner's sign-off.**
+- CP3 PASSED (owner sign-off 2026-10-28): field #9, template #16, rollback #14/#15, importer by ADR 0005; evidence in `docs/cp3-evidence.md`.
 
 ### Findings worth remembering
 
@@ -118,7 +118,7 @@ Environment: `set -a; source .env; set +a` before live commands.
 - [x] Wire `deploy-sdf.yml` with an approval step (#4, #8, #13) (DECIDED 2026-10-25 by the owner: one account, one environment `production` = demo, one approval; no sandbox stage)
 - [x] Push one field and one template through to production (#9, #16)
 - [x] Rehearse rollback with a revert PR (#14, #15)
-- [ ] **Owner sign-off on CP3** in the Delivery plan (evidence: `docs/cp3-evidence.md`)
+- [x] **Owner sign-off on CP3** (2026-10-28; evidence: `docs/cp3-evidence.md`)
 - [x] ~~Deploy `import_rl.js` and the first saved import map~~ Superseded by ADR 0005: imports use the REST Record API, not a CSV import RESTlet.
 - [x] ~~Run a sandbox import, reconcile it, then enable `ns_import_run` (minor release)~~ `ns_import_run` enabled under ADR 0005 (data-importer 2.0.0). DECIDED 2026-10-22 by the owner: ADR 0005's acceptance counts for CP3's importer criterion; no row-for-row reconciliation file is needed.
 
