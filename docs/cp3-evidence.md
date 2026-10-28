@@ -1,6 +1,6 @@
 # CP3 evidence: change control proven
 
-Status: **evidence complete, waiting for the owner's sign-off** (2026-10-25). Claude does not mark checkpoints passed; the owner signs off in the Delivery plan.
+Status: **CP3 PASSED: owner sign-off 2026-10-28.** Evidence completed 2026-10-25.
 
 ## Exit criteria, as amended by the owner
 
