@@ -1,0 +1,41 @@
+{
+  "tools": [
+    {
+      "name": "nsagent_suiteql",
+      "description": "Runs one read-only SuiteQL SELECT in NetSuite and returns up to 200 rows. SuiteQL is Oracle-flavoured: use ROWNUM, NVL, ||, TO_DATE('2026-01-31','YYYY-MM-DD') and BUILTIN.DF(field) for display values; no WITH/CTEs, LIMIT or OFFSET. Aggregate in SQL (COUNT(t.id), SUM) instead of fetching many rows. hasMore is true when more rows matched than were returned.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "A single SuiteQL SELECT statement" },
+          "limit": { "type": "number", "description": "Rows to return, 1 to 200 (default 50)" }
+        },
+        "required": ["query"]
+      },
+      "annotations": {
+        "title": "NS Agent: run SuiteQL",
+        "readOnlyHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "nsagent_record_get",
+      "description": "Reads chosen fields of one NetSuite record by internal id, for example type customer, id 2815, fields 'id, companyname, email'. Use SuiteQL field ids (lowercase); nsagent_suiteql can find ids first.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "description": "SuiteQL record type, e.g. customer, transaction, vendor, item" },
+          "id": { "type": "number", "description": "Internal id of the record" },
+          "fields": { "type": "string", "description": "Comma-separated field ids to return, at most 50, e.g. 'id, companyname, email'" }
+        },
+        "required": ["type", "id", "fields"]
+      },
+      "annotations": {
+        "title": "NS Agent: read one record",
+        "readOnlyHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ]
+}
