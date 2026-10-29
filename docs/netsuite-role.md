@@ -22,6 +22,7 @@ Importing beats hand-writing the XML: permission keys are easy to get wrong, and
 | --- | --- | --- |
 | Setup | REST Web Services | Full |
 | Setup | Log in using OAuth 2.0 Access Tokens | Full |
+| Setup | MCP Server Connection (`ADMI_MCP_SERVER`) | Full (CP4: lets this role use the NetSuite AI Connector Service, where the `custtoolset_nsagent_read` custom tools appear; owner decision 2026-10-29) |
 | Reports | SuiteAnalytics Workbook (needed for SuiteQL) | Edit |
 | Lists | Customers | Full (needed for delete: ADR 0006 `ns_record_delete`; creates: ADR 0005 `ns_import_run`). No edit tool exists. |
 | Lists | Vendors, Items, Employees, Contacts | View |

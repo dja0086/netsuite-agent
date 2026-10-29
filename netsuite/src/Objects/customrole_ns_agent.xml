@@ -118,6 +118,10 @@
       <permlevel>FULL</permlevel>
     </permission>
     <permission>
+      <permkey>ADMI_MCP_SERVER</permkey>
+      <permlevel>FULL</permlevel>
+    </permission>
+    <permission>
       <permkey>ADMI_RESTWEBSERVICES</permkey>
       <permlevel>FULL</permlevel>
     </permission>
