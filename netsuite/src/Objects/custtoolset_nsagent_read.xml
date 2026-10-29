@@ -1,0 +1,14 @@
+<toolset scriptid="custtoolset_nsagent_read">
+  <name>NS Agent - Read tools</name>
+  <scriptfile>[/SuiteScripts/ns_agent/tools/agent_tools.js]</scriptfile>
+  <rpcschema>[/SuiteScripts/ns_agent/tools/agent_tools_schema.json]</rpcschema>
+  <exposetoaiconnector>T</exposetoaiconnector>
+  <!-- Visible to roles that can Find Transaction (the integration role NS Agent Integration has View). Data access
+       still follows the connected user's role. Managed in the netsuite-agent repo; do not edit in the UI. -->
+  <permissions>
+    <permission>
+      <permkey>TRAN_FIND</permkey>
+      <permlevel>VIEW</permlevel>
+    </permission>
+  </permissions>
+</toolset>
