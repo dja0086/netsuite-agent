@@ -1,6 +1,6 @@
 # netsuite-agent: notes for Claude Code
 
-MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1, CP2, CP3 and CP4 passed** (CP4 owner sign-off 2026-10-30, evidence in `docs/cp4-evidence.md`). **Phase 5 (CP5) started 2026-10-30**: evidence in progress in `docs/cp5-evidence.md`.
+MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **all checkpoints passed, CP1 to CP5** (CP5 go-live owner sign-off 2026-10-30, evidence in `docs/cp5-evidence.md`). The agent is live; operate it with `docs/runbook.md`. New work only when the owner starts it.
 
 ## Start of every session
 
@@ -51,6 +51,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 - Latest `release:check`: PASSED on 4810a2d (`release-reports/2026-10-21T13-20-34-917Z/summary.json`: tool evals 30/30, triggers 45/45, load 40/40; p50 latency 17.8 s vs 3.1 s at CP1, NetSuite slower that day, no throttling).
 - CP3 PASSED (owner sign-off 2026-10-28): field #9, template #16, rollback #14/#15, importer by ADR 0005; evidence in `docs/cp3-evidence.md`.
 - CP4 PASSED (owner sign-off 2026-10-30): toolset deployed (#19, #20), both tools visible under `customrole_ns_agent`, parity 5/5; `docs/cp4-evidence.md`, `docs/cp4-parity-results.md`. Live guard call not sent (offline guard tests 17/17).
+- CP5 PASSED (owner go-live sign-off 2026-10-30): redaction, 1-year audit retention, alerting (test issue #24, daily launchd job), permission review, runbook with on-call dja0086; #23; evidence in `docs/cp5-evidence.md`.
 
 ### Findings worth remembering
 
@@ -143,7 +144,7 @@ Read `docs/design.md` ("2. Creating custom fields", "3. Customizing PDFs", "Phas
 - [x] Alert on rejected-request ratio and failed approvals (`pnpm audit:alerts --issue`; launchd job `com.dja0086.netsuite-agent.audit` daily 09:00; alert test issue #24)
 - [x] Review the integration role's permissions (`docs/netsuite-role.md`, 2026-10-30; employee 2815's extra global permissions stay, owner decision; next review 2027-01-30)
 - [x] Write the runbook; name the on-call owner (`docs/runbook.md`; on call dja0086)
-- [ ] Production rollout through change-control; go-live sign-off
+- [x] Production rollout through change-control (#23); go-live sign-off (owner, 2026-10-30)
 
 ### Exit gates (from the Delivery plan)
 
@@ -161,5 +162,5 @@ Never mark a checkpoint passed yourself: the owner signs off in the Delivery pla
 
 ### Candidates, not scheduled (owner's call)
 
-- Fill the policy `[FILL]`s: audit-log retention, eval thresholds, a production secrets backend, redaction fields (CP5 covers most of these).
+- Fill the remaining policy `[FILL]`s: eval thresholds and a production secrets backend (retention and redaction fields were settled in CP5).
 - More record types (vendors, contacts) through role-permission PRs, or an update import, which needs its own ADR because it would be the first edit tool.
