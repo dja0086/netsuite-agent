@@ -12,7 +12,7 @@ Owner decisions (2026-10-30): redact tax and bank ids only; keep audit logs for 
 | --- | --- | --- | --- |
 | 1 | PII redaction rules | `NS_AGENT_REDACT_FIELDS` in `.env` / `.env.example`; `docs/runbook.md`, "Redaction" | In place |
 | 2 | Audit retention | Monthly audit files, `pnpm audit:prune` (365 days); `docs/runbook.md`, "Audit retention" | In place |
-| 3 | Rejected-request alerting (and failed approvals) | `pnpm audit:alerts --issue`, daily job `scripts/audit-daily.sh`; `docs/runbook.md`, "Alerts" | Alert test pending |
+| 3 | Rejected-request alerting (and failed approvals) | `pnpm audit:alerts --issue`, daily job `scripts/audit-daily.sh`; `docs/runbook.md`, "Alerts" | In place; alert test passed (issue #24) |
 | 4 | Permission review | `docs/netsuite-role.md`, "Permission review 2026-10-30 (CP5)" | Done; one owner action open (employee 2815 global permissions) |
 | 5 | Runbook and on-call owner | `docs/runbook.md`; on call: dja0086 | In place |
 | 6 | Production rollout through change-control | This PR (no NetSuite objects change in CP5) | Pending merge |
@@ -31,7 +31,9 @@ Rules (`apps/mcp-gateway/src/policy/alerts.ts`, tests in `audit.test.ts`): more 
 
 First run on real data (2026-10-30, 240-hour window, report only, no issue opened): 102 calls, 17 rejected (16.7%: `UNEXPECTED_ERROR` 14, `INVALID_PARAMETER` 3, bad SuiteQL from agent trials), 4 refused approval ids (the deliberate replay tests of 2026-10-21/22). Both rules fire as intended.
 
-Alert test (opens a GitHub issue): pending.
+Alert test (2026-10-30 17:19 UTC, owner-approved): `pnpm audit:alerts --hours 240 --issue` on the real log opened [#24](https://github.com/dja0086/netsuite-agent/issues/24) with the report above (counts, tool names, codes and approval ids only), exit code 1.
+
+Daily job: launchd agent `com.dja0086.netsuite-agent.audit` installed on the owner's Mac (09:00 daily, log `~/Library/Logs/netsuite-agent-audit.log`). First run by `launchctl kickstart`, 2026-10-30 17:20 UTC: prune found nothing older than 365 days; 24-hour window 7 calls, 0 rejected, 0 failed approvals; no issue; exit code 0.
 
 ## 4. Permission review
 

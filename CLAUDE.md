@@ -140,7 +140,7 @@ Read `docs/design.md` ("2. Creating custom fields", "3. Customizing PDFs", "Phas
 ### Phase 5 → CP5
 
 - [x] Configure PII redaction rules and audit log retention (tax and bank ids; monthly audit files kept 365 days, `pnpm audit:prune`)
-- [ ] Alert on rejected-request ratio and failed approvals (`pnpm audit:alerts --issue`, daily launchd job; alert test pending)
+- [x] Alert on rejected-request ratio and failed approvals (`pnpm audit:alerts --issue`; launchd job `com.dja0086.netsuite-agent.audit` daily 09:00; alert test issue #24)
 - [x] Review the integration role's permissions (`docs/netsuite-role.md`, 2026-10-30; owner to check employee 2815's global permissions; next review 2027-01-30)
 - [x] Write the runbook; name the on-call owner (`docs/runbook.md`; on call dja0086)
 - [ ] Production rollout through change-control; go-live sign-off
