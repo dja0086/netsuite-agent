@@ -18,7 +18,21 @@ export {
 export { MemoryApprovalStore, SqliteApprovalStore } from "./policy/approval-store";
 export { GhCliGitHubApi, GitHubIssueChannel, RestGitHubApi, type GitHubApi, type GitHubComment } from "./policy/github-channel";
 export { approvalsDbPath, approvalsFromEnv, approversFromEnv } from "./policy/approvals-env";
-export { JsonlAuditSink, MemoryAuditSink, auditSinkFromEnv, hashInput, type AuditEntry, type AuditEvent, type AuditSink } from "./policy/audit";
+export { DEFAULT_THRESHOLDS, evaluateAlerts, type Alert, type AlertReport, type AlertThresholds } from "./policy/alerts";
+export {
+  AUDIT_RETENTION_DAYS,
+  JsonlAuditSink,
+  MemoryAuditSink,
+  auditPathFromEnv,
+  auditSinkFromEnv,
+  hashInput,
+  monthlyAuditFile,
+  pruneAuditFiles,
+  readAuditEntries,
+  type AuditEntry,
+  type AuditEvent,
+  type AuditSink,
+} from "./policy/audit";
 export { REDACTED, redact, redactFieldsFromEnv } from "./policy/redact";
 export { MAX_ROWS_TO_MODEL, ToolInputError, defineTool, type ToolContext, type ToolDef } from "./registry";
 export { validateSkills, type Issue, type ValidationReport } from "./validate";

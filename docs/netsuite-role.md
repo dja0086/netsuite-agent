@@ -39,5 +39,26 @@ Add more record types only through a PR, reviewed by the NetSuite admin and secu
 
 ## Never
 
-- Administrator or any role with setup permissions beyond the two above. NetSuite's AI Connector refuses administrator roles by design; this gateway follows the same rule.
+- Administrator or any role with setup permissions beyond the three above (REST Web Services, OAuth 2.0 login, MCP Server Connection). NetSuite's AI Connector refuses administrator roles by design; this gateway follows the same rule.
 - Edit, Create or Full on any record beyond what an accepted ADR needs (today: Customers = Full for ADRs 0005 and 0006).
+
+## Permission review 2026-10-30 (CP5)
+
+Reviewed against the role XML and the permissions NetSuite actually grants a session (`ns_getSessionInfo` through the AI Connector, signed in as employee 2815 with this role, 2026-10-30 17:09 UTC). Next review: **2027-01-30**, then every quarter, and after any change to this role or to employee 2815's access.
+
+| Permission | XML | Effective | Verdict |
+| --- | --- | --- | --- |
+| REST Web Services, Log in using OAuth 2.0 | Full | Full | Keep: the gateway's login |
+| MCP Server Connection | Full | Full | Keep: AI Connector sign-in (CP4) |
+| SuiteAnalytics Workbook | Edit | Edit | Keep: SuiteQL needs it; View is not offered |
+| Customers | Full | Full | Keep: ADR 0005 imports and ADR 0006 deletes |
+| Vendors, Items, Employees, Contacts, Subsidiaries, Currency, Accounts, Departments | View | View | Keep: the agent reads these |
+| Find Transaction and the 10 transaction types | View | View | Keep; Find Transaction is also the toolset's visibility permission |
+| Custom Record Entries | View | View | Keep: the PDF preview RESTlet needs it (see above) |
+| Other Addresses | Full | not listed | Keep in the XML: NetSuite re-adds it on every save. It does not appear among the session's granted permissions. |
+
+### Findings
+
+1. **Effective permissions exceed the role.** The session also holds: Full on Manage OAuth 2.0 Authorized Applications (`ADMI_MANAGE_OAUTH2`), SuiteApp Deployment (`ADMI_APP_DEPLOYMENT`), Web Services Setup (`ADMI_WEBSERVICESSETUP`), Allow JS/HTML Upload (`ADMI_ALLOW_JS_HTML_UPLOAD`) and SuiteSignOn (`ADMI_SUITESIGNON`); Edit on File Cabinet (`LIST_FILECABINET`); View on Custom Lists, SuiteScript, Custom Record Types and Find (lists). None is in `customrole_ns_agent.xml`. The likely source, not yet verified, is **global permissions on employee 2815** (the owner's own login, which NetSuite adds to every role the employee uses). The gateway's M2M session runs as the same employee and role, so it has them too. No gateway tool uses them; the AI Connector's Oracle tools could (for example `ns_uploadFile`). **Owner decision 2026-10-30: they stay.** Accepted risk: no gateway tool uses them; recheck at each quarterly review.
+2. **The AI Connector keeps this role** (owner decision 2026-10-30). A client signed in to `/services/mcp/v1/all` as NS Agent Integration is offered Oracle's write tools (`createCustomer`, `updateCustomer`, `ns_createRecord`, `ns_updateRecord`, `ns_executeRecordAction`, `ns_transformRecord`, `ns_uploadFile`, `ns_attachFile`, `ns_detachFile`). With Customers = Full they can change customers without the approval path of ADRs 0004-0006. Accepted risk, mitigated by: agents are instructed never to call them (CLAUDE.md), and the "NetSuite All" connector stays disconnected when not in use (`docs/runbook.md`). Calls made through the connector are not in the gateway's audit log; NetSuite's Login Audit Trail and the record's System Notes show them.
+3. **Custom Record Entries** (View on every custom record type that requires it): still needed; read-only. No change.
