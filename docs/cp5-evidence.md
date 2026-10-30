@@ -1,6 +1,6 @@
 # CP5 evidence: go-live
 
-Status: **in progress.** CP5 is not passed until the owner signs off.
+Status: **CP5 PASSED: owner go-live sign-off 2026-10-30.** Evidence completed 2026-10-30.
 
 ## Exit criteria
 
@@ -15,7 +15,7 @@ Owner decisions (2026-10-30): redact tax and bank ids only; keep audit logs for 
 | 3 | Rejected-request alerting (and failed approvals) | `pnpm audit:alerts --issue`, daily job `scripts/audit-daily.sh`; `docs/runbook.md`, "Alerts" | In place; alert test passed (issue #24) |
 | 4 | Permission review | `docs/netsuite-role.md`, "Permission review 2026-10-30 (CP5)" | Done; employee 2815's extra permissions stay (owner decision 2026-10-30) |
 | 5 | Runbook and on-call owner | `docs/runbook.md`; on call: dja0086 | In place |
-| 6 | Production rollout through change-control | This PR (no NetSuite objects change in CP5) | Pending merge |
+| 6 | Production rollout through change-control | [#23](https://github.com/dja0086/netsuite-agent/pull/23), merged as 9b97aa7 (no NetSuite objects change in CP5) | Done |
 
 ## 1. Redaction
 
@@ -41,4 +41,4 @@ See `docs/netsuite-role.md`. Findings: effective permissions include setup and F
 
 ## Sign-off
 
-Pending.
+Owner (dja0086), as sponsor, security and NetSuite admin: go-live signed off 2026-10-30.
