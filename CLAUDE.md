@@ -1,6 +1,6 @@
 # netsuite-agent: notes for Claude Code
 
-MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1, CP2 and CP3 passed** (CP3 owner sign-off 2026-10-28, evidence in `docs/cp3-evidence.md`). **CP4 evidence complete** (`docs/cp4-evidence.md`, 2026-10-30), waiting for owner sign-off. Next: Phase 5 (CP5), only when the owner starts it.
+MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1, CP2, CP3 and CP4 passed** (CP4 owner sign-off 2026-10-30, evidence in `docs/cp4-evidence.md`). Next: Phase 5 (CP5), only when the owner starts it.
 
 ## Start of every session
 
@@ -50,7 +50,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 - CP2 PASSED (owner sign-off 2026-10-22).
 - Latest `release:check`: PASSED on 4810a2d (`release-reports/2026-10-21T13-20-34-917Z/summary.json`: tool evals 30/30, triggers 45/45, load 40/40; p50 latency 17.8 s vs 3.1 s at CP1, NetSuite slower that day, no throttling).
 - CP3 PASSED (owner sign-off 2026-10-28): field #9, template #16, rollback #14/#15, importer by ADR 0005; evidence in `docs/cp3-evidence.md`.
-- CP4 evidence complete (2026-10-30), not signed off: toolset deployed (#19, #20), both tools visible under `customrole_ns_agent`, parity 5/5; `docs/cp4-evidence.md`, `docs/cp4-parity-results.md`. Live guard call not sent (offline guard tests 17/17).
+- CP4 PASSED (owner sign-off 2026-10-30): toolset deployed (#19, #20), both tools visible under `customrole_ns_agent`, parity 5/5; `docs/cp4-evidence.md`, `docs/cp4-parity-results.md`. Live guard call not sent (offline guard tests 17/17).
 
 ### Findings worth remembering
 
@@ -133,7 +133,7 @@ Read `docs/design.md` ("2. Creating custom fields", "3. Customizing PDFs", "Phas
 - [x] Create the tool SDF object; deploy as an account customization project (#19, #20; run 40937190598)
 - [x] Connect an MCP client to the AI Connector endpoint; confirm tool visibility under the integration role (claude.ai "NetSuite All", `/all`)
 - [x] Run the parity test against the gateway (5/5)
-- [ ] **Owner sign-off on CP4** (evidence: `docs/cp4-evidence.md`)
+- [x] **Owner sign-off on CP4** (2026-10-30; evidence: `docs/cp4-evidence.md`)
 
 ### Phase 5 → CP5
 

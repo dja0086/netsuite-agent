@@ -1,6 +1,6 @@
 # CP4 evidence: connector live
 
-Status: **evidence complete 2026-10-30; waiting for owner sign-off.** CP4 is not passed until the owner signs off in the Delivery plan.
+Status: **CP4 PASSED: owner sign-off 2026-10-30.** Evidence completed 2026-10-30.
 
 ## Exit criteria
 
