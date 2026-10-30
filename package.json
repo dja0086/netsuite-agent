@@ -21,6 +21,8 @@
     "skills:validate": "tsx scripts/validate-skills.ts",
     "sdf:check": "node scripts/sdf-check.mjs",
     "approvals": "tsx scripts/approvals.ts",
+    "audit:prune": "tsx scripts/audit-log.ts prune",
+    "audit:alerts": "tsx scripts/audit-log.ts alerts",
     "skills:eval": "tsx scripts/run-evals.ts",
     "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm skills:validate && pnpm sdf:check"
   },
