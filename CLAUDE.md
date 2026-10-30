@@ -1,6 +1,6 @@
 # netsuite-agent: notes for Claude Code
 
-MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1, CP2 and CP3 passed** (CP3 owner sign-off 2026-10-28, evidence in `docs/cp3-evidence.md`). Next: Phase 4 (CP4), only when the owner starts it.
+MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **CP1, CP2 and CP3 passed** (CP3 owner sign-off 2026-10-28, evidence in `docs/cp3-evidence.md`). **CP4 evidence complete** (`docs/cp4-evidence.md`, 2026-10-30), waiting for owner sign-off. Next: Phase 5 (CP5), only when the owner starts it.
 
 ## Start of every session
 
@@ -9,7 +9,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 3. Read "Current state" below, then continue at the first unchecked item in "Next work".
 4. Before live commands: `set -a; source .env; set +a`.
 
-## Current state (2026-10-28)
+## Current state (2026-10-30)
 
 ### GitHub
 
@@ -28,6 +28,8 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
   - Web Services Only is **off**: with it on, OAuth 2.0 RESTlet logins fail with InsufficientPermissions. The role can therefore log in to the UI.
   - Lists > Customers = **Full** (ADR 0005 creates, ADR 0006 deletes; NetSuite grants delete only at Full; no edit tool exists). View on the other lists and transaction types; SuiteAnalytics Workbook = Edit (View is not offered).
   - NetSuite forces Other Addresses = Full on every role save; it stays in the XML so the repo matches the account.
+  - MCP Server Connection (`ADMI_MCP_SERVER`) = Full since CP4 (#20), so the role can sign in to the AI Connector.
+- AI Connector (CP4): toolset `custtoolset_nsagent_read` (`nsagent_suiteql`, `nsagent_record_get`, `N/query` only; #19, deploy run 40937190598). It appears only at `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all`; the built-in claude.ai "NetSuite" connector uses the Standard Tools SuiteApp URL and never shows it. Use the claude.ai custom connector "NetSuite All". The role is fixed per OAuth consent (Setup > Users/Roles > OAuth 2.0 Authorized Applications): to change it, the owner revokes the consent and signs in again. Claude Code's own MCP client cannot sign in to this endpoint (NetSuite's client registration rejects its redirect URIs). `/all` also serves Oracle's write tools (`createCustomer`, `updateCustomer`, `ns_createRecord`, …): never call them (approval path rule); CP5 permission review owns this.
 - SDF: auth ID `nsagent-demo` (Administrator @ TSTDRV1755417). The first `account:setup` once linked production account 9173162 by mistake and was removed: **always run `suitecloud account:manageauth --info nsagent-demo` and confirm the Account ID before any SDF deploy.** Deployed: the role (now with Custom Record Entries = View, for PDF previews), the explore RESTlet, the search RESTlet (`customscript_ns_agent_search_rl`) and the PDF preview RESTlet (`customscript_ns_agent_pdf_rl`, renders then checks resources with `lib/resource_scan.js`, deployed 2026-10-23 from 95ce0aa = main). Deploys go through `deploy-sdf.yml` (one job, environment `production` = demo, approval by dja0086 in GitHub's Review deployments; secret `NS_PROD_SDF_PRIVATE_KEY`, vars `NS_PROD_ACCOUNT_ID` and `NS_PROD_SDF_CERT_ID`; CI key in `~/.netsuite-agent/sdf-ci/`, mapping to Administrator + SuiteCloud Development Integration, cert expires 2027-10-23). Local `nsagent-demo` deploys remain the fallback. Protections (2026-10-23): `main` requires a PR and the checks `checks`, `secret-scan`, `sdf-check` (no force push or deletion; admins not enforced); environment `production` requires reviewer dja0086 and allows only protected branches.
 
 ### Skills, tools and approvals
@@ -48,6 +50,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 - CP2 PASSED (owner sign-off 2026-10-22).
 - Latest `release:check`: PASSED on 4810a2d (`release-reports/2026-10-21T13-20-34-917Z/summary.json`: tool evals 30/30, triggers 45/45, load 40/40; p50 latency 17.8 s vs 3.1 s at CP1, NetSuite slower that day, no throttling).
 - CP3 PASSED (owner sign-off 2026-10-28): field #9, template #16, rollback #14/#15, importer by ADR 0005; evidence in `docs/cp3-evidence.md`.
+- CP4 evidence complete (2026-10-30), not signed off: toolset deployed (#19, #20), both tools visible under `customrole_ns_agent`, parity 5/5; `docs/cp4-evidence.md`, `docs/cp4-parity-results.md`. Live guard call not sent (offline guard tests 17/17).
 
 ### Findings worth remembering
 
@@ -126,16 +129,17 @@ Read `docs/design.md` ("2. Creating custom fields", "3. Customizing PDFs", "Phas
 
 ### Phase 4 → CP4
 
-- [ ] Write the custom tool script (`N/query` only) and JSON schema for the top read tools
-- [ ] Create the tool SDF object; deploy as an account customization project
-- [ ] Connect an MCP client to the AI Connector endpoint; confirm tool visibility under the integration role
-- [ ] Run the parity test against the gateway
+- [x] Write the custom tool script (`N/query` only) and JSON schema for the top read tools (#19)
+- [x] Create the tool SDF object; deploy as an account customization project (#19, #20; run 40937190598)
+- [x] Connect an MCP client to the AI Connector endpoint; confirm tool visibility under the integration role (claude.ai "NetSuite All", `/all`)
+- [x] Run the parity test against the gateway (5/5)
+- [ ] **Owner sign-off on CP4** (evidence: `docs/cp4-evidence.md`)
 
 ### Phase 5 → CP5
 
 - [ ] Configure PII redaction rules and audit log retention
 - [ ] Alert on rejected-request ratio and failed approvals
-- [ ] Review the integration role's permissions
+- [ ] Review the integration role's permissions (includes the CP4 finding: `/all` serves Oracle's write tools to this role; `docs/cp4-evidence.md`)
 - [ ] Write the runbook; name the on-call owner
 - [ ] Production rollout through change-control; go-live sign-off
 
