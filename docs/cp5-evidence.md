@@ -13,7 +13,7 @@ Owner decisions (2026-10-30): redact tax and bank ids only; keep audit logs for 
 | 1 | PII redaction rules | `NS_AGENT_REDACT_FIELDS` in `.env` / `.env.example`; `docs/runbook.md`, "Redaction" | In place |
 | 2 | Audit retention | Monthly audit files, `pnpm audit:prune` (365 days); `docs/runbook.md`, "Audit retention" | In place |
 | 3 | Rejected-request alerting (and failed approvals) | `pnpm audit:alerts --issue`, daily job `scripts/audit-daily.sh`; `docs/runbook.md`, "Alerts" | In place; alert test passed (issue #24) |
-| 4 | Permission review | `docs/netsuite-role.md`, "Permission review 2026-10-30 (CP5)" | Done; one owner action open (employee 2815 global permissions) |
+| 4 | Permission review | `docs/netsuite-role.md`, "Permission review 2026-10-30 (CP5)" | Done; employee 2815's extra permissions stay (owner decision 2026-10-30) |
 | 5 | Runbook and on-call owner | `docs/runbook.md`; on call: dja0086 | In place |
 | 6 | Production rollout through change-control | This PR (no NetSuite objects change in CP5) | Pending merge |
 
@@ -37,7 +37,7 @@ Daily job: launchd agent `com.dja0086.netsuite-agent.audit` installed on the own
 
 ## 4. Permission review
 
-See `docs/netsuite-role.md`. Findings: effective permissions include setup and File Cabinet permissions not in the role XML, probably global permissions on employee 2815 (owner to check); the AI Connector's Oracle write tools are an accepted, documented risk.
+See `docs/netsuite-role.md`. Findings: effective permissions include setup and File Cabinet permissions not in the role XML, probably global permissions on employee 2815, which stay (owner decision 2026-10-30, accepted risk); the AI Connector's Oracle write tools are an accepted, documented risk.
 
 ## Sign-off
 

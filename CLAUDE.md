@@ -58,7 +58,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 - Sales order status codes in SuiteQL are single letters (A pending approval, B pending fulfilment, D partially fulfilled, E pending billing/partially fulfilled, F pending billing, G billed, H closed).
 - Terms and customer category lists are not queryable by the role, so those references are reported as unverified.
 - Mac toolchain (doctor, 2026-10-20): Node 26.7.0, pnpm 10.28.0 (installed via npm; Node 26 ships no corepack), git, OpenSSL 3.6.5, Temurin JDK 21.0.12, SuiteCloud CLI 4.1.1, Claude Code. SuiteCloud CLI is supported on Node 24 LTS; if `suitecloud` misbehaves on 26, run it under Node 24.
-- Effective permissions of a session as employee 2815 + NS Agent Integration include setup permissions not in the role XML (Manage OAuth 2.0, SuiteApp Deployment, Web Services Setup, File Cabinet Edit); likely the employee's global permissions. See `docs/netsuite-role.md`, review 2026-10-30.
+- Effective permissions of a session as employee 2815 + NS Agent Integration include setup permissions not in the role XML (Manage OAuth 2.0, SuiteApp Deployment, Web Services Setup, File Cabinet Edit); likely the employee's global permissions. They stay (owner decision 2026-10-30); see `docs/netsuite-role.md`.
 - Certificate: macOS ships LibreSSL as `openssl`. If the RSA-PSS command fails, either use OpenSSL 3 or make an EC certificate and set `NS_JWT_ALG=ES256`.
 
 ## Rules that are not negotiable
@@ -141,7 +141,7 @@ Read `docs/design.md` ("2. Creating custom fields", "3. Customizing PDFs", "Phas
 
 - [x] Configure PII redaction rules and audit log retention (tax and bank ids; monthly audit files kept 365 days, `pnpm audit:prune`)
 - [x] Alert on rejected-request ratio and failed approvals (`pnpm audit:alerts --issue`; launchd job `com.dja0086.netsuite-agent.audit` daily 09:00; alert test issue #24)
-- [x] Review the integration role's permissions (`docs/netsuite-role.md`, 2026-10-30; owner to check employee 2815's global permissions; next review 2027-01-30)
+- [x] Review the integration role's permissions (`docs/netsuite-role.md`, 2026-10-30; employee 2815's extra global permissions stay, owner decision; next review 2027-01-30)
 - [x] Write the runbook; name the on-call owner (`docs/runbook.md`; on call dja0086)
 - [ ] Production rollout through change-control; go-live sign-off
 
