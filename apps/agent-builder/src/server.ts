@@ -11,11 +11,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { NETSUITE_TOOLS } from "./catalog";
-import { createAgent, listBuilt } from "./create";
+import { createAgent, listBuilt, updateAgent } from "./create";
 import { draftSpec } from "./draft";
 import { buildAgentConfig, checkSpec } from "./rules";
 import { RUN_BUDGET_CENTS, startRun } from "./run";
+import { waitingRuns } from "./pending";
 import { decide, downloadFile, followUp, listRuns, runView } from "./runs";
+import { createSchedule, listSchedules, repinSchedules, scheduleAction } from "./schedules";
 import { AgentSpec } from "./spec";
 
 const PORT = Number(process.env.BUILDER_PORT ?? 5178);
@@ -82,6 +84,23 @@ const routes: Record<string, (body: unknown) => Promise<unknown>> = {
     return startRun(agent, message);
   },
   "GET /api/agents": async () => listBuilt(),
+  "POST /api/agent/update": async (body) => {
+    const { agentId, spec } = z.object({ agentId: z.string().startsWith("agent_"), spec: AgentSpec }).parse(body);
+    const updated = await updateAgent(agentId, spec);
+    return { ...updated, schedulesRepinned: await repinSchedules(updated) };
+  },
+  "GET /api/schedules": async () => listSchedules(),
+  "POST /api/schedules": async (body) => {
+    const { agentId, ...input } = z
+      .object({ agentId: z.string().startsWith("agent_"), cron: z.string().min(9).max(100), timezone: z.string().min(1).max(64), message: z.string().min(1).max(4000) })
+      .parse(body);
+    return createSchedule(agentId, input);
+  },
+  "POST /api/schedule/action": async (body) => {
+    const { deploymentId, action } = z.object({ deploymentId: z.string().regex(/^depl_[A-Za-z0-9]+$/), action: z.enum(["pause", "resume", "run", "stop"]) }).parse(body);
+    return scheduleAction(deploymentId, action);
+  },
+  "GET /api/pending": async () => waitingRuns(),
   "GET /api/runs": async () => (await listRuns()).slice().reverse(),
   "GET /api/catalog": async () => ({ tools: NETSUITE_TOOLS, runBudgetCents: RUN_BUDGET_CENTS }),
 };
