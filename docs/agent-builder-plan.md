@@ -1,6 +1,6 @@
 # Plan: NetSuite agent builder on Claude Managed Agents
 
-Status: **Phase 1 done 2026-10-31; Phase 2 next, then gateway retirement.** Decision record: `docs/adr/0007-retire-gateway-use-ai-connector.md` (accepted 2026-10-31). Phase 0 passed (`docs/phase0-managed-agents.md`). Nothing below is built yet. Replaces the Claude Code + herdr plan of 2026-10-30.
+Status: **Phases 1 and 2 done 2026-10-31.** Next: retire the gateway (due after Phase 1), then Phase 3. Decision record: `docs/adr/0007-retire-gateway-use-ai-connector.md` (accepted 2026-10-31). Phase 0 passed (`docs/phase0-managed-agents.md`). Nothing below is built yet. Replaces the Claude Code + herdr plan of 2026-10-30.
 
 ## Goal
 
@@ -55,6 +55,16 @@ Findings: Oracle's `ns_runCustomSuiteQL` fails with "An unexpected SuiteScript e
 Step 5: start a run, stream its events, Approve / Deny paused writes, download files.
 
 Done when: the Phase 1 use cases run end to end without opening the Console.
+
+**Phase 2 result (2026-10-31): done.** The builder's run view replaces the Console: live log (agent messages, NetSuite and sandbox tool calls with input and result, errors), status and stop reason, an approval card showing the exact request with Approve / Deny and an optional reason, file downloads, follow-up messages, and a list of recent runs. The server only accepts a decision for a call that is pending now, and only serves files of runs this builder started. Logic in `src/runs.ts` (7 tests). The three use cases, re-run with the owner clicking in the builder:
+
+| Use case | Run | Outcome |
+| --- | --- | --- |
+| Weekly 60+ overdue as Excel | `sesn_015zNf3vcxKnsZ1YXfXFGCcJ` | Finished with no pauses; the `.xlsx` (37,871 bytes) downloads from the page; the same request without the page token is refused (403). |
+| Change a client's email | `sesn_0147LpAYq3TSecPPGsYiupG3` | Paused on `updateCustomer`; the owner clicked Approve; the session records `allow` and the gateway confirms the new email on client 2928. |
+| Top 10 clients by balance | `sesn_01K7cGs7j2itFMRhZZM3XUUK` | This agent predates the `nsagent_suiteql` fallback, so each such call asked. The owner approved one and denied the next; the agent continued with its allowed tools and finished with the same figures as Phase 1. |
+
+Lesson: the first Approve went to a page the owner could not see (the browser pane was hidden). A page left open across a builder restart now says to reload instead of failing with "forbidden".
 
 ### Phase 3: library and schedules
 
