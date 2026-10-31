@@ -1,0 +1,14 @@
+# Prompts that SHOULD route to pdf-templates, and prompts that belong to other skills.
+should_route:
+  - Change the invoice PDF so it shows the PO number.
+  - Change the invoice PDF to show our new logo.
+  - Preview this Advanced PDF/HTML template on invoice 148.
+  - What would our sales order printout look like with the ship date in the header?
+  - Draft a purchase order PDF layout with the vendor's address on the right.
+  - Render my draft credit memo template against credit memo 812 so I can check it.
+
+should_not_route:
+  - Which invoices are more than 60 days overdue?                          # data-explorer
+  - Add a checkbox field called Rush Order to sales orders.                # custom-fields
+  - Send me a monthly AR aging report as Excel.                            # reports
+  - Import this CSV of new customers.                                      # data-importer

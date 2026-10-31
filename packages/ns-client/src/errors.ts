@@ -32,9 +32,10 @@ function innerMessage(raw: string): string {
       const inner = JSON.parse(raw) as { message?: unknown };
       if (typeof inner.message === "string") message = inner.message;
     } catch {
+      // Broken escaping, or raw newlines in the "stack" array that follows the message (seen from N/render errors).
       const flat = raw.replace(/\\+"/g, '"');
-      const m = /"message"\s*:\s*"([\s\S]*)"\s*\}\s*$/.exec(flat);
-      if (m) message = m[1]!;
+      const m = /"message"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"(?:id|stack|cause|notifyOff)"\s*:|\}\s*$)/.exec(flat);
+      if (m) message = m[1]!.replace(/\\+[nrt]/g, " ").replace(/\\+(?=\\)/g, "");
     }
   }
   return message.slice(0, MAX_MESSAGE);

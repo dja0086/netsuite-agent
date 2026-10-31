@@ -30,6 +30,20 @@ describe("parseNsError", () => {
     expect(err.message.length).toBeLessThanOrEqual(300);
   });
 
+  it("reads the inner message when a stack array with raw newlines follows it", () => {
+    // Shapes seen from the PDF preview RESTlet on TSTDRV1755417 (record.load and N/render errors), stack shortened.
+    const missing =
+      '{"type":"error.SuiteScriptError","name":"RCRD_DSNT_EXIST","message":"That record does not exist.","id":"999999999",' +
+      '"stack":["Error\n    at suitescript/resources/javascript/record/recordImpl.js:96:12"],"cause":{"name":"RCRD_DSNT_EXIST"}}';
+    expect(() => JSON.parse(missing)).toThrow();
+    const err = parseNsError(400, JSON.stringify({ error: { code: "RCRD_DSNT_EXIST", message: missing } }));
+    expect(err).toMatchObject({ code: "RCRD_DSNT_EXIST", message: "That record does not exist." });
+
+    const xml = String.raw`{\"type\":\"error.SuiteScriptError\",\"name\":\"USER_ERROR\",\"message\":\"Error Parsing XML: The element type \\\"p\\\" must be terminated.\",\"id\":\"\",\"stack\":[\"Error\n    at preview\"]}`;
+    const body = `{"error" : {"code" : "USER_ERROR", "message" : "${xml}"}}`;
+    expect(parseNsError(400, body)).toMatchObject({ code: "USER_ERROR", message: 'Error Parsing XML: The element type "p" must be terminated.' });
+  });
+
   it("uses the inner SuiteScriptError message when a RESTlet nests one", () => {
     const inner = JSON.stringify({ type: "error.SuiteScriptError", name: "NS_AGENT_BAD_INPUT", message: "unknown operator \"drop\"" });
     const err = parseNsError(400, JSON.stringify({ error: { code: "NS_AGENT_BAD_INPUT", message: inner } }));
