@@ -1,6 +1,6 @@
 # Plan: NetSuite agent builder on Claude Managed Agents
 
-Status: **Phases 1 and 2 done 2026-10-31.** Next: retire the gateway (due after Phase 1), then Phase 3. Decision record: `docs/adr/0007-retire-gateway-use-ai-connector.md` (accepted 2026-10-31). Phase 0 passed (`docs/phase0-managed-agents.md`). Nothing below is built yet. Replaces the Claude Code + herdr plan of 2026-10-30.
+Status: **Phases 1, 2 and 3 done 2026-10-31** (the weekly agent's first scheduled run is due 2026-11-02). Next: retire the gateway (due after Phase 1). Decision record: `docs/adr/0007-retire-gateway-use-ai-connector.md` (accepted 2026-10-31). Phase 0 passed (`docs/phase0-managed-agents.md`). How to use the builder: `docs/agent-builder.md`. Replaces the Claude Code + herdr plan of 2026-10-30.
 
 ## Goal
 
@@ -72,6 +72,25 @@ Step 6, plus scheduled agents and a way for a scheduled run that is waiting on a
 
 Done when: a weekly agent runs on schedule and a pending approval reaches the owner.
 
+**Phase 3 result (2026-10-31): done, with one check still due.**
+
+- **Library:** Edit opens an agent's spec in the same editor as a draft; Save as new version updates the agent (`agents.update` with the current version, so a stale edit is refused) and moves its schedules to the new version.
+- **Schedules:** Managed Agents deployments with a cron schedule and time zone, each pinned to the agent's version, with the shared environment, the NetSuite vault and the $5 run cap. The Schedules page shows next and last runs and has Run now, Pause / Resume and Stop (archive). Logic in `src/schedules.ts` (5 tests with `src/pending.ts`).
+- **Waiting runs reach the owner:** For you lists every run paused on an approval. A launchd job (`com.dja0086.netsuite-agent.builder-pending`, every 15 minutes, `src/pending-check.ts`) opens one GitHub issue per waiting run on dja0086/netsuite-agent naming only the agent and the run, since the repo is public.
+- **Design:** the UI follows the owner's Project Tracker design packet v3 (minimal tokens, left rail, one page title in the header, one primary action per card). Only the design system was used; the packet's sample content has real names and was not copied.
+
+| Check | Evidence | Outcome |
+| --- | --- | --- |
+| A scheduled run fires | Test schedule `depl_01WsnTWQyFDv2nPhu7FqTjm1` (`10 15 31 10 *`, America/New_York) started session `sesn_01EHP75BhA2jmpgE6zJ6Stik` at 19:17:44Z (Anthropic's jitter) | Ran unattended, paused on `updateCustomer` (client 2928, new email) |
+| The waiting approval reaches the owner | The launchd check at 19:32:25Z opened issue #29 on its own | Issue named the agent and run only |
+| The owner decides | Owner approved in the builder (after the fix below); the session records `allow` | Agent changed the email and re-read it; gateway SuiteQL shows `phase3-test@example.com` on client 2928. Issue #29 closed, test schedule paused |
+| A weekly agent on schedule | `depl_01K2Wncj1g3LdEPQSnKrm5TE` "Weekly 60+ days overdue clients", `0 8 * * 1` America/New_York | **Due 2026-11-02 08:00**; check its run and workbook then |
+
+Lessons:
+
+- The owner's first Approve clicks did not arrive, twice: once the desktop app had stopped the builder server, once the run page was drawn over. The For you view waits on the waiting-run check, which asks Anthropic about every recent run; opening a run before that finished let the slower view draw over the run. Every view now draws only if no newer page was opened since it started.
+- The waiting check costs one session read plus one event list per run from the last 14 days, so For you gets slower as runs pile up.
+
 ### Retire the gateway (after Phase 1)
 
 As in ADR 0007, "Consequences": tag `gateway-final`, remove gateway code, owner's NetSuite clicks, rewrite CLAUDE.md and the runbook.
@@ -80,7 +99,7 @@ As in ADR 0007, "Consequences": tag `gateway-final`, remove gateway code, owner'
 
 - **168-hour limit:** check on 2026-11-06/07 whether the vault still reaches NetSuite. If not, Phase 1 includes a "Reconnect NetSuite" button that re-runs the sign-in and updates the vault credential.
 - **Clean up Phase 0:** test client 2928.
-- **Concurrency:** several sessions at once against the account's 5 concurrent requests; measure before enabling schedules.
+- **Concurrency:** several sessions at once against the account's 5 concurrent requests. Not measured yet; schedules are enabled for one weekly agent only, so measure before adding more.
 - **Event retention** on Anthropic's side, to replace the CP5 audit retention.
 
 ## Owner decisions (2026-10-31)
