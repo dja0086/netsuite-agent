@@ -33,3 +33,6 @@ imports/
 
 # macOS Finder metadata
 .DS_Store
+
+# NetSuite OAuth tokens written by managed-agents/*/scripts/ns-signin.mts (moved into a vault, then deleted)
+managed-agents/**/tokens.json
