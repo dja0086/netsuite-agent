@@ -1,0 +1,16 @@
+{
+  "name": "@ns-agent/agent-builder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local web app: describe a NetSuite use case, get a Claude Managed Agent on Oracle's AI Connector with fixed safety rules.",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "zod": "^4.6.7"
+  }
+}

@@ -1,6 +1,6 @@
 # ADR 0007: Retire the gateway; NetSuite agents run as Claude Managed Agents on the AI Connector
 
-**Status:** proposed · 2026-10-31 (first draft 2026-10-30) · owner requests: "sunset what we built here and use the existing NetSuite connector/MCP"; "a GUI for managed agents: I tell you my use case and it'll build". Supersedes ADRs 0001, 0003, 0004, 0005 and 0006 once accepted. ADR 0002 (SDF-only schema changes) stays. Evidence: `docs/phase0-managed-agents.md`.
+**Status:** accepted · 2026-10-31 by the owner (first draft 2026-10-30) · owner requests: "sunset what we built here and use the existing NetSuite connector/MCP"; "a GUI for managed agents: I tell you my use case and it'll build". Supersedes ADRs 0001, 0003, 0004, 0005 and 0006 once accepted. ADR 0002 (SDF-only schema changes) stays. Evidence: `docs/phase0-managed-agents.md`.
 
 ## Decision
 

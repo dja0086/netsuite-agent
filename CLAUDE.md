@@ -1,6 +1,6 @@
 # netsuite-agent: notes for Claude Code
 
-MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **all checkpoints passed, CP1 to CP5** (CP5 go-live owner sign-off 2026-10-30, evidence in `docs/cp5-evidence.md`). The agent is live; operate it with `docs/runbook.md`. New work only when the owner starts it.
+MCP gateway + SuiteCloud project + agent skills that let an AI agent search, report on and, through approvals, change NetSuite data. Design and delivery plan live in the "NetSuite Agent Monorepo" doc (Architecture & design, Delivery plan tabs); a snapshot of the design tab is in `docs/design.md` (ADRs and this file win where they differ). Current phase: **all checkpoints passed, CP1 to CP5** (CP5 go-live owner sign-off 2026-10-30, evidence in `docs/cp5-evidence.md`). The gateway is live but being retired (ADR 0007, accepted 2026-10-31): NetSuite agents are now Claude Managed Agents made by the agent builder (`apps/agent-builder`, `pnpm builder`; plan `docs/agent-builder-plan.md`, Phase 1 done, Phase 0 `docs/phase0-managed-agents.md`). New work only when the owner starts it.
 
 ## Start of every session
 
@@ -85,6 +85,7 @@ MCP gateway + SuiteCloud project + agent skills that let an AI agent search, rep
 | `pnpm approvals list\|show\|approve\|deny` | Inspect and decide pending approvals (local channel) |
 | `pnpm audit:alerts [--hours 24] [--issue]` · `pnpm audit:prune` | Alert check on the audit log (`--issue` opens a GitHub issue); delete audit files older than 365 days (`docs/runbook.md`) |
 | `pnpm new:skill <name> [--writes]` | Scaffold a disabled skill |
+| `pnpm builder` | Agent builder on http://127.0.0.1:5178: describe a use case, create a Managed Agent on the AI Connector with the fixed rules, start runs (needs `ant auth login`) |
 | `pnpm gateway` | Run the MCP server on stdio (`.mcp.json` starts it for Claude Code via `scripts/mcp-gateway.sh`) |
 
 Environment: `set -a; source .env; set +a` before live commands.

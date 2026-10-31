@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetSuite Agent Builder</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --panel: #ffffff; --ink: #1d1b16; --muted: #6b665c; --line: #e3ded3;
+    --accent: #1f5f8b; --accent-ink: #ffffff; --ok: #2d6a3e; --warn: #9a5b00; --bad: #a3271f; --chip: #efebe2;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace; --sans: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #171613; --panel: #211f1b; --ink: #ece8df; --muted: #a39d90; --line: #36332c; --accent: #6fb0dc;
+      --accent-ink: #10202b; --ok: #7cc28f; --warn: #e2a94b; --bad: #f08a80; --chip: #2c2a25; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; }
+  header .who { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; padding: 20px 24px; max-width: 1280px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  input[type=text], textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+  textarea { resize: vertical; }
+  #instructions { min-height: 220px; font-family: var(--mono); font-size: 12.5px; }
+  button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: progress; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 12px; font-family: var(--mono); font-size: 12.5px; }
+  .tools label { font-weight: 400; margin: 0; display: flex; gap: 6px; align-items: center; }
+  .note { color: var(--muted); font-size: 12.5px; }
+  .problems { color: var(--bad); margin: 8px 0 0; padding-left: 18px; }
+  .questions { color: var(--warn); margin: 6px 0 0; padding-left: 18px; }
+  .ok { color: var(--ok); }
+  .mono { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+  ul.rules { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+  .agent { border-top: 1px solid var(--line); padding: 10px 0; }
+  .agent:first-child { border-top: 0; }
+  .agent b { display: block; }
+  details pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow: auto; max-height: 360px; font-size: 12px; }
+  .status { margin-top: 10px; min-height: 1.5em; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NetSuite Agent Builder</h1>
+  <span class="who">TSTDRV1755417 · NS Agent Integration · AI Connector /all</span>
+</header>
+<main>
+  <div>
+    <section>
+      <h2>1 · Describe the use case</h2>
+      <textarea id="useCase" rows="4" placeholder="e.g. Every Monday, clients with invoices more than 60 days overdue, as Excel, one sheet per currency."></textarea>
+      <div class="row"><button class="primary" id="draftBtn">Draft agent</button><span class="note">Claude drafts a spec; you review and edit it below.</span></div>
+      <div class="status" id="draftStatus"></div>
+    </section>
+
+    <section id="specPanel" hidden>
+      <h2>2 · Review and edit</h2>
+      <label for="name">Name</label><input type="text" id="name">
+      <label for="description">Description</label><input type="text" id="description">
+      <label for="instructions">Instructions</label><textarea id="instructions"></textarea>
+      <p class="note">Safety instructions are added to every agent automatically.</p>
+      <label>NetSuite read tools <span class="note">(run without asking)</span></label><div class="tools" id="readTools"></div>
+      <label>NetSuite write tools <span class="note">(each call waits for your approval; leave empty unless needed)</span></label><div class="tools" id="writeTools"></div>
+      <label>Files to produce</label><div class="tools" id="outputFiles"></div>
+      <label for="kickoff">Run message</label><textarea id="kickoff" rows="2"></textarea>
+      <div id="questionsBox" hidden><label>Open questions <span class="note">(settle these in the instructions)</span></label><ul class="questions" id="questions"></ul></div>
+      <ul class="problems" id="problems"></ul>
+      <div class="row"><button id="checkBtn">Check rules</button><button class="primary" id="createBtn">Create agent</button></div>
+      <details id="configBox" hidden><summary class="note">Agent configuration that will be sent</summary><pre id="config"></pre></details>
+      <div class="status" id="createStatus"></div>
+    </section>
+  </div>
+
+  <aside>
+    <section>
+      <h2>Always applied</h2>
+      <ul class="rules">
+        <li>Only the demo account's AI Connector; never the production account.</li>
+        <li>Write tools ask every time; unrequested writes are off.</li>
+        <li>File Cabinet writes and UI tools are off.</li>
+        <li>Tools not listed ask first.</li>
+        <li>Web search and fetch off; sandbox only for files.</li>
+        <li>Each run capped at $<span id="budget">5</span>.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Your agents</h2>
+      <div id="agents"><p class="note">None yet.</p></div>
+    </section>
+  </aside>
+</main>
+<script>
+const TOKEN = "__BUILDER_TOKEN__";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let catalog = {};
+let questions = [];
+
+async function api(method, url, body) {
+  const res = await fetch(url, { method, headers: { "Content-Type": "application/json", "X-Builder-Token": TOKEN }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function checkboxes(container, names, checked, group) {
+  container.innerHTML = names.map((n) => `<label><input type="checkbox" data-group="${group}" value="${esc(n)}" ${checked.includes(n) ? "checked" : ""}> ${esc(n)}</label>`).join("");
+}
+const checkedIn = (group) => [...document.querySelectorAll(`input[data-group="${group}"]:checked`)].map((i) => i.value);
+const ofKind = (kind) => Object.keys(catalog).filter((n) => catalog[n] === kind);
+
+function showSpec(spec, problems) {
+  $("name").value = spec.name; $("description").value = spec.description;
+  $("instructions").value = spec.instructions; $("kickoff").value = spec.kickoff;
+  checkboxes($("readTools"), ofKind("read"), spec.readTools, "read");
+  checkboxes($("writeTools"), ofKind("write"), spec.writeTools, "write");
+  checkboxes($("outputFiles"), ["xlsx", "pdf", "docx", "csv"], spec.outputFiles, "out");
+  questions = spec.openQuestions || [];
+  $("questions").innerHTML = questions.map((q) => `<li>${esc(q)}</li>`).join("");
+  $("questionsBox").hidden = questions.length === 0;
+  showProblems(problems);
+  $("configBox").hidden = true; $("createStatus").textContent = "";
+  $("specPanel").hidden = false;
+}
+function showProblems(problems) {
+  $("problems").innerHTML = (problems || []).map((p) => `<li>${esc(p)}</li>`).join("");
+}
+const currentSpec = () => ({
+  name: $("name").value.trim(), description: $("description").value.trim(), instructions: $("instructions").value,
+  readTools: checkedIn("read"), writeTools: checkedIn("write"), outputFiles: checkedIn("out"),
+  kickoff: $("kickoff").value.trim(), openQuestions: questions,
+});
+
+async function busy(button, statusEl, fn) {
+  button.disabled = true;
+  try { await fn(); } catch (e) { statusEl.innerHTML = `<span class="problems">${esc(e.message)}</span>`; } finally { button.disabled = false; }
+}
+
+$("draftBtn").onclick = () => busy($("draftBtn"), $("draftStatus"), async () => {
+  $("draftStatus").textContent = "Drafting… (about a minute)";
+  const { spec, problems } = await api("POST", "/api/draft", { useCase: $("useCase").value });
+  $("draftStatus").textContent = "";
+  showSpec(spec, problems);
+});
+
+$("checkBtn").onclick = () => busy($("checkBtn"), $("createStatus"), async () => {
+  const { problems, config } = await api("POST", "/api/check", currentSpec());
+  showProblems(problems);
+  $("configBox").hidden = !config;
+  if (config) { $("config").textContent = JSON.stringify(config, null, 2); $("createStatus").innerHTML = `<span class="ok">Passes all rules.</span>`; }
+  else $("createStatus").textContent = "";
+});
+
+$("createBtn").onclick = () => busy($("createBtn"), $("createStatus"), async () => {
+  const { problems } = await api("POST", "/api/check", currentSpec());
+  showProblems(problems);
+  if (problems.length) { $("createStatus").textContent = "Fix the problems above first."; return; }
+  const built = await api("POST", "/api/create", currentSpec());
+  $("createStatus").innerHTML = `<span class="ok">Created</span> <span class="mono">${esc(built.agentId)} v${built.version}</span>`;
+  await loadAgents();
+});
+
+async function runAgent(agentId, message, statusEl) {
+  statusEl.textContent = "Starting…";
+  const { sessionId, consoleUrl } = await api("POST", "/api/run", { agentId, message });
+  statusEl.innerHTML = `Running: <a href="${esc(consoleUrl)}" target="_blank" rel="noopener" class="mono">${esc(sessionId)}</a>`;
+}
+
+async function loadAgents() {
+  const agents = await api("GET", "/api/agents");
+  if (!agents.length) return;
+  $("agents").innerHTML = agents.slice().reverse().map((a, i) => `
+    <div class="agent">
+      <b>${esc(a.name)}</b>
+      <span class="mono note">${esc(a.agentId)} v${a.version}</span>
+      <textarea rows="2" id="msg${i}">${esc(a.spec.kickoff)}</textarea>
+      <div class="row"><button data-agent="${esc(a.agentId)}" data-i="${i}">Start run</button></div>
+      <div class="status note" id="st${i}"></div>
+    </div>`).join("");
+  document.querySelectorAll("button[data-agent]").forEach((b) => {
+    b.onclick = () => busy(b, $(`st${b.dataset.i}`), () => runAgent(b.dataset.agent, $(`msg${b.dataset.i}`).value, $(`st${b.dataset.i}`)));
+  });
+}
+
+(async () => {
+  const c = await api("GET", "/api/catalog");
+  catalog = c.tools;
+  $("budget").textContent = (Number(c.runBudgetCents) / 100).toFixed(0);
+  await loadAgents();
+})();
+</script>
+</body>
+</html>
