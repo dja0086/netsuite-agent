@@ -1,6 +1,6 @@
 # Plan: NetSuite agent builder on Claude Managed Agents
 
-Status: **draft, 2026-10-31.** Decision record: `docs/adr/0007-retire-gateway-use-ai-connector.md` (proposed). Phase 0 passed (`docs/phase0-managed-agents.md`). Nothing below is built yet. Replaces the Claude Code + herdr plan of 2026-10-30.
+Status: **Phase 1 done 2026-10-31; Phase 2 next, then gateway retirement.** Decision record: `docs/adr/0007-retire-gateway-use-ai-connector.md` (accepted 2026-10-31). Phase 0 passed (`docs/phase0-managed-agents.md`). Nothing below is built yet. Replaces the Claude Code + herdr plan of 2026-10-30.
 
 ## Goal
 
@@ -40,6 +40,16 @@ Steps 1–4 above, as a small local web app (TypeScript, matching this repo). Ru
 
 Done when: three use cases typed in plain language (one read-only, one with an Excel file, one with an approved write) each become an agent that passes the fixed rules and runs correctly from the Console.
 
+**Phase 1 result (2026-10-31): done.** `apps/agent-builder` (`pnpm builder`, http://127.0.0.1:5178): describe, draft (Claude Opus 5.5, structured output), check, edit, create, start a run with the shared environment, NetSuite vault and a $5 cap. Rules: `src/rules.ts` (12 tests). The three use cases, each typed in plain language:
+
+| Use case | Agent | Run | Outcome |
+| --- | --- | --- | --- |
+| Top 10 clients by open balance, per currency (read-only) | `agent_01PzebKcnozyhx7Ssf2wTGSq` | `sesn_01PsL7NyrcU527KNCANWM9P9` | Correct per-currency tables. Paused once on `nsagent_suiteql` (not in its tool list, so it asked); the owner allowed it. Drafting now always adds `nsagent_suiteql` as a fallback. |
+| Weekly 60+ days overdue as Excel, one sheet per currency | `agent_019ZUHCPhGfVppkUm7MepH2K` | `sesn_01JhBM36YFAAKqH6zW7tHmk9` | `Overdue_60plus_2026-10-31.xlsx`: 499 invoices, totals per currency, cross-checked by a second query; no pauses. |
+| Change a client's email (approved write) | `agent_011H4qxHjZZXkRii1KP2CPsU` | `sesn_01BmSpnG3E4CcyLDrWB87L37` | Draft asked for `updateCustomer` and `ns_updateRecord`; the owner kept only `updateCustomer`. Paused on `updateCustomer` for client 2928; the owner allowed it; the gateway confirms the new email. |
+
+Findings: Oracle's `ns_runCustomSuiteQL` fails with "An unexpected SuiteScript error" on some queries (grouping by `BUILTIN.DF`); drafting guidance now warns against it. Approvals were sent with `ant` after the owner's word; Phase 2 brings Approve/Deny into the builder.
+
 ### Phase 2: runs and approvals in the builder
 
 Step 5: start a run, stream its events, Approve / Deny paused writes, download files.
@@ -63,10 +73,10 @@ As in ADR 0007, "Consequences": tag `gateway-final`, remove gateway code, owner'
 - **Concurrency:** several sessions at once against the account's 5 concurrent requests; measure before enabling schedules.
 - **Event retention** on Anthropic's side, to replace the CP5 audit retention.
 
-## Decisions needed from the owner
+## Owner decisions (2026-10-31)
 
-| # | Decision | Recommendation |
+| # | Decision | Decided |
 | --- | --- | --- |
-| D1 | Where the builder runs | Local web app on the owner's Mac first; hosting is a later decision |
-| D2 | Who uses it | Owner only for now; multi-user needs separate approvers again (ADR 0007, "Revisit if") |
+| D1 | Where the builder runs | Local web app on the owner's Mac; hosting is a later decision |
+| D2 | Who uses it | Owner only; multi-user needs separate approvers again (ADR 0007, "Revisit if") |
 | D3 | When to retire the gateway | After Phase 1 is done |

@@ -36,3 +36,6 @@ imports/
 
 # NetSuite OAuth tokens written by managed-agents/*/scripts/ns-signin.mts (moved into a vault, then deleted)
 managed-agents/**/tokens.json
+
+# Agent builder local registry of created agents
+apps/agent-builder/data/

@@ -24,7 +24,8 @@
     "audit:prune": "tsx scripts/audit-log.ts prune",
     "audit:alerts": "tsx scripts/audit-log.ts alerts",
     "skills:eval": "tsx scripts/run-evals.ts",
-    "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm skills:validate && pnpm sdf:check"
+    "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm skills:validate && pnpm sdf:check",
+    "builder": "pnpm --filter @ns-agent/agent-builder start"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
