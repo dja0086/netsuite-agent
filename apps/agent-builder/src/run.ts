@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { sharedResources, type BuiltAgent } from "./create";
+import { recordRun } from "./runs";
 
 /** Hard spend cap per run, in US cents (fixed rule 6). The session pauses when it is reached. */
 export const RUN_BUDGET_CENTS = "500";
@@ -17,5 +18,6 @@ export async function startRun(agent: BuiltAgent, message: string, client = new 
     budget: { type: "limit", max_list_cost: { amount: RUN_BUDGET_CENTS, currency: "USD" } },
     initial_events: [{ type: "user.message", content: [{ type: "text", text: message }] }],
   });
+  await recordRun({ sessionId: session.id, agentId: agent.agentId, agentName: agent.name, startedAt: new Date().toISOString() });
   return { sessionId: session.id, consoleUrl: consoleSessionUrl(session.id) };
 }

@@ -44,6 +44,20 @@
   .agent b { display: block; }
   details pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow: auto; max-height: 360px; font-size: 12px; }
   .status { margin-top: 10px; min-height: 1.5em; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--chip); color: var(--muted); }
+  .badge.running { color: var(--accent); } .badge.waiting { color: var(--warn); } .badge.done { color: var(--ok); } .badge.ended { color: var(--bad); }
+  .log { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .item { border-left: 3px solid var(--line); padding: 4px 0 4px 10px; }
+  .item.agent { border-color: var(--accent); white-space: pre-wrap; }
+  .item.user { border-color: var(--muted); white-space: pre-wrap; color: var(--muted); }
+  .item.tool { font-family: var(--mono); font-size: 12.5px; }
+  .item.tool.err { border-color: var(--bad); }
+  .item.decision { font-size: 13px; }
+  .item.error { border-color: var(--bad); color: var(--bad); }
+  .approval { border: 1px solid var(--warn); border-radius: 8px; padding: 12px; margin-top: 12px; }
+  .approval pre, .item pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin: 6px 0; font-size: 12px; max-height: 260px; overflow: auto; }
+  button.deny { color: var(--bad); }
+  .runlink { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-align: left; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -77,6 +91,21 @@
       <details id="configBox" hidden><summary class="note">Agent configuration that will be sent</summary><pre id="config"></pre></details>
       <div class="status" id="createStatus"></div>
     </section>
+
+    <section id="runPanel" hidden>
+      <h2>3 · Run</h2>
+      <div><b id="runAgent"></b> <span class="badge" id="runStatus"></span> <span class="note" id="runNote"></span></div>
+      <div class="mono note" id="runId"></div>
+      <div id="approvals"></div>
+      <div class="log" id="log"></div>
+      <div id="filesBox" hidden><label>Files</label><div id="files"></div></div>
+      <div id="followBox" hidden>
+        <label for="followText">Follow-up message</label>
+        <textarea id="followText" rows="2"></textarea>
+        <div class="row"><button id="followBtn">Send</button></div>
+      </div>
+      <div class="status" id="runError"></div>
+    </section>
   </div>
 
   <aside>
@@ -90,6 +119,10 @@
         <li>Web search and fetch off; sandbox only for files.</li>
         <li>Each run capped at $<span id="budget">5</span>.</li>
       </ul>
+    </section>
+    <section>
+      <h2>Recent runs</h2>
+      <div id="runs"><p class="note">None yet.</p></div>
     </section>
     <section>
       <h2>Your agents</h2>
@@ -106,6 +139,7 @@ let questions = [];
 
 async function api(method, url, body) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json", "X-Builder-Token": TOKEN }, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 403) throw new Error("This page is out of date (the builder was restarted). Reload the page and try again.");
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
@@ -170,8 +204,108 @@ $("createBtn").onclick = () => busy($("createBtn"), $("createStatus"), async () 
 
 async function runAgent(agentId, message, statusEl) {
   statusEl.textContent = "Starting…";
-  const { sessionId, consoleUrl } = await api("POST", "/api/run", { agentId, message });
-  statusEl.innerHTML = `Running: <a href="${esc(consoleUrl)}" target="_blank" rel="noopener" class="mono">${esc(sessionId)}</a>`;
+  const { sessionId } = await api("POST", "/api/run", { agentId, message });
+  statusEl.textContent = "";
+  await loadRuns();
+  openRun(sessionId);
+}
+
+// ---- Run view ----
+let currentRun = null;
+let pollTimer = null;
+const badge = { running: ["running", "Running"], rescheduling: ["running", "Restarting"], idle: ["done", "Idle"], terminated: ["ended", "Ended"] };
+
+function openRun(sessionId) {
+  currentRun = sessionId;
+  $("runPanel").hidden = false;
+  $("runId").textContent = sessionId;
+  $("log").innerHTML = ""; $("approvals").innerHTML = ""; $("runError").textContent = "";
+  $("runPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  refreshRun();
+}
+
+function schedule(ms) { clearTimeout(pollTimer); pollTimer = setTimeout(refreshRun, ms); }
+
+async function refreshRun() {
+  const sessionId = currentRun;
+  if (!sessionId) return;
+  let view;
+  try { view = await api("GET", `/api/runs/${sessionId}`); } catch (e) { $("runError").innerHTML = `<span class="problems">${esc(e.message)}</span>`; return schedule(5000); }
+  if (sessionId !== currentRun) return;
+  $("runAgent").textContent = view.run.agentName;
+  const waiting = view.pending.length > 0;
+  const [cls, label] = waiting ? ["waiting", "Waiting for you"] : (badge[view.status] || ["", view.status]);
+  $("runStatus").className = `badge ${cls}`; $("runStatus").textContent = label;
+  $("runNote").textContent = view.stopNote || "";
+  renderLog(view.items);
+  renderApprovals(view, waiting);
+  $("filesBox").hidden = view.files.length === 0;
+  $("files").innerHTML = view.files.map((f) => `<div class="row"><span class="mono">${esc(f.filename)}</span><span class="note">${Math.max(1, Math.round(f.sizeBytes / 1024))} KB</span><button data-file="${esc(f.id)}" data-name="${esc(f.filename)}">Download</button></div>`).join("");
+  document.querySelectorAll("button[data-file]").forEach((b) => (b.onclick = () => download(sessionId, b.dataset.file, b.dataset.name)));
+  $("followBox").hidden = !(view.status === "idle" && !waiting);
+  if (view.status === "running" || view.status === "rescheduling") schedule(2500);
+}
+
+function renderLog(items) {
+  const byTool = Object.fromEntries(items.filter((i) => i.kind === "tool").map((i) => [i.id, i]));
+  $("log").innerHTML = items.map((i) => {
+    if (i.kind === "user") return `<div class="item user">You: ${esc(i.text)}</div>`;
+    if (i.kind === "agent") return `<div class="item agent">${esc(i.text)}</div>`;
+    if (i.kind === "error") return `<div class="item error">Error: ${esc(i.text)}</div>`;
+    if (i.kind === "decision") {
+      const t = byTool[i.toolUseId];
+      return `<div class="item decision">${i.result === "allow" ? "✓ Allowed" : "✗ Denied"} ${esc(t ? t.name : "")}${i.denyMessage ? ` (${esc(i.denyMessage)})` : ""}</div>`;
+    }
+    const where = i.source === "netsuite" ? "NetSuite" : "sandbox";
+    const perm = i.permission === "ask" ? " · asked" : "";
+    const state = i.result === undefined ? " · …" : i.isError ? " · error" : "";
+    return `<details class="item tool${i.isError ? " err" : ""}"><summary>${esc(where)} · ${esc(i.name)}${perm}${state}</summary><pre>${esc(JSON.stringify(i.input, null, 2))}</pre>${i.result !== undefined ? `<pre>${esc(i.result)}</pre>` : ""}</details>`;
+  }).join("");
+}
+
+function renderApprovals(view, waiting) {
+  if (!waiting) { $("approvals").innerHTML = ""; return; }
+  const tools = Object.fromEntries(view.items.filter((i) => i.kind === "tool").map((i) => [i.id, i]));
+  $("approvals").innerHTML = view.pending.map((id) => {
+    const t = tools[id];
+    return `<div class="approval">
+      <b>Approve ${esc(t ? t.name : "this call")}?</b> <span class="note">Nothing has been changed yet. This exact request runs only if you approve.</span>
+      <pre>${esc(JSON.stringify(t ? t.input : {}, null, 2))}</pre>
+      <input type="text" id="reason-${esc(id)}" placeholder="Reason (optional, for Deny)">
+      <div class="row"><button class="primary" data-decide="allow" data-id="${esc(id)}">Approve</button><button class="deny" data-decide="deny" data-id="${esc(id)}">Deny</button></div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("button[data-decide]").forEach((b) => {
+    b.onclick = () => busy(b, $("runError"), async () => {
+      const reason = $(`reason-${b.dataset.id}`).value.trim();
+      await api("POST", `/api/runs/${currentRun}/decide`, { eventId: b.dataset.id, result: b.dataset.decide, ...(b.dataset.decide === "deny" && reason ? { denyMessage: reason } : {}) });
+      $("approvals").innerHTML = "";
+      schedule(1500);
+    });
+  });
+}
+
+async function download(sessionId, fileId, name) {
+  const res = await fetch(`/api/runs/${sessionId}/files/${fileId}`, { headers: { "X-Builder-Token": TOKEN } });
+  if (!res.ok) { $("runError").innerHTML = `<span class="problems">${esc((await res.json()).error || res.statusText)}</span>`; return; }
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+$("followBtn").onclick = () => busy($("followBtn"), $("runError"), async () => {
+  const text = $("followText").value.trim();
+  if (!text) return;
+  await api("POST", `/api/runs/${currentRun}/message`, { text });
+  $("followText").value = "";
+  schedule(1500);
+});
+
+async function loadRuns() {
+  const runs = await api("GET", "/api/runs");
+  if (!runs.length) return;
+  $("runs").innerHTML = runs.slice(0, 12).map((r) => `<div class="agent"><button class="runlink" data-run="${esc(r.sessionId)}">${esc(r.agentName)}</button><span class="mono note">${esc(r.startedAt.slice(0, 16).replace("T", " "))} · ${esc(r.sessionId)}</span></div>`).join("");
+  document.querySelectorAll("button[data-run]").forEach((b) => (b.onclick = () => openRun(b.dataset.run)));
 }
 
 async function loadAgents() {
@@ -195,6 +329,7 @@ async function loadAgents() {
   catalog = c.tools;
   $("budget").textContent = (Number(c.runBudgetCents) / 100).toFixed(0);
   await loadAgents();
+  await loadRuns();
 })();
 </script>
 </body>

@@ -15,6 +15,7 @@ import { createAgent, listBuilt } from "./create";
 import { draftSpec } from "./draft";
 import { buildAgentConfig, checkSpec } from "./rules";
 import { RUN_BUDGET_CENTS, startRun } from "./run";
+import { decide, downloadFile, followUp, listRuns, runView } from "./runs";
 import { AgentSpec } from "./spec";
 
 const PORT = Number(process.env.BUILDER_PORT ?? 5178);
@@ -35,6 +36,34 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   return raw ? JSON.parse(raw) : {};
 }
 
+const SESSION = z.string().regex(/^sesn_[A-Za-z0-9]+$/);
+const Decision = z.object({ eventId: z.string().regex(/^sevt_[A-Za-z0-9]+$/), result: z.enum(["allow", "deny"]), denyMessage: z.string().max(500).optional() });
+
+/** Routes with a session id in the path: /api/runs/<sesn_...>[/decide|/message|/files/<file_...>]. */
+async function runRoute(method: string, parts: string[], req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+  if (parts[0] !== "api" || parts[1] !== "runs" || !parts[2]) return false;
+  const sessionId = SESSION.parse(parts[2]);
+  const action = parts.slice(3).join("/");
+  if (method === "GET" && action === "") send(res, 200, await runView(sessionId));
+  else if (method === "POST" && action === "decide") {
+    const d = Decision.parse(await readJson(req));
+    send(res, 200, await decide(sessionId, d.eventId, d.result, d.denyMessage));
+  } else if (method === "POST" && action === "message") {
+    const { text } = z.object({ text: z.string().min(1).max(4000) }).parse(await readJson(req));
+    send(res, 200, await followUp(sessionId, text));
+  } else if (method === "GET" && parts[3] === "files" && parts[4] && parts.length === 5) {
+    const { file, bytes } = await downloadFile(sessionId, z.string().regex(/^file_[A-Za-z0-9]+$/).parse(parts[4]));
+    res
+      .writeHead(200, {
+        "Content-Type": file.mimeType,
+        "Content-Disposition": `attachment; filename="${file.filename.replace(/[^A-Za-z0-9._-]/g, "_")}"`,
+        "Cache-Control": "no-store",
+      })
+      .end(bytes);
+  } else send(res, 404, { error: "not found" });
+  return true;
+}
+
 const routes: Record<string, (body: unknown) => Promise<unknown>> = {
   "POST /api/draft": async (body) => {
     const { useCase } = z.object({ useCase: z.string().min(10).max(4000) }).parse(body);
@@ -53,6 +82,7 @@ const routes: Record<string, (body: unknown) => Promise<unknown>> = {
     return startRun(agent, message);
   },
   "GET /api/agents": async () => listBuilt(),
+  "GET /api/runs": async () => (await listRuns()).slice().reverse(),
   "GET /api/catalog": async () => ({ tools: NETSUITE_TOOLS, runBudgetCents: RUN_BUDGET_CENTS }),
 };
 
@@ -64,10 +94,12 @@ createServer(async (req, res) => {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(html.replace("__BUILDER_TOKEN__", TOKEN));
       return;
     }
-    const handler = routes[route];
-    if (!handler) return send(res, 404, { error: "not found" });
     const origin = req.headers.origin;
     if ((origin && !ORIGINS.has(origin)) || req.headers["x-builder-token"] !== TOKEN) return send(res, 403, { error: "forbidden" });
+    const parts = (req.url ?? "/").split("?")[0]!.split("/").filter(Boolean);
+    if (await runRoute(req.method ?? "GET", parts, req, res)) return;
+    const handler = routes[route];
+    if (!handler) return send(res, 404, { error: "not found" });
     send(res, 200, await handler(req.method === "POST" ? await readJson(req) : undefined));
   } catch (error) {
     const message = error instanceof z.ZodError ? `Invalid input: ${error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}` : String(error instanceof Error ? error.message : error);
