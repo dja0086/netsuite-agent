@@ -3,139 +3,149 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NetSuite Agent Builder</title>
+<title>Agent Builder</title>
 <style>
+  /* Design: Project Tracker UI/UX packet, minimal v3 (design-tokens.json). */
   :root {
-    --bg: #f6f4ef; --panel: #ffffff; --ink: #1d1b16; --muted: #6b665c; --line: #e3ded3;
-    --accent: #1f5f8b; --accent-ink: #ffffff; --ok: #2d6a3e; --warn: #9a5b00; --bad: #a3271f; --chip: #efebe2;
-    --mono: ui-monospace, "SF Mono", Menlo, monospace; --sans: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #171613; --panel: #211f1b; --ink: #ece8df; --muted: #a39d90; --line: #36332c; --accent: #6fb0dc;
-      --accent-ink: #10202b; --ok: #7cc28f; --warn: #e2a94b; --bad: #f08a80; --chip: #2c2a25; }
+    --canvas: #ffffff; --rail: #f5f5f3; --surface: #ffffff; --ink: #202120; --secondary: #666962;
+    --border: #e3e4e0; --control: #858a82; --selected: #e9eae5; --action: #242624; --action-ink: #ffffff;
+    --soft: #f5f5f3; --bad: #a3271f;
+    --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --r-card: 18px; --r-button: 12px; --r-input: 8px; --r-composer: 22px;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); }
-  header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  header h1 { font-size: 17px; margin: 0; }
-  header .who { color: var(--muted); font-family: var(--mono); font-size: 12px; }
-  main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; padding: 20px 24px; max-width: 1280px; margin: 0 auto; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
-  label { display: block; font-weight: 600; margin: 12px 0 4px; }
-  input[type=text], textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
-  textarea { resize: vertical; }
-  #instructions { min-height: 220px; font-family: var(--mono); font-size: 12.5px; }
-  button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--ink); cursor: pointer; }
-  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-  button:disabled { opacity: .5; cursor: progress; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
-  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 12px; font-family: var(--mono); font-size: 12.5px; }
-  .tools label { font-weight: 400; margin: 0; display: flex; gap: 6px; align-items: center; }
-  .note { color: var(--muted); font-size: 12.5px; }
-  .problems { color: var(--bad); margin: 8px 0 0; padding-left: 18px; }
-  .questions { color: var(--warn); margin: 6px 0 0; padding-left: 18px; }
-  .ok { color: var(--ok); }
-  .mono { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
-  ul.rules { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
-  .agent { border-top: 1px solid var(--line); padding: 10px 0; }
-  .agent:first-child { border-top: 0; }
-  .agent b { display: block; }
-  details pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow: auto; max-height: 360px; font-size: 12px; }
-  .status { margin-top: 10px; min-height: 1.5em; }
-  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--chip); color: var(--muted); }
-  .badge.running { color: var(--accent); } .badge.waiting { color: var(--warn); } .badge.done { color: var(--ok); } .badge.ended { color: var(--bad); }
-  .log { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-  .item { border-left: 3px solid var(--line); padding: 4px 0 4px 10px; }
-  .item.agent { border-color: var(--accent); white-space: pre-wrap; }
-  .item.user { border-color: var(--muted); white-space: pre-wrap; color: var(--muted); }
-  .item.tool { font-family: var(--mono); font-size: 12.5px; }
-  .item.tool.err { border-color: var(--bad); }
-  .item.decision { font-size: 13px; }
-  .item.error { border-color: var(--bad); color: var(--bad); }
-  .approval { border: 1px solid var(--warn); border-radius: 8px; padding: 12px; margin-top: 12px; }
-  .approval pre, .item pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin: 6px 0; font-size: 12px; max-height: 260px; overflow: auto; }
-  button.deny { color: var(--bad); }
-  .runlink { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-align: left; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--canvas); color: var(--ink); font: 400 16px/24px var(--font); }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+  @media (prefers-reduced-motion: no-preference) { button, .card { transition: background-color 120ms, border-color 120ms; } }
+
+  .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+  .rail { background: var(--rail); border-right: 1px solid var(--border); padding: 24px 14px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+  .brand { font-size: 20px; line-height: 28px; font-weight: 600; padding: 0 14px; }
+  .scope { font-size: 13px; line-height: 18px; color: var(--secondary); padding: 6px 14px 24px; }
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav a { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 10px; color: var(--ink); text-decoration: none; }
+  .nav a:hover { background: var(--selected); }
+  .nav a[aria-current="page"] { background: var(--selected); }
+  .count { font-size: 13px; color: var(--secondary); }
+  .rail hr { border: 0; border-top: 1px solid var(--border); margin: 16px 14px; }
+  .rail .bottom { margin-top: auto; }
+
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  header { height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 40px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--canvas); z-index: 2; }
+  .crumbs { font-size: 14px; line-height: 20px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumbs a { color: var(--ink); text-decoration: none; }
+  .crumbs .sep { color: var(--secondary); margin: 0 8px; }
+  .hmeta { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--secondary); white-space: nowrap; }
+  .hmeta .bar { width: 1px; height: 24px; background: var(--border); }
+  .content { padding: 32px 40px 40px; display: flex; flex-direction: column; gap: 16px; max-width: 1240px; width: 100%; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); padding: 24px; }
+  .work { min-height: 128px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .work .text { min-width: 0; }
+  .meta { font-size: 13px; line-height: 18px; color: var(--secondary); }
+  .title { font-size: 18px; line-height: 26px; font-weight: 500; margin: 4px 0 2px; overflow-wrap: anywhere; }
+  .reason { color: var(--secondary); }
+  .links { display: flex; gap: 16px; margin-top: 8px; font-size: 14px; }
+  .links button { background: none; border: 0; padding: 0; min-height: 24px; color: var(--secondary); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .links button:hover { color: var(--ink); }
+
+  .btn { min-height: 44px; padding: 0 20px; border-radius: var(--r-button); border: 1px solid var(--control); background: var(--surface); font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+  .btn.primary { background: var(--action); color: var(--action-ink); border-color: var(--action); }
+  .btn:disabled { background: var(--selected); color: var(--secondary); border-color: var(--selected); cursor: progress; }
+
+  .composer { display: flex; gap: 12px; align-items: flex-end; border: 1px solid var(--border); border-radius: var(--r-composer); padding: 12px 12px 12px 20px; min-height: 72px; background: var(--surface); }
+  .composer textarea { flex: 1; border: 0; resize: none; outline: none; padding: 10px 0; min-height: 44px; max-height: 200px; background: transparent; }
+  .composer textarea::placeholder { color: var(--secondary); }
+
+  .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; align-items: start; }
+  .session { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+  .field { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; align-items: start; padding: 8px 0; }
+  .field > label, .field > .k { color: var(--secondary); padding-top: 10px; font-size: 14px; }
+  input[type=text], select, .field textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--control); border-radius: var(--r-input); background: var(--surface); }
+  .field textarea { min-height: 260px; resize: vertical; font-size: 14px; line-height: 21px; }
+  .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2px 16px; padding-top: 8px; }
+  .checks label { display: flex; align-items: center; gap: 8px; min-height: 32px; font-family: var(--mono); font-size: 13px; }
+  .checks input { width: 18px; height: 18px; accent-color: var(--action); }
+  .foot { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+  .quiet { font-size: 13px; color: var(--secondary); }
+  .problems { margin: 8px 0 0; padding-left: 20px; color: var(--bad); }
+  .questions { margin: 8px 0 0; padding-left: 20px; color: var(--secondary); }
+
+  .bubble { background: var(--soft); border-radius: 14px; padding: 14px 18px; white-space: pre-wrap; }
+  .said { white-space: pre-wrap; }
+  .step { font-size: 13px; line-height: 18px; color: var(--secondary); }
+  .step summary { cursor: pointer; list-style: none; }
+  .step summary::-webkit-details-marker { display: none; }
+  .step summary::before { content: "▸ "; } .step[open] summary::before { content: "▾ "; }
+  .step pre, .exact pre { white-space: pre-wrap; word-break: break-word; font: 12px/18px var(--mono); background: var(--soft); border-radius: 8px; padding: 10px 12px; margin: 6px 0 0; max-height: 280px; overflow: auto; color: var(--ink); }
+  .log { display: flex; flex-direction: column; gap: 16px; }
+  .pill { display: inline-block; padding: 4px 12px; border-radius: 8px; background: var(--selected); font-size: 14px; font-weight: 500; }
+  .approval { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; margin-top: 16px; }
+  .approval .left { border-right: 1px solid var(--border); padding-right: 24px; }
+  .kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 16px; align-content: start; }
+  .kv .k { color: var(--secondary); }
+  .kv .v { overflow-wrap: anywhere; }
+  .side .row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
+  .side .file { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+  .empty { color: var(--secondary); }
+  .error { color: var(--bad); font-size: 14px; }
   [hidden] { display: none !important; }
+
+  @media (max-width: 1279px) { .session { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .rail { position: static; height: auto; padding: 12px 20px; }
+    .brand, .scope { padding-left: 0; padding-right: 0; } .scope { padding-bottom: 8px; }
+    .nav a { min-height: 44px; padding: 0 12px; }
+    .nav { flex-direction: row; flex-wrap: wrap; } .rail .bottom { margin-top: 0; } .rail hr { display: none; }
+    header { padding: 0 20px; } .content { padding: 20px; }
+    .work { flex-direction: column; align-items: stretch; } .split, .approval { grid-template-columns: 1fr; }
+    .approval .left { border-right: 0; padding-right: 0; } .field { grid-template-columns: 1fr; } .field > label { padding-top: 0; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>NetSuite Agent Builder</h1>
-  <span class="who">TSTDRV1755417 · NS Agent Integration · AI Connector /all</span>
-</header>
-<main>
-  <div>
-    <section>
-      <h2>1 · Describe the use case</h2>
-      <textarea id="useCase" rows="4" placeholder="e.g. Every Monday, clients with invoices more than 60 days overdue, as Excel, one sheet per currency."></textarea>
-      <div class="row"><button class="primary" id="draftBtn">Draft agent</button><span class="note">Claude drafts a spec; you review and edit it below.</span></div>
-      <div class="status" id="draftStatus"></div>
-    </section>
-
-    <section id="specPanel" hidden>
-      <h2>2 · Review and edit</h2>
-      <label for="name">Name</label><input type="text" id="name">
-      <label for="description">Description</label><input type="text" id="description">
-      <label for="instructions">Instructions</label><textarea id="instructions"></textarea>
-      <p class="note">Safety instructions are added to every agent automatically.</p>
-      <label>NetSuite read tools <span class="note">(run without asking)</span></label><div class="tools" id="readTools"></div>
-      <label>NetSuite write tools <span class="note">(each call waits for your approval; leave empty unless needed)</span></label><div class="tools" id="writeTools"></div>
-      <label>Files to produce</label><div class="tools" id="outputFiles"></div>
-      <label for="kickoff">Run message</label><textarea id="kickoff" rows="2"></textarea>
-      <div id="questionsBox" hidden><label>Open questions <span class="note">(settle these in the instructions)</span></label><ul class="questions" id="questions"></ul></div>
-      <ul class="problems" id="problems"></ul>
-      <div class="row"><button id="checkBtn">Check rules</button><button class="primary" id="createBtn">Create agent</button></div>
-      <details id="configBox" hidden><summary class="note">Agent configuration that will be sent</summary><pre id="config"></pre></details>
-      <div class="status" id="createStatus"></div>
-    </section>
-
-    <section id="runPanel" hidden>
-      <h2>3 · Run</h2>
-      <div><b id="runAgent"></b> <span class="badge" id="runStatus"></span> <span class="note" id="runNote"></span></div>
-      <div class="mono note" id="runId"></div>
-      <div id="approvals"></div>
-      <div class="log" id="log"></div>
-      <div id="filesBox" hidden><label>Files</label><div id="files"></div></div>
-      <div id="followBox" hidden>
-        <label for="followText">Follow-up message</label>
-        <textarea id="followText" rows="2"></textarea>
-        <div class="row"><button id="followBtn">Send</button></div>
-      </div>
-      <div class="status" id="runError"></div>
-    </section>
+<div class="shell">
+  <nav class="rail" aria-label="Agent Builder">
+    <div class="brand">Agent Builder</div>
+    <div class="scope">TSTDRV1755417 · NetSuite demo</div>
+    <div class="nav">
+      <a href="#/" data-nav="home">For you <span class="count" id="needCount"></span></a>
+      <a href="#/agents" data-nav="agents">Agents</a>
+      <a href="#/runs" data-nav="runs">Runs</a>
+      <a href="#/schedules" data-nav="schedules">Schedules</a>
+    </div>
+    <hr>
+    <div class="nav bottom">
+      <a href="#/rules" data-nav="rules">Rules</a>
+    </div>
+  </nav>
+  <div class="main">
+    <header>
+      <div class="crumbs" id="crumbs"></div>
+      <div class="hmeta"><span>NS Agent Integration · AI Connector</span><span class="bar"></span><button class="btn" id="refresh" style="border:0;min-height:36px;padding:0 4px;">Refresh</button></div>
+    </header>
+    <div class="content" id="view"></div>
   </div>
-
-  <aside>
-    <section>
-      <h2>Always applied</h2>
-      <ul class="rules">
-        <li>Only the demo account's AI Connector; never the production account.</li>
-        <li>Write tools ask every time; unrequested writes are off.</li>
-        <li>File Cabinet writes and UI tools are off.</li>
-        <li>Tools not listed ask first.</li>
-        <li>Web search and fetch off; sandbox only for files.</li>
-        <li>Each run capped at $<span id="budget">5</span>.</li>
-      </ul>
-    </section>
-    <section>
-      <h2>Recent runs</h2>
-      <div id="runs"><p class="note">None yet.</p></div>
-    </section>
-    <section>
-      <h2>Your agents</h2>
-      <div id="agents"><p class="note">None yet.</p></div>
-    </section>
-  </aside>
-</main>
+</div>
 <script>
 const TOKEN = "__BUILDER_TOKEN__";
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-let catalog = {};
-let questions = [];
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const when = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString([], { weekday: "short", month: "short", day: "numeric", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}), hour: "numeric", minute: "2-digit" });
+};
+const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const KEEP = "agent-builder-draft";
+let catalog = {}, budgetCents = "500", agents = [], waiting = [], pollTimer = null;
+// Each route() call bumps this; a view that finishes after a newer route started draws nothing.
+let routeSeq = 0;
+const stale = (seq) => seq !== routeSeq;
 
 async function api(method, url, body) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json", "X-Builder-Token": TOKEN }, body: body ? JSON.stringify(body) : undefined });
@@ -144,192 +154,355 @@ async function api(method, url, body) {
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
 }
-
-function checkboxes(container, names, checked, group) {
-  container.innerHTML = names.map((n) => `<label><input type="checkbox" data-group="${group}" value="${esc(n)}" ${checked.includes(n) ? "checked" : ""}> ${esc(n)}</label>`).join("");
-}
-const checkedIn = (group) => [...document.querySelectorAll(`input[data-group="${group}"]:checked`)].map((i) => i.value);
-const ofKind = (kind) => Object.keys(catalog).filter((n) => catalog[n] === kind);
-
-function showSpec(spec, problems) {
-  $("name").value = spec.name; $("description").value = spec.description;
-  $("instructions").value = spec.instructions; $("kickoff").value = spec.kickoff;
-  checkboxes($("readTools"), ofKind("read"), spec.readTools, "read");
-  checkboxes($("writeTools"), ofKind("write"), spec.writeTools, "write");
-  checkboxes($("outputFiles"), ["xlsx", "pdf", "docx", "csv"], spec.outputFiles, "out");
-  questions = spec.openQuestions || [];
-  $("questions").innerHTML = questions.map((q) => `<li>${esc(q)}</li>`).join("");
-  $("questionsBox").hidden = questions.length === 0;
-  showProblems(problems);
-  $("configBox").hidden = true; $("createStatus").textContent = "";
-  $("specPanel").hidden = false;
-}
-function showProblems(problems) {
-  $("problems").innerHTML = (problems || []).map((p) => `<li>${esc(p)}</li>`).join("");
-}
-const currentSpec = () => ({
-  name: $("name").value.trim(), description: $("description").value.trim(), instructions: $("instructions").value,
-  readTools: checkedIn("read"), writeTools: checkedIn("write"), outputFiles: checkedIn("out"),
-  kickoff: $("kickoff").value.trim(), openQuestions: questions,
-});
-
-async function busy(button, statusEl, fn) {
+async function busy(button, errorEl, fn) {
+  const label = button.textContent;
   button.disabled = true;
-  try { await fn(); } catch (e) { statusEl.innerHTML = `<span class="problems">${esc(e.message)}</span>`; } finally { button.disabled = false; }
+  try { await fn(); } catch (e) { if (errorEl) errorEl.innerHTML = `<span class="error">${esc(e.message)}</span>`; } finally { button.disabled = false; button.textContent = label; }
+}
+function setCrumbs(parts) {
+  $("crumbs").innerHTML = parts.map((p, i) => (p.href && i < parts.length - 1 ? `<a href="${p.href}">${esc(p.label)}</a>` : esc(p.label))).join('<span class="sep">/</span>');
+  document.title = `${parts[parts.length - 1].label} · Agent Builder`;
+}
+function setNav(key) {
+  document.querySelectorAll("[data-nav]").forEach((a) => (a.dataset.nav === key ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+}
+const toolSummary = (spec) => {
+  const parts = [`${spec.readTools.length} read tool${spec.readTools.length === 1 ? "" : "s"}`];
+  if (spec.writeTools.length) parts.push(`asks before ${spec.writeTools.join(", ")}`);
+  if (spec.outputFiles.length) parts.push(spec.outputFiles.map((f) => f.toUpperCase()).join(", "));
+  return parts.join(" · ");
+};
+
+// ---------- Router ----------
+async function route() {
+  clearTimeout(pollTimer);
+  const seq = ++routeSeq;
+  const [, view, id, sub] = (location.hash || "#/").split("/");
+  try {
+    if (!view) await homeView();
+    else if (view === "agents") await agentsView();
+    else if (view === "new") newView();
+    else if (view === "agent" && sub === "edit") await editView(id);
+    else if (view === "agent" && sub === "schedule") await scheduleView(id);
+    else if (view === "run") await runView(id);
+    else if (view === "runs") await runsView();
+    else if (view === "schedules") await schedulesView();
+    else if (view === "rules") rulesView();
+    else location.hash = "#/";
+  } catch (e) {
+    if (!stale(seq)) $("view").innerHTML = `<div class="card error">${esc(e.message)}</div>`;
+  }
+}
+window.addEventListener("hashchange", route);
+$("refresh").onclick = () => { loadWaiting(); route(); };
+
+async function loadAgents() { agents = await api("GET", "/api/agents"); return agents; }
+async function loadWaiting() {
+  try { waiting = await api("GET", "/api/pending"); } catch { return waiting; }
+  $("needCount").textContent = waiting.length ? String(waiting.length) : "";
+  return waiting;
 }
 
-$("draftBtn").onclick = () => busy($("draftBtn"), $("draftStatus"), async () => {
-  $("draftStatus").textContent = "Drafting… (about a minute)";
-  const { spec, problems } = await api("POST", "/api/draft", { useCase: $("useCase").value });
-  $("draftStatus").textContent = "";
-  showSpec(spec, problems);
-});
-
-$("checkBtn").onclick = () => busy($("checkBtn"), $("createStatus"), async () => {
-  const { problems, config } = await api("POST", "/api/check", currentSpec());
-  showProblems(problems);
-  $("configBox").hidden = !config;
-  if (config) { $("config").textContent = JSON.stringify(config, null, 2); $("createStatus").innerHTML = `<span class="ok">Passes all rules.</span>`; }
-  else $("createStatus").textContent = "";
-});
-
-$("createBtn").onclick = () => busy($("createBtn"), $("createStatus"), async () => {
-  const { problems } = await api("POST", "/api/check", currentSpec());
-  showProblems(problems);
-  if (problems.length) { $("createStatus").textContent = "Fix the problems above first."; return; }
-  const built = await api("POST", "/api/create", currentSpec());
-  $("createStatus").innerHTML = `<span class="ok">Created</span> <span class="mono">${esc(built.agentId)} v${built.version}</span>`;
-  await loadAgents();
-});
-
-async function runAgent(agentId, message, statusEl) {
-  statusEl.textContent = "Starting…";
-  const { sessionId } = await api("POST", "/api/run", { agentId, message });
-  statusEl.textContent = "";
-  await loadRuns();
-  openRun(sessionId);
+// ---------- For you ----------
+async function homeView() {
+  const seq = routeSeq;
+  setNav("home"); setCrumbs([{ label: "For you" }]);
+  const [w, list] = await Promise.all([loadWaiting(), loadAgents()]);
+  if (stale(seq)) return;
+  const waitingCards = w.map((r) => `
+    <div class="card work">
+      <div class="text"><div class="meta">${r.scheduled ? "Scheduled run" : "Run"} · Waiting for approval</div>
+        <div class="title">Approve ${esc((r.tools || [])[0] || "a tool call")}${r.waiting > 1 ? ` and ${r.waiting - 1} more` : ""}</div>
+        <div class="reason">${esc(r.agentName)} is paused until you decide.</div></div>
+      <a class="btn primary" style="display:inline-flex;align-items:center;text-decoration:none" href="#/run/${esc(r.sessionId)}">Review</a>
+    </div>`).join("");
+  const agentCards = list.slice().reverse().slice(0, 6).map((a) => agentCard(a)).join("");
+  $("view").innerHTML = `${waitingCards}${agentCards || (w.length ? "" : `<div class="card empty">No agents yet. Describe one below.</div>`)}
+    <div class="composer"><textarea id="useCase" rows="1" placeholder="Describe a new NetSuite agent, e.g. every Monday, clients more than 60 days overdue as Excel"></textarea><button class="btn primary" id="draftBtn">Draft agent</button></div>
+    <div id="draftStatus" class="quiet"></div>`;
+  wireAgentCards();
+  wireComposer();
 }
-
-// ---- Run view ----
-let currentRun = null;
-let pollTimer = null;
-const badge = { running: ["running", "Running"], rescheduling: ["running", "Restarting"], idle: ["done", "Idle"], terminated: ["ended", "Ended"] };
-
-function openRun(sessionId) {
-  currentRun = sessionId;
-  $("runPanel").hidden = false;
-  $("runId").textContent = sessionId;
-  $("log").innerHTML = ""; $("approvals").innerHTML = ""; $("runError").textContent = "";
-  $("runPanel").scrollIntoView({ behavior: "smooth", block: "start" });
-  refreshRun();
-}
-
-function schedule(ms) { clearTimeout(pollTimer); pollTimer = setTimeout(refreshRun, ms); }
-
-async function refreshRun() {
-  const sessionId = currentRun;
-  if (!sessionId) return;
-  let view;
-  try { view = await api("GET", `/api/runs/${sessionId}`); } catch (e) { $("runError").innerHTML = `<span class="problems">${esc(e.message)}</span>`; return schedule(5000); }
-  if (sessionId !== currentRun) return;
-  $("runAgent").textContent = view.run.agentName;
-  const waiting = view.pending.length > 0;
-  const [cls, label] = waiting ? ["waiting", "Waiting for you"] : (badge[view.status] || ["", view.status]);
-  $("runStatus").className = `badge ${cls}`; $("runStatus").textContent = label;
-  $("runNote").textContent = view.stopNote || "";
-  renderLog(view.items);
-  renderApprovals(view, waiting);
-  $("filesBox").hidden = view.files.length === 0;
-  $("files").innerHTML = view.files.map((f) => `<div class="row"><span class="mono">${esc(f.filename)}</span><span class="note">${Math.max(1, Math.round(f.sizeBytes / 1024))} KB</span><button data-file="${esc(f.id)}" data-name="${esc(f.filename)}">Download</button></div>`).join("");
-  document.querySelectorAll("button[data-file]").forEach((b) => (b.onclick = () => download(sessionId, b.dataset.file, b.dataset.name)));
-  $("followBox").hidden = !(view.status === "idle" && !waiting);
-  if (view.status === "running" || view.status === "rescheduling") schedule(2500);
-}
-
-function renderLog(items) {
-  const byTool = Object.fromEntries(items.filter((i) => i.kind === "tool").map((i) => [i.id, i]));
-  $("log").innerHTML = items.map((i) => {
-    if (i.kind === "user") return `<div class="item user">You: ${esc(i.text)}</div>`;
-    if (i.kind === "agent") return `<div class="item agent">${esc(i.text)}</div>`;
-    if (i.kind === "error") return `<div class="item error">Error: ${esc(i.text)}</div>`;
-    if (i.kind === "decision") {
-      const t = byTool[i.toolUseId];
-      return `<div class="item decision">${i.result === "allow" ? "✓ Allowed" : "✗ Denied"} ${esc(t ? t.name : "")}${i.denyMessage ? ` (${esc(i.denyMessage)})` : ""}</div>`;
-    }
-    const where = i.source === "netsuite" ? "NetSuite" : "sandbox";
-    const perm = i.permission === "ask" ? " · asked" : "";
-    const state = i.result === undefined ? " · …" : i.isError ? " · error" : "";
-    return `<details class="item tool${i.isError ? " err" : ""}"><summary>${esc(where)} · ${esc(i.name)}${perm}${state}</summary><pre>${esc(JSON.stringify(i.input, null, 2))}</pre>${i.result !== undefined ? `<pre>${esc(i.result)}</pre>` : ""}</details>`;
-  }).join("");
-}
-
-function renderApprovals(view, waiting) {
-  if (!waiting) { $("approvals").innerHTML = ""; return; }
-  const tools = Object.fromEntries(view.items.filter((i) => i.kind === "tool").map((i) => [i.id, i]));
-  $("approvals").innerHTML = view.pending.map((id) => {
-    const t = tools[id];
-    return `<div class="approval">
-      <b>Approve ${esc(t ? t.name : "this call")}?</b> <span class="note">Nothing has been changed yet. This exact request runs only if you approve.</span>
-      <pre>${esc(JSON.stringify(t ? t.input : {}, null, 2))}</pre>
-      <input type="text" id="reason-${esc(id)}" placeholder="Reason (optional, for Deny)">
-      <div class="row"><button class="primary" data-decide="allow" data-id="${esc(id)}">Approve</button><button class="deny" data-decide="deny" data-id="${esc(id)}">Deny</button></div>
-    </div>`;
-  }).join("");
-  document.querySelectorAll("button[data-decide]").forEach((b) => {
-    b.onclick = () => busy(b, $("runError"), async () => {
-      const reason = $(`reason-${b.dataset.id}`).value.trim();
-      await api("POST", `/api/runs/${currentRun}/decide`, { eventId: b.dataset.id, result: b.dataset.decide, ...(b.dataset.decide === "deny" && reason ? { denyMessage: reason } : {}) });
-      $("approvals").innerHTML = "";
-      schedule(1500);
-    });
+function wireComposer() {
+  const ta = $("useCase");
+  ta.oninput = () => { ta.style.height = "auto"; ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`; };
+  $("draftBtn").onclick = () => busy($("draftBtn"), $("draftStatus"), async () => {
+    if (ta.value.trim().length < 10) throw new Error("Describe the use case in a sentence or two.");
+    $("draftBtn").textContent = "Drafting…";
+    $("draftStatus").textContent = "Claude is drafting the agent (about a minute).";
+    const { spec, problems } = await api("POST", "/api/draft", { useCase: ta.value.trim() });
+    sessionStorage.setItem(KEEP, JSON.stringify({ useCase: ta.value.trim(), spec, problems }));
+    location.hash = "#/new";
   });
 }
 
+// ---------- Agents ----------
+function agentCard(a) {
+  return `<div class="card work">
+    <div class="text"><div class="meta">v${a.version} · ${esc(toolSummary(a.spec))}</div>
+      <div class="title">${esc(a.name)}</div>
+      <div class="reason">${esc(a.spec.description)}</div>
+      <div class="links"><button data-edit="${esc(a.agentId)}">Edit</button><button data-sched="${esc(a.agentId)}">Schedule</button></div>
+      <div class="quiet" id="st-${esc(a.agentId)}"></div></div>
+    <button class="btn primary" data-start="${esc(a.agentId)}">Start run</button>
+  </div>`;
+}
+function wireAgentCards() {
+  document.querySelectorAll("[data-start]").forEach((b) => {
+    b.onclick = () => busy(b, $(`st-${b.dataset.start}`), async () => {
+      const agent = agents.find((a) => a.agentId === b.dataset.start);
+      b.textContent = "Starting…";
+      const { sessionId } = await api("POST", "/api/run", { agentId: agent.agentId, message: agent.spec.kickoff });
+      location.hash = `#/run/${sessionId}`;
+    });
+  });
+  document.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => (location.hash = `#/agent/${b.dataset.edit}/edit`)));
+  document.querySelectorAll("[data-sched]").forEach((b) => (b.onclick = () => (location.hash = `#/agent/${b.dataset.sched}/schedule`)));
+}
+async function agentsView() {
+  const seq = routeSeq;
+  setNav("agents"); setCrumbs([{ label: "Agents" }]);
+  const list = await loadAgents();
+  if (stale(seq)) return;
+  $("view").innerHTML = (list.slice().reverse().map(agentCard).join("") || `<div class="card empty">No agents yet.</div>`) +
+    `<div><a class="btn" style="display:inline-flex;align-items:center;text-decoration:none" href="#/">Describe a new agent</a></div>`;
+  wireAgentCards();
+}
+
+// ---------- New / edit agent (editable output) ----------
+function checkboxes(names, checked, group) {
+  return names.map((n) => `<label><input type="checkbox" data-group="${group}" value="${esc(n)}" ${checked.includes(n) ? "checked" : ""}> ${esc(n)}</label>`).join("");
+}
+const ofKind = (kind) => Object.keys(catalog).filter((n) => catalog[n] === kind);
+const checkedIn = (group) => [...document.querySelectorAll(`input[data-group="${group}"]:checked`)].map((i) => i.value);
+
+function specEditor({ spec, problems, useCase, editing }) {
+  const questions = spec.openQuestions || [];
+  $("view").innerHTML = `<div class="split">
+    <div class="card">
+      ${useCase ? `<div class="said">${esc(useCase)}</div><div class="meta" style="margin-top:12px">Drafted by Claude · not created yet</div>` : `<div class="said">Change what this agent does, then save it as a new version.</div><div class="meta" style="margin-top:12px">v${editing.version} · ${esc(editing.agentId)}</div>`}
+      ${questions.length ? `<div style="margin-top:20px" class="meta">Open questions to settle in the instructions</div><ul class="questions">${questions.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>` : ""}
+      <ul class="problems" id="problems">${(problems || []).map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
+    </div>
+    <div class="card">
+      <div class="field"><label for="f-name">Name</label><input type="text" id="f-name" value="${esc(spec.name)}"></div>
+      <div class="field"><label for="f-desc">Description</label><input type="text" id="f-desc" value="${esc(spec.description)}"></div>
+      <div class="field"><label for="f-instr">Instructions</label><textarea id="f-instr">${esc(spec.instructions)}</textarea></div>
+      <div class="field"><div class="k">Reads</div><div><div class="quiet">Run without asking</div><div class="checks">${checkboxes(ofKind("read"), spec.readTools, "read")}</div></div></div>
+      <div class="field"><div class="k">Writes</div><div><div class="quiet">Each call waits for your approval. Leave empty unless records must change.</div><div class="checks">${checkboxes(ofKind("write"), spec.writeTools, "write")}</div></div></div>
+      <div class="field"><div class="k">Files</div><div class="checks">${checkboxes(["xlsx", "pdf", "docx", "csv"], spec.outputFiles, "out")}</div></div>
+      <div class="field"><label for="f-kick">Run message</label><input type="text" id="f-kick" value="${esc(spec.kickoff)}"></div>
+      <div class="foot">
+        <button class="btn primary" id="saveBtn">${editing ? "Save as new version" : "Create agent"}</button>
+        <span class="quiet">Nothing runs until you start it. Safety rules are added automatically.</span>
+      </div>
+      <div id="saveStatus" class="quiet" style="margin-top:8px"></div>
+    </div>
+  </div>`;
+  const current = () => ({
+    name: $("f-name").value.trim(), description: $("f-desc").value.trim(), instructions: $("f-instr").value,
+    readTools: checkedIn("read"), writeTools: checkedIn("write"), outputFiles: checkedIn("out"),
+    kickoff: $("f-kick").value.trim(), openQuestions: questions,
+  });
+  $("saveBtn").onclick = () => busy($("saveBtn"), $("saveStatus"), async () => {
+    const check = await api("POST", "/api/check", current());
+    $("problems").innerHTML = check.problems.map((p) => `<li>${esc(p)}</li>`).join("");
+    if (check.problems.length) throw new Error("Fix the problems on the left first.");
+    if (editing) {
+      const saved = await api("POST", "/api/agent/update", { agentId: editing.agentId, spec: current() });
+      $("saveStatus").textContent = `Saved as v${saved.version}${saved.schedulesRepinned ? `; ${saved.schedulesRepinned} schedule(s) now use it` : ""}.`;
+    } else {
+      await api("POST", "/api/create", current());
+      sessionStorage.removeItem(KEEP);
+      location.hash = "#/agents";
+    }
+  });
+}
+function newView() {
+  setNav("home"); setCrumbs([{ label: "For you", href: "#/" }, { label: "New agent" }]);
+  const kept = JSON.parse(sessionStorage.getItem(KEEP) || "null");
+  if (!kept) { location.hash = "#/"; return; }
+  specEditor(kept);
+}
+async function editView(agentId) {
+  const seq = routeSeq;
+  const agent = (await loadAgents()).find((a) => a.agentId === agentId);
+  if (stale(seq)) return;
+  if (!agent) throw new Error("Unknown agent.");
+  setNav("agents"); setCrumbs([{ label: "Agents", href: "#/agents" }, { label: agent.name }]);
+  specEditor({ spec: agent.spec, problems: [], editing: agent });
+}
+
+// ---------- Schedule an agent ----------
+async function scheduleView(agentId) {
+  const seq = routeSeq;
+  const agent = (await loadAgents()).find((a) => a.agentId === agentId);
+  if (stale(seq)) return;
+  if (!agent) throw new Error("Unknown agent.");
+  setNav("schedules"); setCrumbs([{ label: "Agents", href: "#/agents" }, { label: agent.name, href: `#/agent/${agentId}/edit` }, { label: "Schedule" }]);
+  $("view").innerHTML = `<div class="card" style="max-width:760px">
+    <div class="field"><label for="s-preset">Repeat</label><select id="s-preset">
+      <option value="0 8 * * 1">Weekly, Monday 08:00</option><option value="0 8 * * 1-5">Weekdays 08:00</option>
+      <option value="0 8 * * *">Daily 08:00</option><option value="0 8 1 * *">Monthly, 1st at 08:00</option><option value="custom">Custom cron</option></select></div>
+    <div class="field" id="s-cron-row" hidden><label for="s-cron">Cron</label><input type="text" id="s-cron" placeholder="minute hour day month weekday, e.g. 30 7 * * 1"></div>
+    <div class="field"><label for="s-tz">Time zone</label><input type="text" id="s-tz" value="${esc(localZone)}"></div>
+    <div class="field"><label for="s-msg">Run message</label><input type="text" id="s-msg" value="${esc(agent.spec.kickoff)}"></div>
+    <div class="foot"><button class="btn primary" id="s-create">Create schedule</button><span class="quiet">Each run is capped at $${(Number(budgetCents) / 100).toFixed(0)}. Writes still wait for you; a waiting run opens a GitHub issue.</span></div>
+    <div id="s-status" class="quiet" style="margin-top:8px"></div></div>`;
+  $("s-preset").onchange = () => { $("s-cron-row").hidden = $("s-preset").value !== "custom"; };
+  $("s-create").onclick = () => busy($("s-create"), $("s-status"), async () => {
+    const cron = $("s-preset").value === "custom" ? $("s-cron").value : $("s-preset").value;
+    await api("POST", "/api/schedules", { agentId, cron, timezone: $("s-tz").value.trim(), message: $("s-msg").value });
+    location.hash = "#/schedules";
+  });
+}
+
+// ---------- Runs ----------
+async function runsView() {
+  const seq = routeSeq;
+  setNav("runs"); setCrumbs([{ label: "Runs" }]);
+  const runs = await api("GET", "/api/runs");
+  await loadWaiting();
+  if (stale(seq)) return;
+  const waitingIds = new Set(waiting.map((w) => w.sessionId));
+  $("view").innerHTML = runs.slice(0, 30).map((r) => `<div class="card work">
+      <div class="text"><div class="meta">${r.deploymentId ? "Scheduled" : "Started here"} · ${esc(when(r.startedAt))}${waitingIds.has(r.sessionId) ? " · Waiting for approval" : ""}</div>
+        <div class="title">${esc(r.agentName)}</div><div class="reason mono" style="font-family:var(--mono);font-size:13px">${esc(r.sessionId)}</div></div>
+      <a class="btn ${waitingIds.has(r.sessionId) ? "primary" : ""}" style="display:inline-flex;align-items:center;text-decoration:none" href="#/run/${esc(r.sessionId)}">${waitingIds.has(r.sessionId) ? "Review" : "Open"}</a>
+    </div>`).join("") || `<div class="card empty">No runs yet.</div>`;
+}
+
+const STATUS = { running: "Running", rescheduling: "Restarting", idle: "Idle", terminated: "Ended" };
+async function runView(sessionId) {
+  const seq = routeSeq;
+  setNav("runs");
+  const v = await api("GET", `/api/runs/${sessionId}`);
+  if (stale(seq)) return;
+  setCrumbs([{ label: "Runs", href: "#/runs" }, { label: v.run.agentName }]);
+  const pendingIds = new Set(v.pending);
+  const tools = Object.fromEntries(v.items.filter((i) => i.kind === "tool").map((i) => [i.id, i]));
+  const items = v.items.map((i) => {
+    if (i.kind === "user") return `<div class="bubble">${esc(i.text)}</div>`;
+    if (i.kind === "agent") return i.text.trim() ? `<div class="said">${esc(i.text)}</div>` : "";
+    if (i.kind === "error") return `<div class="error">${esc(i.text)}</div>`;
+    if (i.kind === "decision") return `<div class="step">${i.result === "allow" ? "Approved" : "Denied"} ${esc(tools[i.toolUseId]?.name || "")}${i.denyMessage ? ` · ${esc(i.denyMessage)}` : ""}</div>`;
+    if (pendingIds.has(i.id)) return "";
+    const where = i.source === "netsuite" ? "NetSuite" : "Workspace";
+    const state = i.result === undefined ? "running" : i.isError ? "error" : i.permission === "ask" ? "ran after approval" : "ran";
+    return `<details class="step"><summary>${where} · ${esc(i.name)} · ${state}</summary><pre>${esc(JSON.stringify(i.input, null, 2))}</pre>${i.result !== undefined ? `<pre>${esc(i.result)}</pre>` : ""}</details>`;
+  }).join("");
+  const approvals = v.pending.map((id) => {
+    const t = tools[id] || { name: "tool call", input: {} };
+    const fields = t.input && typeof t.input === "object" ? Object.entries(t.input) : [];
+    return `<div class="card">
+      <span class="pill">Awaiting approval</span>
+      <div class="approval">
+        <div class="left kv">
+          <div class="k">Action</div><div class="v">${esc(t.name)}</div>
+          <div class="k">Where</div><div class="v">${t.source === "netsuite" ? "NetSuite TSTDRV1755417" : "Agent workspace"}</div>
+          <div class="k">Agent</div><div class="v">${esc(v.run.agentName)}</div>
+          <div class="k">Run</div><div class="v" style="font-family:var(--mono);font-size:13px">${esc(sessionId)}</div>
+        </div>
+        <div class="kv exact">${fields.length ? fields.map(([k, val]) => `<div class="k">${esc(k)}</div><div class="v">${esc(typeof val === "string" ? val : JSON.stringify(val))}</div>`).join("") : `<div class="k">Input</div><div class="v">None</div>`}</div>
+      </div>
+      <div class="foot">
+        <input type="text" id="reason-${esc(id)}" placeholder="Reason, if you deny (optional)" style="flex:1;min-width:200px">
+        <button class="btn" data-decide="deny" data-id="${esc(id)}">Deny</button>
+        <button class="btn primary" data-decide="allow" data-id="${esc(id)}">Approve</button>
+      </div>
+      <div class="quiet" style="text-align:right;margin-top:8px">Nothing has changed yet. Approve runs this exact request once.</div>
+    </div>`;
+  }).join("");
+  const waitingNow = v.pending.length > 0;
+  const statusText = waitingNow ? "Waiting for approval" : STATUS[v.status] || v.status;
+  const files = v.files.map((f) => `<div class="file"><div style="overflow-wrap:anywhere">${esc(f.filename)}</div><div class="row"><span class="quiet">${Math.max(1, Math.round(f.sizeBytes / 1024))} KB</span><button class="btn" data-file="${esc(f.id)}" data-name="${esc(f.filename)}">Download</button></div></div>`).join("");
+  $("view").innerHTML = `<div class="session">
+    <div class="log">${items}${approvals}
+      <div class="composer" ${v.status === "idle" && !waitingNow ? "" : "hidden"}><textarea id="followText" rows="1" placeholder="Add a follow-up for this run…"></textarea><button class="btn primary" id="followBtn">Send</button></div>
+      <div id="runError"></div>
+    </div>
+    <aside class="card side">
+      <div class="meta">Status</div><div style="font-weight:500">${esc(statusText)}</div>
+      <div class="quiet">${esc(v.stopNote || "")}</div>
+      <div class="meta" style="margin-top:16px">Run</div><div style="font-family:var(--mono);font-size:13px;overflow-wrap:anywhere">${esc(sessionId)}</div>
+      <div class="meta" style="margin-top:16px">Started</div><div>${esc(when(v.run.startedAt))}${v.run.deploymentId ? " · by schedule" : ""}</div>
+      ${files ? `<div class="meta" style="margin-top:16px">Files</div>${files}` : ""}
+    </aside></div>`;
+  document.querySelectorAll("[data-decide]").forEach((b) => {
+    b.onclick = () => busy(b, $("runError"), async () => {
+      const reason = $(`reason-${b.dataset.id}`).value.trim();
+      await api("POST", `/api/runs/${sessionId}/decide`, { eventId: b.dataset.id, result: b.dataset.decide, ...(b.dataset.decide === "deny" && reason ? { denyMessage: reason } : {}) });
+      await loadWaiting();
+      pollTimer = setTimeout(route, 1500);
+    });
+  });
+  document.querySelectorAll("[data-file]").forEach((b) => (b.onclick = () => busy(b, $("runError"), () => download(sessionId, b.dataset.file, b.dataset.name))));
+  if ($("followBtn")) $("followBtn").onclick = () => busy($("followBtn"), $("runError"), async () => {
+    const text = $("followText").value.trim();
+    if (!text) return;
+    await api("POST", `/api/runs/${sessionId}/message`, { text });
+    pollTimer = setTimeout(route, 1500);
+  });
+  if (v.status === "running" || v.status === "rescheduling") pollTimer = setTimeout(route, 2500);
+}
 async function download(sessionId, fileId, name) {
   const res = await fetch(`/api/runs/${sessionId}/files/${fileId}`, { headers: { "X-Builder-Token": TOKEN } });
-  if (!res.ok) { $("runError").innerHTML = `<span class="problems">${esc((await res.json()).error || res.statusText)}</span>`; return; }
+  if (!res.ok) throw new Error(res.status === 403 ? "This page is out of date. Reload it." : (await res.json()).error || res.statusText);
   const url = URL.createObjectURL(await res.blob());
   const a = Object.assign(document.createElement("a"), { href: url, download: name });
   document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
-$("followBtn").onclick = () => busy($("followBtn"), $("runError"), async () => {
-  const text = $("followText").value.trim();
-  if (!text) return;
-  await api("POST", `/api/runs/${currentRun}/message`, { text });
-  $("followText").value = "";
-  schedule(1500);
-});
-
-async function loadRuns() {
-  const runs = await api("GET", "/api/runs");
-  if (!runs.length) return;
-  $("runs").innerHTML = runs.slice(0, 12).map((r) => `<div class="agent"><button class="runlink" data-run="${esc(r.sessionId)}">${esc(r.agentName)}</button><span class="mono note">${esc(r.startedAt.slice(0, 16).replace("T", " "))} · ${esc(r.sessionId)}</span></div>`).join("");
-  document.querySelectorAll("button[data-run]").forEach((b) => (b.onclick = () => openRun(b.dataset.run)));
-}
-
-async function loadAgents() {
-  const agents = await api("GET", "/api/agents");
-  if (!agents.length) return;
-  $("agents").innerHTML = agents.slice().reverse().map((a, i) => `
-    <div class="agent">
-      <b>${esc(a.name)}</b>
-      <span class="mono note">${esc(a.agentId)} v${a.version}</span>
-      <textarea rows="2" id="msg${i}">${esc(a.spec.kickoff)}</textarea>
-      <div class="row"><button data-agent="${esc(a.agentId)}" data-i="${i}">Start run</button></div>
-      <div class="status note" id="st${i}"></div>
-    </div>`).join("");
-  document.querySelectorAll("button[data-agent]").forEach((b) => {
-    b.onclick = () => busy(b, $(`st${b.dataset.i}`), () => runAgent(b.dataset.agent, $(`msg${b.dataset.i}`).value, $(`st${b.dataset.i}`)));
+// ---------- Schedules ----------
+async function schedulesView() {
+  const seq = routeSeq;
+  setNav("schedules"); setCrumbs([{ label: "Schedules" }]);
+  const list = await api("GET", "/api/schedules");
+  if (stale(seq)) return;
+  $("view").innerHTML = list.map((d) => `<div class="card work">
+      <div class="text"><div class="meta">${d.status === "active" ? "Active" : "Paused"} · <span style="font-family:var(--mono)">${esc(d.cron)}</span> · ${esc(d.timezone)} · agent v${d.agentVersion}</div>
+        <div class="title">${esc(d.name.replace(/ \(scheduled\)$/, ""))}</div>
+        <div class="reason">Next ${d.status === "active" ? esc(when(d.next)) : "paused"} · Last ${esc(when(d.lastRunAt))}</div>
+        <div class="links">${d.runs.filter((r) => r.sessionId).slice(0, 3).map((r) => `<button data-open="${esc(r.sessionId)}">${esc(r.trigger)} run ${esc(when(r.at))}</button>`).join("")}
+          <button data-act="${d.status === "active" ? "pause" : "resume"}" data-dep="${esc(d.deploymentId)}">${d.status === "active" ? "Pause" : "Resume"}</button>
+          <button data-act="stop" data-dep="${esc(d.deploymentId)}">Stop</button></div>
+        ${d.runs.filter((r) => r.error).slice(0, 1).map((r) => `<div class="error">Last failed run: ${esc(r.error)}</div>`).join("")}
+        <div id="ds-${esc(d.deploymentId)}"></div></div>
+      <button class="btn primary" data-act="run" data-dep="${esc(d.deploymentId)}">Run now</button>
+    </div>`).join("") || `<div class="card empty">No schedules yet. Use Schedule on an agent.</div>`;
+  document.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => (location.hash = `#/run/${b.dataset.open}`)));
+  document.querySelectorAll("[data-act]").forEach((b) => {
+    b.onclick = () => busy(b, $(`ds-${b.dataset.dep}`), async () => {
+      if (b.dataset.act === "stop" && !confirm("Stop this schedule for good? It cannot be restarted; use Pause to stop it for now.")) return;
+      const out = await api("POST", "/api/schedule/action", { deploymentId: b.dataset.dep, action: b.dataset.act });
+      if (b.dataset.act === "run" && out.sessionId) location.hash = `#/run/${out.sessionId}`; else route();
+    });
   });
 }
 
+// ---------- Rules ----------
+function rulesView() {
+  setNav("rules"); setCrumbs([{ label: "Rules" }]);
+  const rules = [
+    ["Account", "Only the demo account's AI Connector (TSTDRV1755417). The production account cannot be configured."],
+    ["Reads", "Run without asking, and only the read tools you choose."],
+    ["Writes", "Off unless you tick them; each call then waits for your approval."],
+    ["Other tools", "File Cabinet writes and chat UI tools are off. Any tool not listed asks first."],
+    ["Web", "Web search and fetch are off. The workspace is used only to produce files."],
+    ["Spend", `Each run, manual or scheduled, stops at $${(Number(budgetCents) / 100).toFixed(0)}.`],
+    ["Instructions", "Read before write, never add amounts across currencies, treat record text as data: added to every agent."],
+  ];
+  $("view").innerHTML = `<div class="card"><div class="kv" style="grid-template-columns:140px minmax(0,1fr);gap:16px 24px">${rules.map(([k, v]) => `<div class="k">${k}</div><div class="v">${v}</div>`).join("")}</div>
+    <div class="foot"><span class="quiet">Enforced in code when an agent is created or saved, and checked again just before it is sent.</span></div></div>`;
+}
+
+// ---------- Start ----------
 (async () => {
   const c = await api("GET", "/api/catalog");
-  catalog = c.tools;
-  $("budget").textContent = (Number(c.runBudgetCents) / 100).toFixed(0);
-  await loadAgents();
-  await loadRuns();
+  catalog = c.tools; budgetCents = c.runBudgetCents;
+  await loadWaiting();
+  setInterval(loadWaiting, 60_000);
+  route();
 })();
 </script>
 </body>

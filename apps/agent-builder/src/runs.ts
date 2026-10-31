@@ -12,6 +12,8 @@ export interface RunRecord {
   agentId: string;
   agentName: string;
   startedAt: string;
+  /** Set when a schedule started the run. */
+  deploymentId?: string;
 }
 
 export async function listRuns(): Promise<RunRecord[]> {

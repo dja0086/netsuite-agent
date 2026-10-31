@@ -15,6 +15,7 @@ export interface BuiltAgent {
   version: number;
   name: string;
   createdAt: string;
+  updatedAt?: string;
   spec: AgentSpec;
 }
 
@@ -40,13 +41,38 @@ export async function listBuilt(): Promise<BuiltAgent[]> {
   }
 }
 
+async function saveBuilt(agents: BuiltAgent[]): Promise<void> {
+  await mkdir(path.dirname(REGISTRY), { recursive: true });
+  await writeFile(REGISTRY, JSON.stringify(agents, null, 2));
+}
+
+/** An agent this builder made; nothing else can be run, edited or scheduled from here. */
+export async function builtAgent(agentId: string): Promise<BuiltAgent> {
+  const agent = (await listBuilt()).find((a) => a.agentId === agentId);
+  if (!agent) throw new Error("Unknown agent: only agents made by this builder can be used here.");
+  return agent;
+}
+
 /** Creates the Managed Agent for a spec (rules applied and re-checked) and records it locally. */
 export async function createAgent(spec: AgentSpec, client = new Anthropic()): Promise<BuiltAgent> {
   const config = buildAgentConfig(spec);
   assertConfigSafe(config);
   const agent = await client.beta.agents.create(config);
   const built: BuiltAgent = { agentId: agent.id, version: agent.version, name: agent.name, createdAt: new Date().toISOString(), spec };
-  await mkdir(path.dirname(REGISTRY), { recursive: true });
-  await writeFile(REGISTRY, JSON.stringify([...(await listBuilt()), built], null, 2));
+  await saveBuilt([...(await listBuilt()), built]);
   return built;
+}
+
+/**
+ * Saves an edited spec as a new version of an existing agent (rules applied and re-checked).
+ * Fields are sent in full, so a removed skill or tool is removed, not preserved.
+ */
+export async function updateAgent(agentId: string, spec: AgentSpec, client = new Anthropic()): Promise<BuiltAgent> {
+  const current = await builtAgent(agentId);
+  const config = buildAgentConfig(spec);
+  assertConfigSafe(config);
+  const agent = await client.beta.agents.update(agentId, { ...config, skills: config.skills ?? [], version: current.version });
+  const updated: BuiltAgent = { ...current, version: agent.version, name: agent.name, updatedAt: new Date().toISOString(), spec };
+  await saveBuilt((await listBuilt()).map((a) => (a.agentId === agentId ? updated : a)));
+  return updated;
 }
