@@ -1,5 +1,0 @@
-# Write these BEFORE the instructions (evals first).
-# should_route: at least 5 real prompts users would type that belong to {{name}}.
-# should_not_route: at least 3 prompts that belong to OTHER skills (name the skill in a comment).
-should_route: []
-should_not_route: []

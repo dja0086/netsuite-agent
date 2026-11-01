@@ -5,7 +5,7 @@
  * Uses only Node built-ins so it runs before `pnpm install`. Never prints secret values.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, statSync, openSync, readSync, closeSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -42,13 +42,6 @@ gitV && !gitV.startsWith("__FAILED__")
   ? add("tools", "git", "PASS", gitV.replace("git version ", ""))
   : add("tools", "git", "FAIL", "not found", "macOS: run `xcode-select --install`");
 
-const sslV = run("openssl", ["version"]);
-if (!sslV || sslV.startsWith("__FAILED__")) add("tools", "OpenSSL", "FAIL", "not found", "Install OpenSSL 3 (macOS: `brew install openssl@3`)");
-else if (/LibreSSL/i.test(sslV))
-  add("tools", "OpenSSL", "WARN", `${sslV}: the RSA-PSS certificate command may not work with LibreSSL`,
-    "Use OpenSSL 3 (`brew install openssl@3`), or create an EC (ES256) certificate and set NS_JWT_ALG=ES256");
-else add("tools", "OpenSSL", "PASS", sslV);
-
 const javaV = run("java", ["-version"]);
 if (!javaV || javaV.startsWith("__FAILED__")) // missing, or the macOS stub "Unable to locate a Java Runtime" (exit 1)
   add("tools", "Java (for SuiteCloud CLI)", "FAIL", "no JDK found", "Install JDK 21 (`brew install --cask temurin@21`, or Oracle JDK 21), then reopen the terminal");
@@ -62,7 +55,7 @@ else {
 
 const scV = run("suitecloud", ["--version"], 60_000);
 !scV || scV.startsWith("__FAILED__")
-  ? add("tools", "SuiteCloud CLI", "FAIL", "`suitecloud` not on PATH", "`npm install -g @oracle/suitecloud-cli` (needed to deploy the explore RESTlet in CP1)")
+  ? add("tools", "SuiteCloud CLI", "FAIL", "`suitecloud` not on PATH", "`npm install -g @oracle/suitecloud-cli` (needed for SDF deploys and server validation)")
   : add("tools", "SuiteCloud CLI", "PASS", scV.split("\n").at(-1));
 
 if (major(nodeV) !== 24)
@@ -74,6 +67,22 @@ const claudeV = run("claude", ["--version"]);
   ? add("tools", "Claude Code CLI", "WARN", "`claude` not on PATH (fine if you use the desktop app)", "Install Claude Code if you want to work from the terminal")
   : add("tools", "Claude Code CLI", "PASS", claudeV);
 
+const antV = run("ant", ["--version"]);
+if (!antV || antV.startsWith("__FAILED__")) add("tools", "ant CLI", "FAIL", "`ant` not on PATH", "Install the Anthropic CLI (`brew install anthropics/tap/ant`), then `ant auth login`");
+else {
+  add("tools", "ant CLI", "PASS", antV.replace("ant version ", ""));
+  // Exit code only: the status output names the credential and is never printed.
+  const auth = spawnSync("ant", ["auth", "status"], { encoding: "utf8", timeout: 30_000 });
+  auth.status === 0 ? add("tools", "ant login", "PASS", "logged in (agent builder, Managed Agents)") : add("tools", "ant login", "FAIL", "not logged in", "Run `ant auth login` (workspace \"Default\")");
+}
+
+const ghV = run("gh", ["auth", "status", "--active"]);
+if (ghV === null) add("tools", "GitHub CLI", "FAIL", "`gh` not on PATH", "`brew install gh`, then `gh auth login` as dja0086");
+else if (ghV.startsWith("__FAILED__")) add("tools", "GitHub CLI", "FAIL", "not logged in", "Run `gh auth login` as dja0086");
+else /account dja0086/.test(ghV)
+  ? add("tools", "GitHub CLI", "PASS", "active account dja0086 (pushes, waiting-run issues)")
+  : add("tools", "GitHub CLI", "WARN", "active account is not dja0086", "Run `gh auth switch --user dja0086`");
+
 // ---------- Repo ----------
 existsSync(path.join(repoRoot, ".git"))
   ? add("repo", "git repository", "PASS", run("git", ["-C", repoRoot, "log", "-1", "--format=%h %s"]) ?? "")
@@ -82,56 +91,25 @@ existsSync(path.join(repoRoot, "node_modules", ".pnpm"))
   ? add("repo", "dependencies installed", "PASS", "node_modules present")
   : add("repo", "dependencies installed", "FAIL", "node_modules missing", "Run `pnpm install` in the repo folder");
 
-// ---------- Config (expected to fail until CP0 is done) ----------
+// ---------- Config ----------
 if (!toolsOnly) {
-  const envFile = path.join(repoRoot, ".env");
-  if (!existsSync(envFile)) {
-    add("config", ".env", "FAIL", "missing", "Copy .env.example to .env and fill in the IDs after CP0");
-  } else {
-    const env = Object.fromEntries(
-      readFileSync(envFile, "utf8")
-        .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l && !l.startsWith("#") && l.includes("="))
-        .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim().replace(/^["']|["']$/g, "")]),
-    );
-    const ignored = run("git", ["-C", repoRoot, "check-ignore", "-q", ".env"]);
-    ignored === "" ? add("config", ".env is git-ignored", "PASS", "yes") : add("config", ".env is git-ignored", "FAIL", "git would commit .env", "Restore .gitignore from the repo");
-
-    const need = (k, ok, hint) =>
-      !env[k] ? add("config", k, "FAIL", "empty", hint) : ok(env[k]) ? add("config", k, "PASS", k.includes("ID") && k !== "NS_ACCOUNT_ID" ? "set" : env[k]) : add("config", k, "FAIL", `invalid: ${env[k]}`, hint);
-    need("NS_ACCOUNT_ID", (v) => /^[A-Za-z0-9_]+$/.test(v), "Setup > Company > Company Information > Account ID");
-    need("NS_TARGET_KIND", (v) => ["sandbox", "demo"].includes(v.toLowerCase()), "sandbox or demo (production is refused for live tests)");
-    need("NS_CLIENT_ID", (v) => v.length >= 20, "Client ID shown once when the integration record was saved");
-    need("NS_CERT_ID", (v) => v.length >= 10, "Certificate ID from the OAuth 2.0 Client Credentials (M2M) Setup page");
-    need("NS_MAX_CONCURRENCY", (v) => Number.isInteger(Number(v)) && Number(v) >= 1, "Integer at or below the integration's allocated concurrency");
-    if (env.NS_JWT_ALG && !/^(PS|ES)(256|384|512)$/.test(env.NS_JWT_ALG))
-      add("config", "NS_JWT_ALG", "FAIL", `invalid: ${env.NS_JWT_ALG}`, "PS256 (RSA-PSS certificate) or ES256 (EC certificate)");
-
-    const backend = env.SECRETS_BACKEND || "file";
-    if (backend !== "file") add("config", "SECRETS_BACKEND", "WARN", `${backend}: not checked by doctor`, "");
-    else {
-      const keyPath = env.NS_PRIVATE_KEY_PATH;
-      if (!keyPath) add("config", "private key", "FAIL", "NS_PRIVATE_KEY_PATH empty", "Point it at private.pem stored OUTSIDE the repo");
-      else {
-        const resolved = path.resolve(keyPath.replace(/^~(?=\/)/, process.env.HOME ?? "~"));
-        if (resolved.startsWith(repoRoot + path.sep)) add("config", "private key", "FAIL", "stored inside the repo", "Move it outside the repo, e.g. ~/.netsuite-agent/private.pem");
-        else if (!existsSync(resolved)) add("config", "private key", "FAIL", "file not found at NS_PRIVATE_KEY_PATH", "Check the path (use an absolute path)");
-        else {
-          const buf = Buffer.alloc(64);
-          const fd = openSync(resolved, "r");
-          readSync(fd, buf, 0, 64, 0);
-          closeSync(fd);
-          const looksLikeKey = /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(buf.toString("utf8"));
-          const loose = process.platform !== "win32" && (statSync(resolved).mode & 0o077) !== 0;
-          if (!looksLikeKey) add("config", "private key", "FAIL", "file is not a PEM private key", "Point NS_PRIVATE_KEY_PATH at private.pem, not public.pem");
-          else if (loose) add("config", "private key", "WARN", "readable by other users", "Run `chmod 600` on the key file");
-          else add("config", "private key", "PASS", "found outside the repo, permissions 600 (contents not read beyond the header)");
-        }
-      }
-    }
-    const drift = ["NS_ACCOUNT_ID", "NS_TARGET_KIND"].filter((k) => process.env[k] && env[k] && process.env[k] !== env[k]);
-    if (drift.length) add("config", "shell environment", "WARN", `shell values differ from .env for ${drift.join(", ")}`, "Run `set -a; source .env; set +a` again");
+  const lock = path.join(repoRoot, "managed-agents", "phase0", "claude-lock.json");
+  if (!existsSync(lock)) add("config", "Managed Agents lock file", "FAIL", "managed-agents/phase0/claude-lock.json missing", "Restore it from git; the builder reads the environment and vault ids from it");
+  else {
+    const text = readFileSync(lock, "utf8");
+    /env_[A-Za-z0-9]+/.test(text) && /vlt_[A-Za-z0-9]+/.test(text)
+      ? add("config", "Managed Agents lock file", "PASS", "environment and NetSuite vault ids present")
+      : add("config", "Managed Agents lock file", "FAIL", "no environment or vault id found", "Re-run Phase 0's `ant apply` (docs/phase0-managed-agents.md)");
+  }
+  const data = path.join(repoRoot, "apps", "agent-builder", "data");
+  existsSync(path.join(data, "agents.json"))
+    ? add("config", "builder registry", "PASS", "apps/agent-builder/data/agents.json present")
+    : add("config", "builder registry", "WARN", "no agents.json yet", "Normal before the first agent; if it was lost, the agents still exist on Anthropic's side (docs/agent-builder.md)");
+  if (process.platform === "darwin") {
+    const job = spawnSync("launchctl", ["print", `gui/${process.getuid()}/com.dja0086.netsuite-agent.builder-pending`], { encoding: "utf8" });
+    job.status === 0
+      ? add("config", "waiting-run check (launchd)", "PASS", "com.dja0086.netsuite-agent.builder-pending loaded")
+      : add("config", "waiting-run check (launchd)", "WARN", "not loaded: waiting scheduled runs will not open GitHub issues", "Install it as in docs/agent-builder.md");
   }
 }
 
@@ -141,7 +119,7 @@ let group = "";
 for (const r of results) {
   if (r.group !== group) {
     group = r.group;
-    console.log(`\n${group.toUpperCase()}${group === "config" ? " (expected to fail until CP0 is done)" : ""}`);
+    console.log(`\n${group.toUpperCase()}`);
   }
   console.log(`  ${icon[r.status]}  ${r.name}: ${r.detail}${r.status !== "PASS" && r.fix ? `\n        fix: ${r.fix}` : ""}`);
 }

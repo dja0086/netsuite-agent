@@ -1,9 +1,0 @@
-<advancedpdftemplate scriptid="custtmpl_nsagent_invoice_standard" standard="STDTMPLCUSTINVC">
-  <title>NS Agent - Invoice</title>
-  <description></description>
-  <displaysourcecode>T</displaysourcecode>
-  <isinactive>F</isinactive>
-  <preferred>F</preferred>
-  <printtype>TRANSACTION</printtype>
-  <trantype>CUSTINVC</trantype>
-</advancedpdftemplate>
