@@ -24,7 +24,7 @@ src/
     └── templates/                 # Advanced PDF/HTML templates, by PR
 ```
 
-The explore, search and PDF preview RESTlets were removed with the MCP gateway (ADR 0007, tag `gateway-final`). Because deploys never delete, they stay in the account until the owner inactivates their deployments.
+The explore, search and PDF preview RESTlets (`Objects/customscript_ns_agent_*_rl.xml`, `restlets/`, `lib/governance.js`, `lib/resource_scan.js`) belonged to the retired MCP gateway (ADR 0007, tag `gateway-final`). Deploys never delete, so they stay in the repo with each script inactive and its deployment off, which keeps the account matching the repo. Do not reactivate them.
 
 Checks:
 
