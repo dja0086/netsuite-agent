@@ -13,10 +13,34 @@ Open http://127.0.0.1:5178. It needs `ant auth login` (Anthropic workspace "Defa
 ## Make an agent
 
 1. Describe the use case and click **Draft agent**. Read the open questions and settle them in the instructions.
-2. Adjust the tools: reads run without asking; any write you tick asks every time. Leave writes empty unless the use case changes records.
+2. Check **Runs as** (the role tier, below) and the tools: reads run without asking; any write you tick asks every time and must be allowed by the tier. Leave writes empty unless the use case changes records.
 3. **Create agent.** The fixed rules (right-hand panel) are applied whatever the form says, and checked again before anything is sent.
 
 To change an agent later, click **Edit** on its card (on **For you** or **Agents**) and **Save as new version**. Its schedules move to the new version.
+
+## Role tiers
+
+Agents don't get a NetSuite role each. They share a few **tiers**, and each tier is one NetSuite role with one sign-in. **Runs as** on the agent form picks the tier. The builder refuses write tools the tier does not list, and checks that again before anything is sent.
+
+| Tier | NetSuite role | Writes it allows (each still waits for approval) |
+| --- | --- | --- |
+| Read-only | NS Agent - Read-only (`customrole_nsagent_read`) | None |
+| Clerk | NS Agent Integration (`customrole_ns_agent`) | `createCustomer`, `updateCustomer`, `ns_createRecord`, `ns_updateRecord` |
+
+Everything about the tiers lives in `roles/tiers.json`: permissions (a shared base plus each tier's changes), the write tools each tier allows, and the vault holding each tier's sign-in.
+
+**Change a permission or add a tier:** edit `roles/tiers.json`, run `node scripts/roles.mjs` (it writes the role files in `netsuite/src/Objects/`), open a PR, then deploy with `deploy-sdf`. CI fails if a role file and `tiers.json` disagree, or if a tier without write tools has more than View on a record.
+
+**Sign a tier in (once per tier, not per agent):**
+
+1. Owner, in NetSuite: give employee 2815 the tier's role (Setup > Users/Roles > Manage Users > the employee > Access > Roles).
+2. Owner: with `NS_BUILDER_CLIENT_ID` and `NS_BUILDER_CLIENT_SECRET` (integration 209) set in the shell, run `npx tsx managed-agents/phase0/scripts/ns-signin.mts "NS Agent - Read-only"`. On NetSuite's login page, choose that role.
+3. Create a vault for the tier: `ant beta:vaults create --display-name "NetSuite - Read-only"`. Then store the sign-in in it: `npx tsx managed-agents/phase0/scripts/vault-store.mts <vlt_…> "NS Agent - Read-only"`. Both scripts print no secrets. Delete the token file afterwards (`managed-agents/phase0/scripts/tokens.json`).
+4. Put the vault id in the tier's `vault` in `roles/tiers.json`, then restart the builder.
+
+The first extra sign-in also tests something Oracle's docs don't cover. Clerk's agents use the same integration (209) under another role, and it's not documented whether a second sign-in replaces the first. So right after it, start a run of a Clerk agent. If it fails to sign in, the Clerk tier needs its own integration record.
+
+Agents made before tiers existed run as Clerk, the sign-in they always used. To move one to Read-only, edit it, pick Read-only and save; its schedules move to the new vault too.
 
 ## Run and approve
 

@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const vaultId = process.argv[2];
-if (!vaultId?.startsWith("vlt_")) throw new Error("usage: vault-store.mts <vlt_...>");
+if (!vaultId?.startsWith("vlt_")) throw new Error("usage: vault-store.mts <vlt_...> [role name]");
+const roleName = process.argv[3]?.trim() || "NS Agent Integration";
 const clientSecret = process.env.NS_BUILDER_CLIENT_SECRET?.trim();
 if (!clientSecret) throw new Error("NS_BUILDER_CLIENT_SECRET is not set");
 
@@ -28,7 +29,7 @@ const auth = {
   },
 };
 // Full request body on stdin: secrets never touch the command line or a file.
-const body = JSON.stringify({ display_name: "NetSuite AI Connector (integration 209, NS Agent Integration)", auth });
+const body = JSON.stringify({ display_name: `NetSuite AI Connector (integration 209, ${roleName})`, auth });
 const id = execFileSync("ant", ["beta:vaults:credentials", "create", "--vault-id", vaultId, "--transform", "id", "-r"], {
   encoding: "utf8",
   input: body,

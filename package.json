@@ -12,8 +12,9 @@
     "test": "turbo run test && vitest run tests --exclude '.claude/**'",
     "doctor": "node scripts/doctor.mjs",
     "sdf:check": "node scripts/sdf-check.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm sdf:check",
-    "builder": "pnpm --filter @ns-agent/agent-builder start"
+    "check": "pnpm typecheck && pnpm test && pnpm sdf:check && node scripts/roles.mjs --check",
+    "builder": "pnpm --filter @ns-agent/agent-builder start",
+    "roles": "node scripts/roles.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { toolsOfKind } from "./catalog";
 import { MODEL, checkSpec } from "./rules";
 import { AgentSpec } from "./spec";
+import { TIERS } from "./tiers";
 
 const SYSTEM = `You design Claude Managed Agents that work in one NetSuite demo account through Oracle's NetSuite AI Connector.
 Turn the owner's use case into an agent spec. Be concrete: name the records, fields, filters and output layout in the instructions.
@@ -10,6 +11,9 @@ Turn the owner's use case into an agent spec. Be concrete: name the records, fie
 NetSuite read tools you may choose from (they run without asking): ${toolsOfKind("read").join(", ")}.
 NetSuite write tools (each call waits for the owner's approval): ${toolsOfKind("write").join(", ")}.
 Only list write tools the use case truly needs; most use cases need none. File Cabinet writes and UI tools are never available.
+
+Role tiers (the NetSuite role the agent runs as; pick the least privileged tier whose write tools cover writeTools):
+${TIERS.map((t) => `- ${t.id} (${t.label}): ${t.description} Write tools: ${t.writeTools.length ? t.writeTools.join(", ") : "none"}.`).join("\n")}
 
 Guidance:
 - Prefer ns_runCustomSuiteQL for lists, counts and aggregates, and always list nsagent_suiteql too: it is a read-only SELECT tool the agent can fall back to when ns_runCustomSuiteQL errors. Search metadata (ns_getSuiteQLMetadata, ns_getRecordTypeMetadata) only when field names are uncertain.

@@ -42,6 +42,8 @@ jobs:
         run: command -v xmllint || (sudo apt-get update -q && sudo apt-get install -y -q libxml2-utils)
       - name: Check the SDF project offline (XML, object ids, file references, SuiteScript syntax)
         run: node scripts/sdf-check.mjs
+      - name: Check the role files match roles/tiers.json
+        run: node scripts/roles.mjs --check
       - name: Package the project with the SuiteCloud CLI
         working-directory: netsuite
         run: |

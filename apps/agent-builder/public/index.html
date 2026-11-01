@@ -126,7 +126,7 @@
   <div class="main">
     <header>
       <div class="crumbs" id="crumbs"></div>
-      <div class="hmeta"><span>NS Agent Integration · AI Connector</span><span class="bar"></span><button class="btn" id="refresh" style="border:0;min-height:36px;padding:0 4px;">Refresh</button></div>
+      <div class="hmeta"><span>Role tiers · AI Connector</span><span class="bar"></span><button class="btn" id="refresh" style="border:0;min-height:36px;padding:0 4px;">Refresh</button></div>
     </header>
     <div class="content" id="view"></div>
   </div>
@@ -142,7 +142,7 @@ const when = (iso) => {
 };
 const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const KEEP = "agent-builder-draft";
-let catalog = {}, budgetCents = "500", agents = [], waiting = [], pollTimer = null;
+let catalog = {}, tiers = [], budgetCents = "500", agents = [], waiting = [], pollTimer = null;
 // Each route() call bumps this; a view that finishes after a newer route started draws nothing.
 let routeSeq = 0;
 const stale = (seq) => seq !== routeSeq;
@@ -167,7 +167,8 @@ function setNav(key) {
   document.querySelectorAll("[data-nav]").forEach((a) => (a.dataset.nav === key ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
 }
 const toolSummary = (spec) => {
-  const parts = [`${spec.readTools.length} read tool${spec.readTools.length === 1 ? "" : "s"}`];
+  const tier = tiers.find((t) => t.id === spec.tier);
+  const parts = [tier ? tier.label : spec.tier, `${spec.readTools.length} read tool${spec.readTools.length === 1 ? "" : "s"}`];
   if (spec.writeTools.length) parts.push(`asks before ${spec.writeTools.join(", ")}`);
   if (spec.outputFiles.length) parts.push(spec.outputFiles.map((f) => f.toUpperCase()).join(", "));
   return parts.join(" · ");
@@ -288,6 +289,7 @@ function specEditor({ spec, problems, useCase, editing }) {
       <div class="field"><label for="f-name">Name</label><input type="text" id="f-name" value="${esc(spec.name)}"></div>
       <div class="field"><label for="f-desc">Description</label><input type="text" id="f-desc" value="${esc(spec.description)}"></div>
       <div class="field"><label for="f-instr">Instructions</label><textarea id="f-instr">${esc(spec.instructions)}</textarea></div>
+      <div class="field"><label for="f-tier">Runs as</label><div><select id="f-tier">${tiers.map((t) => `<option value="${esc(t.id)}" ${t.id === spec.tier ? "selected" : ""}>${esc(t.label)} · ${esc(t.roleName)}${t.signedIn ? "" : " (not signed in yet)"}</option>`).join("")}</select><div class="quiet" id="f-tier-note"></div></div></div>
       <div class="field"><div class="k">Reads</div><div><div class="quiet">Run without asking</div><div class="checks">${checkboxes(ofKind("read"), spec.readTools, "read")}</div></div></div>
       <div class="field"><div class="k">Writes</div><div><div class="quiet">Each call waits for your approval. Leave empty unless records must change.</div><div class="checks">${checkboxes(ofKind("write"), spec.writeTools, "write")}</div></div></div>
       <div class="field"><div class="k">Files</div><div class="checks">${checkboxes(["xlsx", "pdf", "docx", "csv"], spec.outputFiles, "out")}</div></div>
@@ -301,9 +303,15 @@ function specEditor({ spec, problems, useCase, editing }) {
   </div>`;
   const current = () => ({
     name: $("f-name").value.trim(), description: $("f-desc").value.trim(), instructions: $("f-instr").value,
-    readTools: checkedIn("read"), writeTools: checkedIn("write"), outputFiles: checkedIn("out"),
+    tier: $("f-tier").value, readTools: checkedIn("read"), writeTools: checkedIn("write"), outputFiles: checkedIn("out"),
     kickoff: $("f-kick").value.trim(), openQuestions: questions,
   });
+  const tierNote = () => {
+    const t = tiers.find((x) => x.id === $("f-tier").value);
+    $("f-tier-note").textContent = t ? `${t.description} Writes allowed: ${t.writeTools.length ? t.writeTools.join(", ") : "none"}.` : "";
+  };
+  $("f-tier").onchange = tierNote;
+  tierNote();
   $("saveBtn").onclick = () => busy($("saveBtn"), $("saveStatus"), async () => {
     const check = await api("POST", "/api/check", current());
     $("problems").innerHTML = check.problems.map((p) => `<li>${esc(p)}</li>`).join("");
@@ -486,7 +494,8 @@ function rulesView() {
   const rules = [
     ["Account", "Only the demo account's AI Connector (TSTDRV1755417). The production account cannot be configured."],
     ["Reads", "Run without asking, and only the read tools you choose."],
-    ["Writes", "Off unless you tick them; each call then waits for your approval."],
+    ["Role tiers", `Each agent runs as one shared tier; a tier allows only its own writes. ${tiers.map((t) => `<b>${esc(t.label)}</b> (${esc(t.roleName)}): ${t.writeTools.length ? esc(t.writeTools.join(", ")) : "no writes"}${t.signedIn ? "" : ", not signed in yet"}.`).join(" ")} Managed in roles/tiers.json.`],
+    ["Writes", "Off unless you tick them and the tier allows them; each call then waits for your approval."],
     ["Other tools", "File Cabinet writes and chat UI tools are off. Any tool not listed asks first."],
     ["Web", "Web search and fetch are off. The workspace is used only to produce files."],
     ["Spend", `Each run, manual or scheduled, stops at $${(Number(budgetCents) / 100).toFixed(0)}.`],
@@ -499,7 +508,7 @@ function rulesView() {
 // ---------- Start ----------
 (async () => {
   const c = await api("GET", "/api/catalog");
-  catalog = c.tools; budgetCents = c.runBudgetCents;
+  catalog = c.tools; tiers = c.tiers; budgetCents = c.runBudgetCents;
   await loadWaiting();
   setInterval(loadWaiting, 60_000);
   route();

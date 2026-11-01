@@ -3,11 +3,13 @@ import type { AgentCreateParams } from "@anthropic-ai/sdk/resources/beta/agents/
 import { toolsOfKind } from "../src/catalog";
 import { NETSUITE_MCP_URL, assertConfigSafe, buildAgentConfig, checkSpec } from "../src/rules";
 import type { AgentSpec } from "../src/spec";
+import { TIERS, tierById } from "../src/tiers";
 
 const spec = (over: Partial<AgentSpec> = {}): AgentSpec => ({
   name: "Overdue clients",
   description: "Lists clients with invoices over 60 days overdue.",
   instructions: "Find clients with open invoices more than 60 days past due, by currency.",
+  tier: "read",
   readTools: ["ns_runCustomSuiteQL"],
   writeTools: [],
   outputFiles: [],
@@ -35,6 +37,13 @@ describe("checkSpec", () => {
     expect(problems.join("\n")).toMatch(/"getCustomerDetails" is not a NetSuite record write tool/);
   });
 
+  it("refuses a write the tier does not list, and an unknown tier", () => {
+    expect(checkSpec(spec({ writeTools: ["updateCustomer"] })).join("\n")).toMatch(/Read-only tier cannot use updateCustomer/);
+    expect(checkSpec(spec({ tier: "clerk", writeTools: ["ns_transformRecord"] })).join("\n")).toMatch(/Clerk tier cannot use ns_transformRecord/);
+    expect(checkSpec(spec({ tier: "clerk", writeTools: ["updateCustomer"] }))).toEqual([]);
+    expect(checkSpec(spec({ tier: "admin" }))).toContain('Unknown role tier "admin".');
+  });
+
   it("requires at least one NetSuite tool", () => {
     expect(checkSpec(spec({ readTools: [] }))).toContain("The agent needs at least one NetSuite tool.");
   });
@@ -57,7 +66,7 @@ describe("buildAgentConfig", () => {
   });
 
   it("enables a requested write only as always_ask", () => {
-    const configs = mcpConfigs(buildAgentConfig(spec({ writeTools: ["createCustomer"] })));
+    const configs = mcpConfigs(buildAgentConfig(spec({ tier: "clerk", writeTools: ["createCustomer"] })));
     expect(configs).toContainEqual({ name: "createCustomer", permission_policy: { type: "always_ask" } });
     expect(configs).toContainEqual({ name: "updateCustomer", enabled: false });
   });
@@ -81,7 +90,7 @@ describe("buildAgentConfig", () => {
 });
 
 describe("assertConfigSafe", () => {
-  const safe = () => buildAgentConfig(spec({ writeTools: ["createCustomer"] }));
+  const safe = () => buildAgentConfig(spec({ tier: "clerk", writeTools: ["createCustomer"] }));
 
   it("passes what buildAgentConfig produces", () => {
     expect(() => assertConfigSafe(safe())).not.toThrow();
@@ -111,5 +120,22 @@ describe("assertConfigSafe", () => {
     const c = buildAgentConfig(spec({ outputFiles: ["xlsx"] }));
     (c.tools![0] as { configs: unknown[] }).configs = [{ name: "web_fetch", enabled: false }];
     expect(() => assertConfigSafe(c)).toThrow(/web search and web fetch must be off/);
+  });
+});
+
+describe("role tiers", () => {
+  it("lists only real write tools, and Read-only lists none", () => {
+    for (const tier of TIERS) for (const tool of tier.writeTools) expect(toolsOfKind("write")).toContain(tool);
+    expect(tierById("read")!.writeTools).toEqual([]);
+  });
+
+  it("is checked again on the finished config", () => {
+    const noTier = buildAgentConfig(spec());
+    noTier.metadata = { built_by: "ns-agent-builder" };
+    expect(() => assertConfigSafe(noTier)).toThrow(/must name a role tier/);
+
+    const swapped = buildAgentConfig(spec({ tier: "clerk", writeTools: ["updateCustomer"] }));
+    swapped.metadata = { ...swapped.metadata, tier: "read" };
+    expect(() => assertConfigSafe(swapped)).toThrow(/Read-only tier does not allow "updateCustomer"/);
   });
 });

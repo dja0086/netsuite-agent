@@ -13,6 +13,8 @@ const authorizeUrl = `https://${host}.app.netsuite.com/app/login/oauth2/authoriz
 const tokenUrl = `https://${host}.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token`;
 const mcpUrl = `https://${host}.suitetalk.api.netsuite.com/services/mcp/v1/all`;
 const redirectUri = "http://localhost:57432/callback";
+/** The NetSuite role to choose on the login page: the role of the tier being signed in (roles/tiers.json). */
+const roleName = process.argv[2]?.trim() || "NS Agent Integration";
 const ask = createInterface({ input: process.stdin, output: process.stdout });
 const clientId = (process.env.NS_BUILDER_CLIENT_ID?.trim() || (await ask.question("Client ID of integration 209 (NETSUITE_CLIENT_ID in ~/dev/suitemcp/mcp/.env): ")).trim());
 ask.close();
@@ -45,7 +47,7 @@ const callback = new Promise<URL>((resolve, reject) => {
   server.listen(57432, "127.0.0.1");
   setTimeout(() => { server.close(); reject(new Error("no sign-in within 10 minutes")); }, 600_000).unref();
 });
-console.log("\nOpening NetSuite. Sign in with role NS Agent Integration and allow access.\nIf no browser opens, use this link:\n");
+console.log(`\nOpening NetSuite. Sign in with role ${roleName} and allow access.\nIf no browser opens, use this link:\n`);
 console.log(url.toString());
 execFile("open", [url.toString()], () => {});
 const back = await callback;
