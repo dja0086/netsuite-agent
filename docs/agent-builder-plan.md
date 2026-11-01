@@ -102,7 +102,8 @@ As in ADR 0007, "Consequences": tag `gateway-final`, remove gateway code, owner'
 - Rewritten: CLAUDE.md, `docs/runbook.md`, README, doctor (now checks `ant`, its login, `gh`, the vault lock file and the waiting-run job), `.env.example`, CODEOWNERS, CI.
 - The daily audit job is unloaded; its plist is in `~/Library/LaunchAgents/retired/`. The local `audit/` folder stays as history.
 - Claude Code now checks NetSuite data through the claude.ai "NetSuite All" connector's read tools (verified: client 2928 read back).
-- **Owner, in NetSuite:** revoke M2M mapping jxqM14Kc…; inactivate integration 207 "NS Agent Gateway"; inactivate the deployments `customdeploy_ns_agent_explore_rl`, `customdeploy_ns_agent_search_rl`, `customdeploy_ns_agent_pdf_rl`.
+- The three RESTlets are off through SDF (#32; deploy run 41309201952, 2026-11-01): scripts inactive, deployments `customdeploy_ns_agent_explore_rl`, `customdeploy_ns_agent_search_rl`, `customdeploy_ns_agent_pdf_rl` not deployed (checked with SuiteQL).
+- Revoking M2M mapping jxqM14Kc… and inactivating integration 207 "NS Agent Gateway" are the owner's to do and are not tracked here (owner decision 2026-11-01).
 
 ## Open items
 
