@@ -1,0 +1,20 @@
+<restlet scriptid="customscript_ns_agent_search_rl">
+  <name>NS Agent - Search RESTlet</name>
+  <description>Retired with the ns-agent MCP gateway (ADR 0007): script inactive, deployment off. Kept in the repo only so the account matches it. Managed in the netsuite-agent repo; do not edit in the UI.</description>
+  <isinactive>T</isinactive>
+  <notifyowner>F</notifyowner>
+  <scriptfile>[/SuiteScripts/ns_agent/restlets/search_rl.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_ns_agent_search_rl">
+      <title>NS Agent - Search RESTlet</title>
+      <status>RELEASED</status>
+      <isdeployed>F</isdeployed>
+      <loglevel>ERROR</loglevel>
+      <allemployees>F</allemployees>
+      <allpartners>F</allpartners>
+      <allroles>F</allroles>
+      <!-- Only the integration role may call this RESTlet. Create the role first (docs/netsuite-role.md). -->
+      <audslctrole>[scriptid=customrole_ns_agent]</audslctrole>
+    </scriptdeployment>
+  </scriptdeployments>
+</restlet>
