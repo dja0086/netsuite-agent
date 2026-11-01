@@ -1,5 +1,7 @@
 # Skill lifecycle
 
+> **Retired 2026-10-31 (ADR 0007).** This described the MCP gateway's skills; the gateway's code is in git history under the tag `gateway-final`. Kept as history.
+
 A skill ships only when its evals pass in CI and its owners approve. Every later change goes through the same gate with evidence. Nobody edits a skill directly on main.
 
 ## Anatomy

@@ -1,9 +1,0 @@
-<advancedpdftemplate scriptid="custtmpl_bpc_inv_w_attach" standard="STDTMPLCUSTINVC">
-  <description></description>
-  <displaysourcecode>T</displaysourcecode>
-  <isinactive>F</isinactive>
-  <preferred>F</preferred>
-  <printtype>TRANSACTION</printtype>
-  <title>TEST Invoice w/ Attachment PDF/HTML Template</title>
-  <trantype>CUSTINVC</trantype>
-</advancedpdftemplate>

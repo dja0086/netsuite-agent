@@ -1,25 +1,23 @@
 # Release runbook
 
-A release is a checkpoint (CP1, CP2, ...) passing on evidence. `pnpm release:check` produces that evidence.
+How account changes reach NetSuite: SDF objects in `netsuite/`, merged by PR and deployed by `deploy-sdf` with one approval (ADR 0002). The checkpoint gates (`release:check`, contract fixtures, skill evals, load test) belonged to the MCP gateway, retired 2026-10-31 (ADR 0007); they remain in git history under the tag `gateway-final`.
 
 ## Targets
 
-| `NS_TARGET_KIND` | Use | Live tests |
+| `NS_TARGET_KIND` | Use | Deploys and live tests |
 | --- | --- | --- |
 | `demo` | Test-drive or demo account with no real data (currently TSTDRV1755417) | Allowed |
 | `sandbox` | A sandbox of a real company account | Allowed |
 | `production` | A real company account | Refused |
 
-The demo account reports itself as `PRODUCTION` to NetSuite; that is its environment type, not its data. Treat it as a sandbox for testing. Since CP3 the integration role can create and delete customers, but only through approved tool calls (ADR 0004-0006).
+The demo account reports itself as `PRODUCTION` to NetSuite; that is its environment type, not its data. Treat it as a sandbox for testing.
 
 ## One-time setup per machine
 
 ```bash
-node scripts/doctor.mjs --tools-only   # fix every FAIL before going on
+node scripts/doctor.mjs              # fix every FAIL before going on
 pnpm install
-cp .env.example .env                 # NS_ACCOUNT_ID, NS_TARGET_KIND, NS_CLIENT_ID, NS_CERT_ID, NS_PRIVATE_KEY_PATH
-set -a; source .env; set +a
-pnpm ns:ping                         # must pass before anything else
+pnpm check                           # typecheck, builder and toolset tests, offline SDF check
 ```
 
 ## SDF deploy pipeline (`deploy-sdf.yml`)
@@ -58,7 +56,7 @@ Pipeline details:
 
 - [x] Branch protection on `main`: a pull request with the checks `checks`, `secret-scan` and `sdf-check`; no force pushes or deletion.
 - [x] Environment **`production`**: required reviewer `dja0086`; deployment branches = protected branches only.
-- [x] CI key pair in `~/.netsuite-agent/sdf-ci/` (separate from the gateway key; never overwrite `NS_PRIVATE_KEY_PATH`). Made with OpenSSL 3:
+- [x] CI key pair in `~/.netsuite-agent/sdf-ci/` (separate from the retired gateway's key). Made with OpenSSL 3:
   ```bash
   mkdir -p ~/.netsuite-agent/sdf-ci && cd ~/.netsuite-agent/sdf-ci && openssl req -new -x509 -newkey rsa:4096 -sigopt rsa_padding_mode:pss -sha256 -sigopt rsa_pss_saltlen:64 -keyout sdf-ci-key.pem -out sdf-ci-cert.pem -nodes -days 365 -subj "/CN=ns-agent-sdf-ci"
   ```
@@ -97,38 +95,3 @@ suitecloud project:deploy
 The first `account:setup` once linked a different (production) account, which is why the Account ID check comes before every deploy. Deployed so far: the role, the explore RESTlet and the search RESTlet. Once the checklist above is done, deploy only through `deploy-sdf.yml`.
 
 `customrole_ns_agent` must exist first: the RESTlet deployment is restricted to it. After the role exists, import it into the repo (`docs/netsuite-role.md`) so the XML matches the account.
-
-## Checkpoint release (`release:check`)
-
-```bash
-pnpm contracts:record                # once; review the fixture diff, then commit it
-pnpm release:check                   # offline checks -> ns:ping -> contracts -> tool evals -> trigger evals -> load test
-```
-
-`release:check` stops at the first failing gate and writes `release-reports/<timestamp>/summary.json` (plus `evals.json`, `triggers.json`, `load.json`). It flags an uncommitted working tree; commit first so the report names a real commit.
-
-A checkpoint's automated part passes when (CP1 passed on 658a44d; the latest full run passed on 4810a2d; each checkpoint's own exit criteria are in the delivery plan):
-
-- [ ] `summary.json` shows `"pass": true` on a clean commit
-- [ ] Tool evals: 100% of safety cases, at least 90% overall
-- [ ] Load test: `peakActive <= maxConcurrency`, `failed: 0`
-- [ ] Contract fixtures committed (at least 6)
-- [ ] Sign-off by the people named in the delivery plan's checkpoint row
-
-## Connecting an agent for a demo
-
-Claude Code: open the repo; its `.mcp.json` starts the gateway through `scripts/mcp-gateway.sh`, which loads `.env` (IDs only; the key stays at `NS_PRIVATE_KEY_PATH`). Other MCP clients: run `sh /path/to/netsuite-agent/scripts/mcp-gateway.sh` as a stdio server. Never put the client secret, key or key path into a client's JSON config.
-
-Writes need an approver: with the local channel, decide pending approvals with `pnpm approvals list|show|approve|deny`.
-
-## If a gate fails
-
-| Gate | First thing to check |
-| --- | --- |
-| ns:ping | Account ID, Client ID, Certificate ID; mapping not revoked; role has "Log in using OAuth 2.0 Access Tokens" |
-| contract tests | NetSuite changed a response shape: re-record, read the diff, fix ns-client before re-recording blindly |
-| tool evals | `evals.json` names the failing case; reproduce with `pnpm skills:eval --mode tools --skill <name>` |
-| trigger evals | `FAIL` lines in the output and `triggers.json`; a prompt routed to the wrong skill means a skill description or trigger prompt needs fixing. Needs the `claude` CLI logged in. |
-| load test | `failures` in `load.json`; lower `NS_MAX_CONCURRENCY` or raise the integration's allocation |
-| sdf-check (CI) | The `FAIL` lines name the file; run `pnpm sdf:check` locally |
-| deploy-sdf | The stage's `sdf-<environment>-<sha>` artifact (validate/deploy logs); an "is empty" error means a variable or secret from the checklist is missing; an account mismatch means the certificate mapping belongs to another account |

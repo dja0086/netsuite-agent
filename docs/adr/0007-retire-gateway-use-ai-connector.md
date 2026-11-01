@@ -2,6 +2,8 @@
 
 **Status:** accepted · 2026-10-31 by the owner (first draft 2026-10-30) · owner requests: "sunset what we built here and use the existing NetSuite connector/MCP"; "a GUI for managed agents: I tell you my use case and it'll build". Supersedes ADRs 0001, 0003, 0004, 0005 and 0006 once accepted. ADR 0002 (SDF-only schema changes) stays. Evidence: `docs/phase0-managed-agents.md`.
 
+**Implemented 2026-10-31:** the repo side is done (tag `gateway-final` on 91602c0, then the gateway, its packages, skills, scripts, contract tests and the three RESTlets removed; the toolset stays because builder agents use it). The daily audit job was unloaded. Still due: the owner's NetSuite clicks under "Consequences".
+
 ## Decision
 
 1. **NetSuite access goes through Oracle's AI Connector only** (`/services/mcp/v1/all`), signed in as NS Agent Integration through integration 209. The OAuth token lives in a Claude Managed Agents vault and renews there (Phase 0).

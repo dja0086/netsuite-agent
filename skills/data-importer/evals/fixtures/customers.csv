@@ -1,5 +1,0 @@
-External ID,Company Name,Email,Subsidiary,Currency,Credit Limit,Start Date,Shoe Size
-nsagent-eval-001,Example Widgets Ltd,ap@example.com,US West,USD,5000,2026-01-15,9
-nsagent-eval-002,Sample Parts GmbH,not-an-email,EMEA,EUR,abc,2026-02-30,10
-nsagent-eval-003,,billing@example.org,No Such Subsidiary,USD,,2026-03-01,8
-nsagent-eval-001,"Duplicate Row, Inc",dup@example.com,1,XYZ,100,15/03/2026,7

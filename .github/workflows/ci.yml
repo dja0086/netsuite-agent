@@ -24,9 +24,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      - run: pnpm test
-      - name: Validate skills (manifests, tools, evals, owners)
-        run: pnpm skills:validate
+      - name: Tests (agent builder, toolset guards)
+        run: pnpm test
 
   sdf-check:
     # SuiteCloud CLI 4.x validates only on the server, with an account and credentials, so pull

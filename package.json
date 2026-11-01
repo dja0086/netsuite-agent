@@ -2,47 +2,29 @@
   "name": "netsuite-agent",
   "private": true,
   "type": "module",
-  "description": "MCP gateway, SuiteCloud project and agent skills for working with NetSuite through an AI agent.",
+  "description": "Agent builder for Claude Managed Agents on NetSuite's AI Connector, plus the SuiteCloud (SDF) project for account changes.",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "typecheck": "turbo run typecheck && tsc -p .",
-    "test": "turbo run test",
-    "gateway": "pnpm --filter @ns-agent/mcp-gateway start",
+    "test": "turbo run test && vitest run tests --exclude '.claude/**'",
     "doctor": "node scripts/doctor.mjs",
-    "ns:ping": "tsx scripts/ns-ping.ts",
-    "contracts:record": "tsx scripts/record-contracts.ts",
-    "test:contract": "vitest run tests --exclude '.claude/**'",
-    "load:test": "tsx scripts/load-test.ts",
-    "release:check": "tsx scripts/release-check.ts",
-    "new:skill": "tsx scripts/new-skill.ts",
-    "skills:validate": "tsx scripts/validate-skills.ts",
     "sdf:check": "node scripts/sdf-check.mjs",
-    "approvals": "tsx scripts/approvals.ts",
-    "audit:prune": "tsx scripts/audit-log.ts prune",
-    "audit:alerts": "tsx scripts/audit-log.ts alerts",
-    "skills:eval": "tsx scripts/run-evals.ts",
-    "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm skills:validate && pnpm sdf:check",
+    "check": "pnpm typecheck && pnpm test && pnpm sdf:check",
     "builder": "pnpm --filter @ns-agent/agent-builder start"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.1",
-    "@ns-agent/mcp-gateway": "workspace:*",
-    "@ns-agent/ns-client": "workspace:*",
-    "@ns-agent/schemas": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.23.15",
     "turbo": "^2.11.9",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4",
-    "yaml": "^2.9.1",
-    "zod": "^4.6.7"
+    "vitest": "^3.2.4"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

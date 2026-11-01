@@ -13,19 +13,18 @@ Deploys never delete: an object or file removed from this project stays in the a
 src/
 ├── manifest.xml, deploy.xml
 ├── FileCabinet/SuiteScripts/ns_agent/
-│   ├── lib/governance.js          # usage-unit and input checks shared by RESTlets
-│   └── restlets/
-│       ├── explore_rl.js          # read-only global search
-│       └── search_rl.js           # saved-search preview and approved save
+│   ├── lib/tool_guards.js         # input guards for the custom tools (tests in tests/netsuite)
+│   └── tools/
+│       ├── agent_tools.js         # nsagent_suiteql, nsagent_record_get (N/query only)
+│       └── agent_tools_schema.json
 └── Objects/
     ├── customrole_ns_agent.xml    # imported from the account (docs/netsuite-role.md)
-    ├── customscript_ns_agent_explore_rl.xml
-    ├── customscript_ns_agent_search_rl.xml
-    ├── fields/                    # generated custom fields arrive here by PR (Phase 3)
-    └── templates/                 # generated PDF templates (Phase 3)
+    ├── custtoolset_nsagent_read.xml  # AI Connector toolset; builder agents use nsagent_suiteql
+    ├── fields/                    # custom fields, by PR
+    └── templates/                 # Advanced PDF/HTML templates, by PR
 ```
 
-Customer imports do not use saved CSV import maps: they go through the REST Record API behind approvals (ADR 0005).
+The explore, search and PDF preview RESTlets were removed with the MCP gateway (ADR 0007, tag `gateway-final`). Because deploys never delete, they stay in the account until the owner inactivates their deployments.
 
 Checks:
 
@@ -36,4 +35,4 @@ suitecloud project:validate   # on the server with the default auth ID; CLI 4.1.
 
 The server validation needs the SuiteCloud CLI and a JDK (`node scripts/doctor.mjs` checks both).
 
-Prerequisite: the role `customrole_ns_agent` must exist in the target account before the first deploy, because the RESTlet deployments are restricted to it.
+Prerequisite: the role `customrole_ns_agent` must exist in the target account before the first deploy; the toolset's visibility depends on the role's permissions.
