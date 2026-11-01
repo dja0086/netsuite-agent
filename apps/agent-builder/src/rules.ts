@@ -1,6 +1,7 @@
 import type { AgentCreateParams } from "@anthropic-ai/sdk/resources/beta/agents/agents";
 import { NETSUITE_TOOLS, toolsOfKind } from "./catalog";
 import type { AgentSpec } from "./spec";
+import { tierById } from "./tiers";
 
 /** The only MCP server any built agent may use: the demo account's AI Connector (ADR 0007). */
 export const NETSUITE_MCP_URL = "https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all";
@@ -30,6 +31,12 @@ export function checkSpec(spec: AgentSpec): string[] {
     const kind = NETSUITE_TOOLS[tool];
     if (kind === "file_write") problems.push(`"${tool}" writes to the File Cabinet; file writes are always disabled.`);
     else if (kind !== "write") problems.push(`"${tool}" is not a NetSuite record write tool.`);
+  }
+  const tier = tierById(spec.tier);
+  if (!tier) problems.push(`Unknown role tier "${spec.tier}".`);
+  else {
+    const outside = spec.writeTools.filter((t) => NETSUITE_TOOLS[t] === "write" && !tier.writeTools.includes(t));
+    if (outside.length) problems.push(`The ${tier.label} tier cannot use ${outside.join(", ")}; pick a tier that lists ${outside.length === 1 ? "it" : "them"}, or remove ${outside.length === 1 ? "it" : "them"}.`);
   }
   const both = spec.readTools.filter((t) => spec.writeTools.includes(t));
   if (both.length) problems.push(`Listed as both read and write: ${both.join(", ")}.`);
@@ -80,7 +87,7 @@ export function buildAgentConfig(spec: AgentSpec): AgentCreateParams {
       },
     ],
     ...(skills.length ? { skills: skills.map((skill_id) => ({ type: "anthropic" as const, skill_id })) } : {}),
-    metadata: { built_by: "ns-agent-builder" },
+    metadata: { built_by: "ns-agent-builder", tier: spec.tier },
   };
   assertConfigSafe(config);
   return config;
@@ -94,6 +101,8 @@ export function assertConfigSafe(config: AgentCreateParams): void {
   const fail = (why: string): never => {
     throw new Error(`Refusing to create agent: ${why}`);
   };
+  const tier = tierById(String(config.metadata?.tier ?? ""));
+  if (!tier) fail("the agent must name a role tier in metadata.tier");
   const servers = config.mcp_servers ?? [];
   if (servers.length !== 1 || servers[0]!.url !== NETSUITE_MCP_URL) fail(`the only MCP server must be ${NETSUITE_MCP_URL}`);
 
@@ -113,6 +122,7 @@ export function assertConfigSafe(config: AgentCreateParams): void {
         const policy = c.permission_policy?.type;
         if (runs && policy === "always_allow" && kind !== "read") fail(`"${c.name}" may not run without asking`);
         if (runs && kind === "write" && policy !== "always_ask") fail(`write tool "${c.name}" must be always_ask`);
+        if (runs && kind === "write" && !tier!.writeTools.includes(c.name)) fail(`the ${tier!.label} tier does not allow "${c.name}"`);
         if (runs && (kind === "file_write" || kind === "ui")) fail(`"${c.name}" must be disabled`);
         if (runs && policy === "auto") fail(`"${c.name}" may not use the auto policy`);
       }

@@ -1,0 +1,60 @@
+{
+  "$comment": [
+    "Role tiers: the one place NetSuite agent permissions are managed. Many agents share a tier; no role per agent.",
+    "Each tier is one NetSuite role (generated into netsuite/src/Objects by `node scripts/roles.mjs`), one sign-in,",
+    "and one Managed Agents vault holding that sign-in. The agent builder lets each agent pick a tier and refuses",
+    "write tools the tier does not list. Change permissions here, run `node scripts/roles.mjs`, open a PR, deploy.",
+    "LIST_OTHER_ADDRESS is FULL because NetSuite forces it on every role save; agents still cannot write unless",
+    "their tier lists write tools, and each write waits for approval."
+  ],
+  "base": {
+    "TRAN_CUSTPYMT": "VIEW",
+    "TRAN_CUSTCRED": "VIEW",
+    "TRAN_ESTIMATE": "VIEW",
+    "TRAN_FIND": "VIEW",
+    "TRAN_CUSTINVC": "VIEW",
+    "TRAN_JOURNAL": "VIEW",
+    "TRAN_SALESORD": "VIEW",
+    "TRAN_OPPRTNTY": "VIEW",
+    "TRAN_VENDPYMT": "VIEW",
+    "TRAN_PURCHORD": "VIEW",
+    "TRAN_VENDBILL": "VIEW",
+    "REPO_ANALYTICS": "EDIT",
+    "LIST_ACCOUNT": "VIEW",
+    "LIST_OTHER_ADDRESS": "FULL",
+    "LIST_CUSTJOB": "VIEW",
+    "LIST_CONTACT": "VIEW",
+    "LIST_CURRENCY": "VIEW",
+    "LIST_DEPARTMENT": "VIEW",
+    "LIST_EMPLOYEE": "VIEW",
+    "LIST_ITEM": "VIEW",
+    "LIST_SUBSIDIARY": "VIEW",
+    "LIST_VENDOR": "VIEW",
+    "LIST_CUSTRECORDENTRY": "VIEW",
+    "ADMI_LOGIN_OAUTH2": "FULL",
+    "ADMI_MCP_SERVER": "FULL",
+    "ADMI_RESTWEBSERVICES": "FULL"
+  },
+  "tiers": [
+    {
+      "id": "read",
+      "label": "Read-only",
+      "description": "Reads clients, vendors, items and transactions; cannot change anything.",
+      "role": "customrole_nsagent_read",
+      "roleName": "NS Agent - Read-only",
+      "permissions": {},
+      "writeTools": [],
+      "vault": null
+    },
+    {
+      "id": "clerk",
+      "label": "Clerk",
+      "description": "Everything Read-only can, plus creating and updating clients, each after approval.",
+      "role": "customrole_ns_agent",
+      "roleName": "NS Agent Integration",
+      "permissions": { "LIST_CUSTJOB": "FULL" },
+      "writeTools": ["createCustomer", "updateCustomer", "ns_createRecord", "ns_updateRecord"],
+      "vault": "vlt_011CgZ4QoWgLXXwtQ9CEVqNL"
+    }
+  ]
+}

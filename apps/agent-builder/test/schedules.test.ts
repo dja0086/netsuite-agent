@@ -13,6 +13,7 @@ const agent: BuiltAgent = {
     name: "Weekly 60+ days overdue clients",
     description: "",
     instructions: "List clients with invoices more than 60 days overdue.",
+    tier: "read",
     readTools: ["ns_runCustomSuiteQL"],
     writeTools: [],
     outputFiles: ["xlsx"],

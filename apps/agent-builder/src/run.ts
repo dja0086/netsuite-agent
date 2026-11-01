@@ -7,9 +7,9 @@ export const RUN_BUDGET_CENTS = "500";
 
 export const consoleSessionUrl = (sessionId: string) => `https://platform.claude.com/workspaces/default/sessions/${sessionId}`;
 
-/** Starts one run of a built agent with the shared environment, the NetSuite vault and a spend cap. */
+/** Starts one run of a built agent with the shared environment, its tier's NetSuite vault and a spend cap. */
 export async function startRun(agent: BuiltAgent, message: string, client = new Anthropic()) {
-  const { environmentId, vaultId } = await sharedResources();
+  const { environmentId, vaultId } = await sharedResources(agent.spec.tier);
   const session = await client.beta.sessions.create({
     agent: { type: "agent", id: agent.agentId, version: agent.version },
     environment_id: environmentId,

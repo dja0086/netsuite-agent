@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { NETSUITE_TOOLS } from "./catalog";
+import { TIERS } from "./tiers";
 import { createAgent, listBuilt, updateAgent } from "./create";
 import { draftSpec } from "./draft";
 import { buildAgentConfig, checkSpec } from "./rules";
@@ -102,7 +103,7 @@ const routes: Record<string, (body: unknown) => Promise<unknown>> = {
   },
   "GET /api/pending": async () => waitingRuns(),
   "GET /api/runs": async () => (await listRuns()).slice().reverse(),
-  "GET /api/catalog": async () => ({ tools: NETSUITE_TOOLS, runBudgetCents: RUN_BUDGET_CENTS }),
+  "GET /api/catalog": async () => ({ tools: NETSUITE_TOOLS, runBudgetCents: RUN_BUDGET_CENTS, tiers: TIERS.map(({ id, label, description, roleName, writeTools, vault }) => ({ id, label, description, roleName, writeTools, signedIn: Boolean(vault) })) }),
 };
 
 createServer(async (req, res) => {

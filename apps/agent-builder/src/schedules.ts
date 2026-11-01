@@ -40,7 +40,7 @@ export function checkSchedule(input: ScheduleInput): string[] {
   return problems;
 }
 
-/** The deployment body: the agent's current version, the shared environment and vault, the run cap and the kickoff. */
+/** The deployment body: the agent's current version, the shared environment, its tier's vault, the run cap and the kickoff. */
 export function buildDeployment(agent: BuiltAgent, input: ScheduleInput, shared: Shared): DeploymentCreateParams {
   const problems = checkSchedule(input);
   if (problems.length) throw new Error(problems.join(" "));
@@ -72,7 +72,7 @@ async function knownSchedule(deploymentId: string): Promise<ScheduleRecord> {
 
 export async function createSchedule(agentId: string, input: ScheduleInput, client = new Anthropic()) {
   const agent = await builtAgent(agentId);
-  const deployment = await client.beta.deployments.create(buildDeployment(agent, input, await sharedResources()));
+  const deployment = await client.beta.deployments.create(buildDeployment(agent, input, await sharedResources(agent.spec.tier)));
   const record: ScheduleRecord = { deploymentId: deployment.id, agentId, createdAt: new Date().toISOString() };
   await mkdir(path.dirname(SCHEDULES), { recursive: true });
   await writeFile(SCHEDULES, JSON.stringify([...(await listScheduleRecords()), record], null, 2));
@@ -133,13 +133,17 @@ export async function scheduleAction(deploymentId: string, action: "pause" | "re
   return { ok: true };
 }
 
-/** After an agent gets a new version, points its schedules at that version. */
+/** After an agent gets a new version, points its schedules at that version and its tier's vault. */
 export async function repinSchedules(agent: BuiltAgent, client = new Anthropic()): Promise<number> {
   let count = 0;
   for (const record of (await listScheduleRecords()).filter((s) => s.agentId === agent.agentId)) {
     const d = await client.beta.deployments.retrieve(record.deploymentId);
     if (d.archived_at) continue;
-    await client.beta.deployments.update(record.deploymentId, { agent: { type: "agent", id: agent.agentId, version: agent.version }, name: `${agent.name} (scheduled)` });
+    await client.beta.deployments.update(record.deploymentId, {
+      agent: { type: "agent", id: agent.agentId, version: agent.version },
+      name: `${agent.name} (scheduled)`,
+      vault_ids: [(await sharedResources(agent.spec.tier)).vaultId],
+    });
     count++;
   }
   return count;

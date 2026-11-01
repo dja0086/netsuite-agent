@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TIER_IDS } from "./tiers";
 
 /**
  * What the owner (and the drafting model) can decide about an agent. Everything else, such as the MCP
@@ -12,6 +13,9 @@ export const AgentSpec = z.object({
     .min(20)
     .max(8000)
     .describe("The agent's working instructions: the task, which records and fields, filters, output layout"),
+  tier: z
+    .enum(TIER_IDS)
+    .describe("Role tier the agent runs as in NetSuite: the least privileged tier whose write tools cover writeTools"),
   readTools: z.array(z.string()).describe("NetSuite read tools the agent may call without asking"),
   writeTools: z
     .array(z.string())

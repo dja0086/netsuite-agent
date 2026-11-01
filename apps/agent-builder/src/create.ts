@@ -4,10 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertConfigSafe, buildAgentConfig } from "./rules";
 import type { AgentSpec } from "./spec";
+import { LEGACY_TIER, vaultFor } from "./tiers";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REGISTRY = path.resolve(here, "../data/agents.json");
-/** Phase 0's environment (limited networking, MCP servers only) and NetSuite vault, shared by every built agent. */
+/** Phase 0's environment (limited networking, MCP servers only), shared by every built agent. Vaults come per role tier. */
 const PHASE0_LOCK = path.resolve(here, "../../../managed-agents/phase0/claude-lock.json");
 
 export interface BuiltAgent {
@@ -24,18 +25,18 @@ export interface Shared {
   vaultId: string;
 }
 
-/** The shared environment and vault IDs, from the Phase 0 lock file. */
-export async function sharedResources(): Promise<Shared> {
+/** The shared environment (Phase 0 lock file) and the vault holding the NetSuite sign-in of an agent's role tier. */
+export async function sharedResources(tierId: string): Promise<Shared> {
   const lock = JSON.parse(await readFile(PHASE0_LOCK, "utf8")) as { resources: Record<string, { id: string }> };
   const environmentId = lock.resources["./environment.yaml"]?.id;
-  const vaultId = lock.resources["./vault.yaml"]?.id;
-  if (!environmentId?.startsWith("env_") || !vaultId?.startsWith("vlt_")) throw new Error(`No environment or vault in ${PHASE0_LOCK}`);
-  return { environmentId, vaultId };
+  if (!environmentId?.startsWith("env_")) throw new Error(`No environment in ${PHASE0_LOCK}`);
+  return { environmentId, vaultId: vaultFor(tierId) };
 }
 
 export async function listBuilt(): Promise<BuiltAgent[]> {
   try {
-    return JSON.parse(await readFile(REGISTRY, "utf8")) as BuiltAgent[];
+    const agents = JSON.parse(await readFile(REGISTRY, "utf8")) as BuiltAgent[];
+    return agents.map((a) => ({ ...a, spec: { ...a.spec, tier: a.spec.tier ?? LEGACY_TIER } }));
   } catch {
     return [];
   }
