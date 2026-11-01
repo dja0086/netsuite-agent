@@ -1,5 +1,7 @@
 > **Snapshot, not the source of truth.** Exported 2026-10-22 (doc rev 29) from the "Architecture & design" tab of the "NetSuite Agent Monorepo" doc (https://claude.ai/artifact/QXJx7u8nAr7L5iAe1DD3jq). The online doc wins if they differ; re-export after design changes. Delivery tasks and exit gates live in CLAUDE.md. Later decisions in docs/adr/ (0004-0006) and CLAUDE.md supersede this design where they conflict (for example, imports use the REST Record API per ADR 0005, not a CSV import RESTlet).
 
+> **Retired 2026-10-31 (ADR 0007).** This described the MCP gateway's original design; the gateway's code is in git history under the tag `gateway-final`. Kept as history.
+
 # NetSuite Agent Monorepo — Architecture & Implementation Design
 
 Oct 18, 2026 · @dom

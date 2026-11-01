@@ -1,105 +1,79 @@
 # Operations runbook
 
-How to run, watch and fix the NS Agent in day-to-day use. Releases and deploys are in `docs/release.md`; the role and its review are in `docs/netsuite-role.md`.
+How to run, watch and fix the NetSuite agents in day-to-day use. Since 2026-10-31 (ADR 0007) every agent is a Claude Managed Agent made by the agent builder; the MCP gateway is retired (code under the tag `gateway-final`). Using the builder: `docs/agent-builder.md`. Account deploys: `docs/release.md`. The role and its review: `docs/netsuite-role.md`.
 
 ## On call
 
 | Role | Who | Reached by |
 | --- | --- | --- |
-| On-call owner | dja0086 (Dominick Amirr) | GitHub notifications on dja0086/netsuite-agent (alert issues) |
+| On-call owner | dja0086 (Dominick Amirr) | GitHub notifications on dja0086/netsuite-agent (waiting-run issues) |
 | NetSuite admin | dja0086 | same |
 
 Owner decision 2026-10-30. When the team grows, name a backup here.
 
 ## What runs where
 
-| Part | Where | Runs as | Logs |
+| Part | Where | Runs as | Record |
 | --- | --- | --- | --- |
-| MCP gateway (`pnpm gateway`, started by `.mcp.json` through `scripts/mcp-gateway.sh`) | The owner's Mac | Employee 2815 with role NS Agent Integration, M2M certificate (integration record "NS Agent Gateway", id 207) | `audit/gateway-YYYY-MM.jsonl` (one line per call: tool, outcome, latency, input hash; never inputs or results) |
-| Approvals (ADR 0004) | `audit/approvals.sqlite`, decided with `pnpm approvals` | Named approvers in `NS_AGENT_APPROVERS` | `approval.*` events in the audit log |
-| RESTlets, PDF template, custom field, toolset | NetSuite TSTDRV1755417, deployed by `deploy-sdf` | The calling role | NetSuite script execution logs |
-| AI Connector custom tools (`nsagent_suiteql`, `nsagent_record_get`) | NetSuite, reached through a claude.ai custom connector on `/services/mcp/v1/all` | Whoever signs in; the owner signs in as NS Agent Integration | Script execution log of the toolset; Login Audit Trail. **Not** in the gateway audit log. |
-| Daily audit job (`scripts/audit-daily.sh`) | The owner's Mac, launchd, 09:00 | The owner | `~/Library/Logs/netsuite-agent-audit.log` |
+| Agent builder (`pnpm builder`, http://127.0.0.1:5178) | The owner's Mac, on demand | The owner's `ant` login | `apps/agent-builder/data/` (agents, runs, schedules; git-ignored) |
+| Agents and their runs | Anthropic (Claude Managed Agents), shared environment and NetSuite vault from `managed-agents/phase0/claude-lock.json` | Each run's NetSuite calls use the vault's token: employee 2815 with role NS Agent Integration, through integration 209 | The session's event history: every tool call, its approval decision and result (builder run page, or the Claude Console) |
+| Schedules | Anthropic deployments (cron + time zone), listed on the builder's Schedules page | As above | Each scheduled run is a session like any other |
+| Waiting-run check (`apps/agent-builder/scripts/pending-check.sh`) | The owner's Mac, launchd `com.dja0086.netsuite-agent.builder-pending`, every 15 minutes | The owner's `ant` and `gh` logins | `~/Library/Logs/netsuite-agent-builder-pending.log` |
+| NetSuite AI Connector | `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all` | The signed-in role | Login Audit Trail; the toolset's script execution log |
+| Role, toolset, custom field, PDF template | NetSuite TSTDRV1755417, deployed by `deploy-sdf` | | NetSuite script execution logs |
 
-## Redaction
+## Approvals
 
-The gateway masks these fields as `[REDACTED]` in every tool result and in files it writes (`NS_AGENT_REDACT_FIELDS`, owner decision 2026-10-30): `taxidnum`, `vatregnumber`, `defaulttaxreg`, `accountnumber`, `routingnumber`, `ccnumber`, `socialsecuritynumber`. Matching ignores case, so REST names such as `vatRegNumber` are covered. Emails, phones and addresses are not masked: imports and reports use them.
+Every NetSuite write an agent attempts (`createCustomer`, `updateCustomer`, `ns_createRecord`, `ns_updateRecord`, `ns_transformRecord`, `ns_executeRecordAction`) stops the run until someone decides on the run page, which shows the exact request. File writes and Oracle's UI tools are disabled; any tool not on an agent's list also asks. The builder refuses a configuration that breaks these rules (`apps/agent-builder/src/rules.ts`, checked again before anything is sent).
 
-The AI Connector tools run inside NetSuite and do not pass through the gateway, so they are **not** redacted; what they return is limited only by the role.
+Approve only a request you have read on the run page. A denial with a reason tells the agent no and it carries on.
 
-To add a field: append it to `NS_AGENT_REDACT_FIELDS` in `.env` and `.env.example`, restart the gateway, and record the decision here.
+## When a waiting-run issue opens
 
-## Audit retention
+The issue ("NetSuite agent waiting for approval: <agent>") names the agent and the run only; the repo is public.
 
-- Entries are written to monthly files (`audit/gateway-2026-10.jsonl`). They are kept for **365 days** (owner decision 2026-10-30).
-- `pnpm audit:prune` deletes monthly files whose month ended more than 365 days ago. The daily job runs it.
-- `audit/approvals.sqlite` is kept with no end date: it is the record of who approved each write.
-- The `audit/` folder is git-ignored and lives only on the owner's Mac. Back it up with the rest of the machine.
+1. Start the builder (`pnpm builder`) and open **For you**, or the run id from the issue under **Runs**. If the page says it is out of date, reload it.
+2. Read the exact request and Approve or Deny.
+3. Check the outcome on the run page (the agent re-reads what it changed), then close the issue.
 
-## Alerts
+If nothing seems to happen after a click: the builder may have stopped (the desktop app stops preview servers); restart it and reload the page.
 
-`pnpm audit:alerts [--hours 24] [--issue]` reads the audit log for the window and fires when:
+## When a run fails
 
-- **Rejected-request ratio:** more than 10% of tool calls failed, over at least 10 calls. A rejection is any failed call except bad input (`INVALID_INPUT`) or a pending approval: NetSuite errors (throttling, permissions, query errors), refused writes, internal errors.
-- **Failed approval:** any denied approval, any refused approval id (wrong payload, expired, replayed), or any approved write that then failed.
+Read the run page: the stop note and the last tool result say why.
 
-The daily job runs it with `--issue`, which opens an issue on `NS_AGENT_ALERT_REPO` (dja0086/netsuite-agent) holding counts, tool names, error codes and approval ids only. The repo is public: never paste inputs or results into the issue.
+- **NetSuite sign-in errors** (401, `invalid_grant`, the MCP server failing to connect): the vault's NetSuite token can no longer refresh. Sign in again: `managed-agents/phase0/scripts/ns-signin.mts`, then update the vault credential (`ant beta:vaults:credentials update`; steps in `docs/phase0-managed-agents.md`). Debug in NetSuite: Setup > Users/Roles > View Login Audit Trail, filtered on the OAuth application "SuiteReact MCP (local)" (the connector's role cannot query `loginaudit` with SuiteQL).
+- **Permission errors**: a role change. Compare the account with `customrole_ns_agent.xml` (`suitecloud object:import`, review the diff).
+- **Query errors on `ns_runCustomSuiteQL` / `nsagent_suiteql`**: usually a bad query. If they cluster on one shape, check NetSuite release notes for SuiteQL changes, and the builder's drafting guidance (`apps/agent-builder/src/draft.ts`).
+- **Budget reached**: each run is capped at $5. Narrow the agent's instructions, or raise the cap in `apps/agent-builder/src/run.ts` (owner decision).
+- **Throttling** (429, concurrency errors): several runs at once against the account's 5 concurrent requests. Spread the schedules out.
 
-### When an alert issue opens
+## Audit and retention
 
-1. Run `pnpm audit:alerts --hours 24` locally to see the same report.
-2. Rejected ratio, by error code:
-   - `HTTP_429`, `CONCURRENCY_LIMIT_EXCEEDED`: throttling. Check Setup > Integration > Web Services Usage Log and the integration's concurrency slice; lower `NS_MAX_CONCURRENCY` if other integrations share the account.
-   - `HTTP_401`, `INVALID_LOGIN`, token errors: run `pnpm ns:ping`, then SuiteQL `SELECT date, status, detail FROM loginaudit WHERE oauthappname = 'NS Agent Gateway'`. Common causes: the M2M mapping was revoked, the certificate expired, the role lost "Log in using OAuth 2.0 Access Tokens".
-   - `INSUFFICIENT_PERMISSION`, `HTTP_403`: a role change. Compare the account with `customrole_ns_agent.xml` (`suitecloud object:import`, review the diff).
-   - `INVALID_PARAMETER`, `UNEXPECTED_ERROR` on `ns_suiteql`: usually bad queries from the agent. If they cluster on one query shape, check NetSuite release notes for SuiteQL table or field changes.
-   - `INTERNAL_ERROR`: the gateway's stderr has the stack; reproduce with the same tool locally.
-3. Failed approval: `pnpm approvals show <approvalId>`. A denial or a refused replay is expected behaviour, but confirm nobody retried a write with a changed payload. An approved write that failed: check the record in NetSuite; nothing is retried automatically.
-4. Write what you found as a comment on the issue and close it.
-
-## Scheduled checks
-
-Install the daily job once per machine (owner's Mac):
-
-```bash
-cat > ~/Library/LaunchAgents/com.dja0086.netsuite-agent.audit.plist <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>com.dja0086.netsuite-agent.audit</string>
-  <key>ProgramArguments</key><array><string>/bin/sh</string><string>$PWD/scripts/audit-daily.sh</string></array>
-  <key>EnvironmentVariables</key><dict><key>PATH</key><string>$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
-  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
-  <key>StandardOutPath</key><string>$HOME/Library/Logs/netsuite-agent-audit.log</string>
-  <key>StandardErrorPath</key><string>$HOME/Library/Logs/netsuite-agent-audit.log</string>
-</dict></plist>
-PLIST
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.dja0086.netsuite-agent.audit.plist
-```
-
-Run it from the repo root (`$PWD` is written into the file). `node` and `gh` must be on that `PATH`, and `gh` must be logged in as dja0086. Test it now with `launchctl kickstart gui/$(id -u)/com.dja0086.netsuite-agent.audit`, then read the log. Remove it with `launchctl bootout gui/$(id -u)/com.dja0086.netsuite-agent.audit`.
-
-## AI Connector
-
-- Endpoint: `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all`, as the claude.ai custom connector "NetSuite All". The built-in "NetSuite" connector uses the Standard Tools SuiteApp URL and does not show our tools.
-- Sign in as **NS Agent Integration**. The role is fixed per OAuth consent: to change it, revoke the consent (Setup > Users/Roles > OAuth 2.0 Authorized Applications) and sign in again.
-- `/all` also offers Oracle's write tools. Do not call them; they bypass approvals (`docs/netsuite-role.md`, review finding 2). **Disconnect "NetSuite All" in claude.ai when you are not using it.**
-- Never sign in to "United Refractories - NetSuite" (account 9173162, a real production account) from this project.
+- The record of each run is its session event history on Anthropic's side. How long Anthropic keeps it is not yet checked (open item in `docs/agent-builder-plan.md`).
+- The retired gateway's audit log (`audit/gateway-2026-10.jsonl`) and approvals record (`audit/approvals*.sqlite`) stay on the owner's Mac, git-ignored, as history. The 365-day retention agreed at CP5 still applies: delete `gateway-2026-10.jsonl` after 2026-10-31 + 365 days by hand (`pnpm audit:prune` went with the gateway).
+- Redaction of tax and bank ids (CP5) went with the gateway (ADR 0007, "What is lost"): agents see what the role can read.
 
 ## Credentials and expiry
 
 | Item | Where | Expires / rotate |
 | --- | --- | --- |
-| Gateway M2M certificate (mapping jxqM14Kc…) | Key at `NS_PRIVATE_KEY_PATH`, outside the repo | Check the certificate's end date in Setup > Integration > OAuth 2.0 Client Credentials (M2M) Setup; rotate by adding a new mapping before revoking the old one. Never re-run the openssl command over the live key. |
+| NetSuite token for agents | Managed Agents vault (credential refreshed by Anthropic with integration 209's client secret) | Refresh token 168 h; whether the vault keeps renewing past that is checked 2026-11-06/07. If not, sign in again weekly (above). |
+| `ant` login (owner) | `~/.config/anthropic` | Renews itself; `ant auth login` if the builder reports auth errors |
 | CI deploy certificate | `~/.netsuite-agent/sdf-ci/`, GitHub secret `NS_PROD_SDF_PRIVATE_KEY` in environment `production` | 2027-10-23; rotate a month earlier |
-| `gh` login (dja0086) | macOS keychain | Alerts and the GitHub approval channel stop working if it lapses |
+| `gh` login (dja0086) | macOS keychain | Waiting-run issues stop if it lapses |
+
+## Things never to do
+
+- Never call Oracle's write tools from Claude Code or the claude.ai "NetSuite All" connector directly: writes go only through a builder agent's approval. Disconnect "NetSuite All" in claude.ai when you are not using it.
+- Never sign in to "United Refractories - NetSuite" (account 9173162, a real production account) from this project.
 
 ## NetSuite releases
 
-Twice a year, when TSTDRV1755417 moves to a new release: read the release notes for SuiteQL, REST Record API and AI Connector changes; then run `pnpm release:check` and the CP4 parity cases (`docs/cp4-parity-results.md`). Re-record contract fixtures only after reading their diff.
+Twice a year, when TSTDRV1755417 moves to a new release: read the release notes for SuiteQL and AI Connector changes, then start a run of each agent on the builder's Agents page and compare with its last good run.
 
 ## Quarterly
 
 - Permission review of `customrole_ns_agent` and employee 2815's global permissions (`docs/netsuite-role.md`; next 2027-01-30).
-- Close or act on any open alert issues.
+- Close or act on any open waiting-run issues.
 - Check the expiry table above.

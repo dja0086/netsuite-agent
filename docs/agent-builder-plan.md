@@ -1,6 +1,6 @@
 # Plan: NetSuite agent builder on Claude Managed Agents
 
-Status: **Phases 1, 2 and 3 done 2026-10-31** (the weekly agent's first scheduled run is due 2026-11-02). Next: retire the gateway (due after Phase 1). Decision record: `docs/adr/0007-retire-gateway-use-ai-connector.md` (accepted 2026-10-31). Phase 0 passed (`docs/phase0-managed-agents.md`). How to use the builder: `docs/agent-builder.md`. Replaces the Claude Code + herdr plan of 2026-10-30.
+Status: **Phases 1, 2 and 3 done 2026-10-31; the gateway is retired in the repo (tag `gateway-final`), the owner's NetSuite clicks are still due.** The weekly agent's first scheduled run is due 2026-11-02. Decision record: `docs/adr/0007-retire-gateway-use-ai-connector.md` (accepted 2026-10-31). Phase 0 passed (`docs/phase0-managed-agents.md`). How to use the builder: `docs/agent-builder.md`. Replaces the Claude Code + herdr plan of 2026-10-30.
 
 ## Goal
 
@@ -95,10 +95,19 @@ Lessons:
 
 As in ADR 0007, "Consequences": tag `gateway-final`, remove gateway code, owner's NetSuite clicks, rewrite CLAUDE.md and the runbook.
 
+**Result (2026-10-31): repo side done.**
+
+- Tag `gateway-final` on 91602c0 (pushed). Removed: `apps/mcp-gateway`, `packages/*` (ns-client, suiteql, report-engine, import-engine, sdf-gen, schemas), `skills/`, the gateway scripts (ns:ping, evals, load test, release check, approvals, audit), contract and script tests, `.mcp.json`, the skills-eval workflow, and the explore, search and PDF RESTlets with their shared libraries.
+- Kept: the toolset `custtoolset_nsagent_read` and its guard tests (builder agents use `nsagent_suiteql`), the role, the field and template objects, `deploy-sdf`, `sdf-check`, and the docs as history.
+- Rewritten: CLAUDE.md, `docs/runbook.md`, README, doctor (now checks `ant`, its login, `gh`, the vault lock file and the waiting-run job), `.env.example`, CODEOWNERS, CI.
+- The daily audit job is unloaded; its plist is in `~/Library/LaunchAgents/retired/`. The local `audit/` folder stays as history.
+- Claude Code now checks NetSuite data through the claude.ai "NetSuite All" connector's read tools (verified: client 2928 read back).
+- **Owner, in NetSuite:** revoke M2M mapping jxqM14Kc…; inactivate integration 207 "NS Agent Gateway"; inactivate the deployments `customdeploy_ns_agent_explore_rl`, `customdeploy_ns_agent_search_rl`, `customdeploy_ns_agent_pdf_rl`.
+
 ## Open items
 
 - **168-hour limit:** check on 2026-11-06/07 whether the vault still reaches NetSuite. If not, Phase 1 includes a "Reconnect NetSuite" button that re-runs the sign-in and updates the vault credential.
-- **Clean up Phase 0:** test client 2928.
+- **Clean up Phase 0:** test client 2928 (no connector delete tool: delete it in the UI, or keep it).
 - **Concurrency:** several sessions at once against the account's 5 concurrent requests. Not measured yet; schedules are enabled for one weekly agent only, so measure before adding more.
 - **Event retention** on Anthropic's side, to replace the CP5 audit retention.
 

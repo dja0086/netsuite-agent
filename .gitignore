@@ -19,16 +19,12 @@ netsuite/.sdf*
 netsuite/build/
 .suitecloud*
 
-# Gateway runtime output
+# Retired gateway's audit log and approvals record (kept locally as history, ADR 0007)
 audit/
 
-# Release evidence is attached to checkpoints, not committed
+# Retired gateway's release evidence, report exports and import CSVs (kept locally as history)
 release-reports/
-
-# Report exports written by ns_report_run
 exports/
-
-# CSV files staged for ns_import_plan / ns_import_dry_run
 imports/
 
 # macOS Finder metadata

@@ -4,21 +4,11 @@
 
 *                                   @dja0086
 
-# Anything that talks to NetSuite or changes the account
-/packages/ns-client/                @dja0086
+# Anything that changes the NetSuite account
 /netsuite/                          @dja0086
 /netsuite/src/Objects/              @dja0086
 /.github/workflows/deploy-sdf.yml   @dja0086
 
-# Policy: approvals, audit, redaction
-/apps/mcp-gateway/src/policy/       @dja0086
-
-# Skills: one line per skill, added by `pnpm new:skill`
-/skills/_template/                  @dja0086
-/skills/ns-conventions/             @dja0086
-/skills/change-control/             @dja0086
-/skills/data-explorer/              @dja0086
-/skills/search-builder/             @dja0086
-/skills/reports/                    @dja0086
-/skills/data-importer/              @dja0086
-/skills/custom-fields/              @dja0086
+# The builder's fixed rules: what every agent may do in NetSuite
+/apps/agent-builder/src/rules.ts    @dja0086
+/apps/agent-builder/src/catalog.ts  @dja0086
