@@ -34,13 +34,14 @@ An agent builder (`apps/agent-builder`, `pnpm builder`) that turns a NetSuite us
 - Fixed rules (`src/rules.ts`, re-checked by `assertConfigSafe`): reads `always_allow`; requested writes `always_ask`, other writes, file writes and UI tools disabled; toolset default `always_ask`; only the demo `/all` URL; sandbox only when files are produced.
 - Waiting runs: For you lists them; launchd `com.dja0086.netsuite-agent.builder-pending` (every 15 minutes) opens one GitHub issue per waiting run.
 - Agents (2026-10-31): "Weekly 60+ days overdue clients" (scheduled `0 8 * * 1` America/New_York, first run 2026-11-02), "Update client email" (test schedule paused), "Top 10 open-balance clients by currency". Local registry `apps/agent-builder/data/` (git-ignored).
+- **Flux analysis** (`src/flux/`, `public/flux.js`; `docs/flux-design.md`): reads through the agent "Flux data reader" (`claude-haiku-5-5`, Clerk sign-in until Read-only is signed in, all writes disabled). Rows come from session tool results only for a query matching exactly. Code computes every figure; drafts can't contain figures. Sign-off "who" is typed, not authenticated. Demo data is dense only in 2017 (Jul has 11,066 P&L lines); FX rates are flat in every period checked, so the live FX split is $0. The role cannot read `accountingperiod`, `bom` or bank records.
 - Test client 2928 `nsagent-phase0-test-001`, email `phase3-test@example.com` (Phase 3 test).
 - Approvals in runs are the owner's decisions.
 - The desktop app stops preview servers: if the owner's clicks do nothing, check the builder is running (`lsof -nP -iTCP:5178 -sTCP:LISTEN`) and restart it.
 
 ### Findings worth remembering
 
-- SuiteQL quirk: `COUNT(*)` + table alias + `ORDER BY` fails; use `COUNT(t.id)`. No `GROUP BY BUILTIN.DF(...)`.
+- SuiteQL quirk: `COUNT(*)` + table alias + `ORDER BY` fails; use `COUNT(t.id)`. No `GROUP BY BUILTIN.DF(...)` on `ns_runCustomSuiteQL`; `nsagent_suiteql` allows it. `BUILTIN.DF(NVL(a, b))` errors (use `CASE WHEN a IS NULL ...`). `ROW_NUMBER()` works; `ROWNUM` paging subqueries do not. Consolidate with `BUILTIN.CONSOLIDATE(tal.amount,'LEDGER','DEFAULT','DEFAULT',11,t.postingperiod,'DEFAULT')`: the target must be HEADQUARTERS (11); any other target can silently return local amounts.
 - Sales order status codes in SuiteQL are single letters (A pending approval, B pending fulfilment, D partially fulfilled, E pending billing/partially fulfilled, F pending billing, G billed, H closed).
 - Terms and customer category lists are not queryable by the role.
 - Mac toolchain: Node 26.7.0, pnpm 10.28.0, git, Temurin JDK 21, SuiteCloud CLI 4.1.1 (supported on Node 24; if `suitecloud` misbehaves on 26, run it under Node 24), `ant` 2.4.0, `gh`, Claude Code.
@@ -69,7 +70,7 @@ An agent builder (`apps/agent-builder`, `pnpm builder`) that turns a NetSuite us
 
 ## Layout
 
-`apps/agent-builder` (server, UI in `public/index.html`, rules, drafting, runs, schedules, waiting-run alerts) · `managed-agents/phase0` (shared environment and vault, sign-in scripts) · `netsuite/` (SDF ACP: role, toolset, field, template) · `scripts/` (doctor, sdf-check) · `tests/netsuite` (toolset guards) · `docs/` (ADRs, builder plan and guide, runbook, release, history).
+`apps/agent-builder` (server, UI in `public/index.html` and `public/flux.js`, rules, drafting, runs, schedules, waiting-run alerts, `src/flux`) · `managed-agents/phase0` (shared environment and vault, sign-in scripts) · `netsuite/` (SDF ACP: role, toolset, field, template) · `scripts/` (doctor, sdf-check) · `tests/netsuite` (toolset guards) · `docs/` (ADRs, builder plan and guide, runbook, release, history).
 
 ## Account facts (demo account TSTDRV1755417)
 
@@ -79,6 +80,8 @@ An agent builder (`apps/agent-builder`, `pnpm builder`) that turns a NetSuite us
 - Record renames in this account: Customers = Clients, Sales Order = Master Contract, Bills = Vendor Invoices, Customer Payment = Client Payment.
 
 ## Next work, in order
+
+Owner mandate (2026-11-01): game-changing user experience and unlocks only, for a real finance team. Order: flux analysis (built, `docs/flux-design.md`), then agents that finish the job (`docs/plan-finish-the-job.md`), then exploded item cost and allocated margin (`docs/plan-item-margin.md`). Both plans need the owner's decisions on the team, the account and rule changes before building. The items below still stand.
 
 - [ ] Read-only tier (role deployed 2026-11-01): owner assigns it to employee 2815 and signs in, vault id into `roles/tiers.json`, then confirm the Clerk sign-in still works (`docs/agent-builder.md`, "Role tiers").
 - [ ] 2026-11-02 after 08:09 America/New_York: check the weekly agent's scheduled run finished and its workbook downloads.
