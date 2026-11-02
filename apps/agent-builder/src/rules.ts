@@ -47,7 +47,7 @@ export function checkSpec(spec: AgentSpec): string[] {
 type McpConfig = { name: string; enabled?: boolean; permission_policy?: { type: "always_allow" | "always_ask" } };
 
 /** Builds the agent create body. The fixed rules are applied here, whatever the spec says. */
-export function buildAgentConfig(spec: AgentSpec): AgentCreateParams {
+export function buildAgentConfig(spec: AgentSpec, options: { model?: string } = {}): AgentCreateParams {
   const problems = checkSpec(spec);
   if (problems.length) throw new Error(`Spec breaks the rules:\n- ${problems.join("\n- ")}`);
 
@@ -65,7 +65,7 @@ export function buildAgentConfig(spec: AgentSpec): AgentCreateParams {
   const config: AgentCreateParams = {
     name: spec.name,
     description: spec.description,
-    model: MODEL,
+    model: options.model ?? MODEL,
     system: `${spec.instructions.trim()}\n\n${FIXED_INSTRUCTIONS}`,
     mcp_servers: [{ type: "url", name: MCP_SERVER_NAME, url: NETSUITE_MCP_URL }],
     tools: [

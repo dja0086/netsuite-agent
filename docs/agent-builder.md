@@ -50,6 +50,18 @@ Agents made before tiers existed run as Clerk, the sign-in they always used. To 
 
 **Schedule** on an agent's card: pick weekly, weekdays, daily, monthly or a custom cron, and a time zone. The run message on the card is what each scheduled run is told. The **Schedules** page shows the next and last runs, opens past runs, and has **Run now**, **Pause / Resume** and **Stop** (permanent; use Pause to stop for now). Anthropic may start a run up to 9 minutes after the listed time.
 
+## Flux analysis
+
+**Flux** in the menu prepares a period-over-period variance review. Design and its evidence: `docs/flux-design.md`.
+
+1. Load the periods once, set your **threshold policy**, then pick a period and comparison and click **Prepare flux**. It takes about two minutes and reads NetSuite through the "Flux data reader" agent, which appears under Agents and Runs. It runs fixed read-only queries and has every write tool disabled.
+2. The page opens on what moved net income: a bridge and the accounts that need an explanation, riskiest first. Check the basis chips, including that it ties to the ledger total. The line under the table says what fell below your threshold.
+3. Click an account. **Explanation** shows drivers priced from the transactions they cite, what's left untraced, whether each cause is stated in the record, inferred or unknown, and the question to ask the owner. **Breakdown** pivots by subsidiary, department, class, location, client or vendor, and item. **Transactions** links to the records in NetSuite. **History** is the trail.
+4. Write what the owner told you and **Sign off as preparer**. A reviewer then **Approves** or **Sends back** with a note. Approval locks the explanation until it is reopened with a reason.
+5. **Re-read ledger** fetches current postings. If an account's postings changed, its explanation is marked out of date and its sign-offs reopen. **Evidence packet** downloads a CSV with basis, tie-out, thresholds and changes to them, drivers, citations and the sign-off trail.
+
+Changing a threshold on a prepared flux needs a reason, which goes in the packet. **Signing as** is typed, not a login: it isn't a control until the builder has real sign-in. Saved in `apps/agent-builder/data/flux/` (git-ignored).
+
 ## When a run is waiting for you
 
 A scheduled run that stops for an approval waits until someone decides. Two things tell you:

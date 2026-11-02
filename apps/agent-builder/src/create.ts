@@ -55,8 +55,8 @@ export async function builtAgent(agentId: string): Promise<BuiltAgent> {
 }
 
 /** Creates the Managed Agent for a spec (rules applied and re-checked) and records it locally. */
-export async function createAgent(spec: AgentSpec, client = new Anthropic()): Promise<BuiltAgent> {
-  const config = buildAgentConfig(spec);
+export async function createAgent(spec: AgentSpec, client = new Anthropic(), options: { model?: string } = {}): Promise<BuiltAgent> {
+  const config = buildAgentConfig(spec, options);
   assertConfigSafe(config);
   const agent = await client.beta.agents.create(config);
   const built: BuiltAgent = { agentId: agent.id, version: agent.version, name: agent.name, createdAt: new Date().toISOString(), spec };
