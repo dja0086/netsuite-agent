@@ -20,6 +20,7 @@ import { waitingRuns } from "./pending";
 import { decide, downloadFile, followUp, listRuns, runView } from "./runs";
 import { createSchedule, listSchedules, repinSchedules, scheduleAction } from "./schedules";
 import { AgentSpec } from "./spec";
+import { act, changePolicy, evidencePacket, getMeta, getPolicy, listPacks, packView, prepare, redraft, refreshMeta, setDefaultPolicy } from "./flux/service";
 
 const PORT = Number(process.env.BUILDER_PORT ?? 5178);
 const ORIGINS = new Set([`http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`]);
@@ -67,7 +68,47 @@ async function runRoute(method: string, parts: string[], req: IncomingMessage, r
   return true;
 }
 
+const Who = z.string().trim().min(1).max(80);
+const AccountId = z.number().int().positive();
+const FluxAction = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("edit"), accountId: AccountId, who: Who, text: z.string().trim().min(1).max(4000) }),
+  z.object({ type: z.literal("prepare"), accountId: AccountId, who: Who, note: z.string().max(1000).optional() }),
+  z.object({ type: z.literal("approve"), accountId: AccountId, who: Who, note: z.string().max(1000).optional() }),
+  z.object({ type: z.literal("send_back"), accountId: AccountId, who: Who, note: z.string().trim().min(1).max(1000) }),
+  z.object({ type: z.literal("reopen"), accountId: AccountId, who: Who, note: z.string().trim().min(1).max(1000) }),
+]);
+
+/** Routes with a pack id in the path: /api/flux/packs/<id>[/action|/redraft|/policy|/export]. */
+async function fluxRoute(method: string, parts: string[], req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+  if (parts[0] !== "api" || parts[1] !== "flux" || parts[2] !== "packs" || !parts[3]) return false;
+  const id = parts[3];
+  const action = parts[4] ?? "";
+  if (method === "GET" && action === "") send(res, 200, await packView(id));
+  else if (method === "POST" && action === "action") send(res, 200, await act(id, FluxAction.parse(await readJson(req))));
+  else if (method === "POST" && action === "redraft") {
+    const d = z.object({ accountId: AccountId, who: Who, guidance: z.string().trim().min(1).max(2000) }).parse(await readJson(req));
+    send(res, 200, await redraft(id, d.accountId, d.who, d.guidance));
+  } else if (method === "POST" && action === "policy") {
+    const d = z
+      .object({ who: Who, reason: z.string().max(500), amount: z.number().nonnegative().optional(), percent: z.number().nonnegative().optional(), alwaysAmount: z.number().nonnegative().optional(), mode: z.enum(["either", "both"]).optional(), accountId: AccountId.optional(), clearOverride: z.boolean().optional() })
+      .parse(await readJson(req));
+    const { who, reason, ...change } = d;
+    send(res, 200, await changePolicy(id, who, change, reason));
+  } else if (method === "GET" && action === "export") {
+    const { filename, csv } = await evidencePacket(id);
+    res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "no-store" }).end(csv);
+  } else send(res, 404, { error: "not found" });
+  return true;
+}
+
 const routes: Record<string, (body: unknown) => Promise<unknown>> = {
+  "GET /api/flux": async () => ({ meta: await getMeta(), policy: await getPolicy(), packs: await listPacks() }),
+  "POST /api/flux/periods": async () => refreshMeta(),
+  "POST /api/flux/policy": async (body) => setDefaultPolicy(z.object({ amount: z.number().nonnegative(), percent: z.number().nonnegative(), alwaysAmount: z.number().nonnegative(), mode: z.enum(["either", "both"]) }).parse(body)),
+  "POST /api/flux/prepare": async (body) => {
+    const d = z.object({ cur: AccountId, prior: AccountId, who: Who }).parse(body);
+    return { id: await prepare(d.cur, d.prior, d.who) };
+  },
   "POST /api/draft": async (body) => {
     const { useCase } = z.object({ useCase: z.string().min(10).max(4000) }).parse(body);
     return draftSpec(useCase);
@@ -114,10 +155,15 @@ createServer(async (req, res) => {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(html.replace("__BUILDER_TOKEN__", TOKEN));
       return;
     }
+    if (route === "GET /flux.js") {
+      res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" }).end(await readFile(path.resolve(here, "../public/flux.js"), "utf8"));
+      return;
+    }
     const origin = req.headers.origin;
     if ((origin && !ORIGINS.has(origin)) || req.headers["x-builder-token"] !== TOKEN) return send(res, 403, { error: "forbidden" });
     const parts = (req.url ?? "/").split("?")[0]!.split("/").filter(Boolean);
     if (await runRoute(req.method ?? "GET", parts, req, res)) return;
+    if (await fluxRoute(req.method ?? "GET", parts, req, res)) return;
     const handler = routes[route];
     if (!handler) return send(res, 404, { error: "not found" });
     send(res, 200, await handler(req.method === "POST" ? await readJson(req) : undefined));
