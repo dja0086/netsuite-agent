@@ -46,7 +46,7 @@ Client ID and secret are read at run time from `NS_BUILDER_CLIENT_ID` / `NS_BUIL
 | Session | What | Outcome |
 | --- | --- | --- |
 | `sesn_…` | Read test: session info, client count, invoice status counts | 3 reads, all allowed, no errors |
-| `sesn_…` | Write test: duplicate check, then create client `nsagent-phase0-test-001` | Paused on `createCustomer` (`{"companyname":"nsagent-phase0-test-001","email":"phase0-test@example.com","isperson":"F","subsidiary":"12"}`); owner allowed; the test client created |
+| `sesn_…` | Write test: duplicate check, then create client `nsagent-phase0-test-001` | Paused on `createCustomer` (`{"companyname":"nsagent-phase0-test-001","email":"phase0-test@example.com","isperson":"F","subsidiary":"<subsidiary id>"}`); owner allowed; the test client created |
 | `sesn_…` | Renewal test, ~20 h after first token expiry | Reached NetSuite as `customrole_ns_agent` |
 
 ## Left behind

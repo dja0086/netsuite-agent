@@ -16,7 +16,7 @@ Its `/mcp` sign-in fails before the browser opens. NetSuite's dynamic client reg
 {
   "capturedAt": "2026-10-30T16:34:25.001Z",
   "account": { "accountId": "TSTDRV1755417", "environmentType": "PRODUCTION", "version": "2026.2" },
-  "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": 12 }
+  "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": "<the role's subsidiary>" }
 }
 ```
 
@@ -72,7 +72,7 @@ The connector now runs as the integration role. Its tool list still does not inc
 {
   "capturedAt": "2026-10-30T00:03:41.399Z",
   "account": { "accountId": "TSTDRV1755417", "environmentType": "PRODUCTION", "version": "2026.2" },
-  "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": 12 }
+  "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": "<the role's subsidiary>" }
 }
 ```
 
