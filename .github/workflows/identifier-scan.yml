@@ -22,6 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -29,4 +30,23 @@ jobs:
       - name: Scan the current tree against the baseline
         env:
           IDENTIFIER_DENYLIST: ${{ secrets.IDENTIFIER_DENYLIST }}
-        run: node .github/workflows/identifier-scan.mjs --baseline .github/workflows/identifier-baseline.json
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # On a pull request the scanner and its baseline come from the base commit when
+          # it has them, so a pull request cannot loosen the scan or raise its own
+          # allowance. This workflow file itself still comes from the pull request.
+          scanner=.github/workflows/identifier-scan.mjs
+          baseline=.github/workflows/identifier-baseline.json
+          if [ -n "$BASE_SHA" ] && git show "$BASE_SHA:$scanner" > "$RUNNER_TEMP/identifier-scan.mjs" 2>/dev/null; then
+            scanner="$RUNNER_TEMP/identifier-scan.mjs"
+            echo "scanner: from the base commit"
+          else
+            echo "scanner: from this commit"
+          fi
+          if [ -n "$BASE_SHA" ] && git show "$BASE_SHA:$baseline" > "$RUNNER_TEMP/baseline.json" 2>/dev/null; then
+            baseline="$RUNNER_TEMP/baseline.json"
+            echo "baseline: from the base commit"
+          else
+            echo "baseline: from this commit"
+          fi
+          node "$scanner" --root "$GITHUB_WORKSPACE" --baseline "$baseline"
