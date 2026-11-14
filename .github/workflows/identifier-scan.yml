@@ -1,0 +1,32 @@
+name: identifier-scan
+
+# Plan invariant I9 (platform plan in dja0086/suitereact-mcp, docs/platform/plan.md; ADR 0008).
+# Scans the current tree only, never history (history keeps what was removed, decision D7),
+# for NetSuite account IDs and hostnames, Managed Agents IDs, and the literal strings in the
+# optional IDENTIFIER_DENYLIST secret. Files that still hold identifiers are baselined by path
+# and count in identifier-baseline.json. The log names files and lines, never the match.
+# The gitleaks history scan in ci.yml is separate and unchanged.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  identifier-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Scan the current tree against the baseline
+        env:
+          IDENTIFIER_DENYLIST: ${{ secrets.IDENTIFIER_DENYLIST }}
+        run: node .github/workflows/identifier-scan.mjs --baseline .github/workflows/identifier-baseline.json

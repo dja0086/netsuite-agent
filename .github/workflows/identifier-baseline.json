@@ -1,0 +1,75 @@
+{
+  "about": "Files that held identifiers when the identifier scan was introduced, with a count per category. Paths and counts only, never the identifiers. Lower or remove an entry when its file is cleaned; raising one needs approval by the owner (the approved-adr label in the platform repo).",
+  "files": {
+    ".env.example": {
+      "netsuite-account-id": 1
+    },
+    ".github/workflows/deploy-sdf.yml": {
+      "netsuite-account-id": 2
+    },
+    "apps/agent-builder/public/index.html": {
+      "netsuite-account-id": 3
+    },
+    "apps/agent-builder/src/flux/service.ts": {
+      "netsuite-account-id": 1,
+      "netsuite-account-host": 1
+    },
+    "apps/agent-builder/src/rules.ts": {
+      "netsuite-account-id": 2,
+      "netsuite-account-host": 1
+    },
+    "docs/agent-builder-plan.md": {
+      "netsuite-account-id": 1,
+      "netsuite-account-host": 1
+    },
+    "docs/agent-evals.md": {
+      "netsuite-account-id": 1
+    },
+    "docs/cp1-agent-trials.md": {
+      "netsuite-account-id": 1
+    },
+    "docs/cp3-evidence.md": {
+      "netsuite-account-id": 2
+    },
+    "docs/cp4-evidence.md": {
+      "netsuite-account-id": 3,
+      "netsuite-account-host": 1
+    },
+    "docs/cp4-parity-results.md": {
+      "netsuite-account-id": 4,
+      "netsuite-account-host": 2
+    },
+    "docs/phase0-findings.md": {
+      "netsuite-account-id": 1
+    },
+    "docs/phase0-managed-agents.md": {
+      "netsuite-account-id": 2
+    },
+    "docs/release.md": {
+      "netsuite-account-id": 4
+    },
+    "docs/runbook.md": {
+      "netsuite-account-id": 3,
+      "netsuite-account-host": 1
+    },
+    "managed-agents/phase0/agent.md": {
+      "netsuite-account-id": 3,
+      "netsuite-account-host": 1
+    },
+    "managed-agents/phase0/claude-lock.json": {
+      "managed-agents-id": 3
+    },
+    "managed-agents/phase0/scripts/ns-signin.mts": {
+      "netsuite-account-id": 1
+    },
+    "managed-agents/phase0/vault.yaml": {
+      "netsuite-account-id": 1
+    },
+    "netsuite/README.md": {
+      "netsuite-account-id": 1
+    },
+    "roles/tiers.json": {
+      "managed-agents-id": 1
+    }
+  }
+}
