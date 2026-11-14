@@ -57,7 +57,7 @@
       "netsuite-account-host": 1
     },
     "managed-agents/phase0/claude-lock.json": {
-      "managed-agents-id": 3
+      "managed-agents-id": 4
     },
     "managed-agents/phase0/scripts/ns-signin.mts": {
       "netsuite-account-id": 1

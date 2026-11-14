@@ -40,46 +40,69 @@ export function isFictionalAccountNumber(digits) {
 }
 
 /** Categories and their patterns. Each returns the hits on one line. */
+const hostAccountIsReal = account => {
+  account = account.toLowerCase();
+  if (!/\d/.test(account)) return false; // placeholders such as "system"
+  const digits = account.replace(/^[a-z]+/, '');
+  // Real account numbers have at least five digits; "1" or "123" are stubs.
+  if (!/^\d{5,}$/.test(digits)) return false;
+  return !isFictionalAccountNumber(digits);
+};
+
 export const PATTERNS = [
   {
     category: 'netsuite-account-id',
-    // Test-drive style account IDs: a letter prefix and five or more digits.
-    regex: /\bTSTDRV(\d{5,})(?:_(?:SB|RP)\d+)?\b/gi,
+    // Test-drive style account IDs: TSTDRV and five or more digits, wherever
+    // they sit ("X_TSTDRV<n>", "TSTDRV<n>_prod", "TSTDRV<n>abc").
+    regex: /TSTDRV(\d{5,})(?!\d)/gi,
     keep: match => !isFictionalAccountNumber(match[1]),
   },
   {
     category: 'netsuite-account-id',
-    // Numeric sandbox and release-preview account IDs.
-    regex: /\b(\d{6,8})_(?:SB|RP)\d+\b/gi,
+    // Numeric sandbox and release-preview account IDs: <n>_SB1, <n>-rp2.
+    regex: /(?<!\d)(\d{6,8})[_-](?:SB|RP)\d+(?!\d)/gi,
     keep: match => !isFictionalAccountNumber(match[1]),
   },
   {
     category: 'netsuite-account-host',
-    // <account>.suitetalk.api.netsuite.com and the other account domains.
+    // <account>.suitetalk.api.netsuite.com and the other account domains,
+    // including the SuiteAnalytics Connect (ODBC) host.
     regex:
-      /\b([a-z0-9]+)(?:-(?:sb|rp)\d+)?\.(?:suitetalk\.api|restlets\.api|app|extforms|suitetalk)\.netsuite\.com\b/gi,
-    keep: match => {
-      const account = match[1].toLowerCase();
-      if (!/\d/.test(account)) return false; // placeholders such as "system"
-      const digits = account.replace(/^[a-z]+/, '');
-      // Real account numbers have at least five digits; "1" or "123" are stubs.
-      if (!/^\d{5,}$/.test(digits)) return false;
-      return !isFictionalAccountNumber(digits);
-    },
+      /\b([a-z0-9]+)(?:-(?:sb|rp)\d+)?\.(?:suitetalk\.api|restlets\.api|connect\.api|app|extforms|suitetalk|forms|secure|checkout)\.netsuite\.com\b/gi,
+    keep: match => hostAccountIsReal(match[1]),
+  },
+  {
+    category: 'netsuite-account-host',
+    // An account in a NetSuite URL's query string: system.netsuite.com/...?c=<n>.
+    regex:
+      /netsuite\.com\/[^\s"'<>)]*?[?&](?:c|compid|account)=([A-Za-z0-9_-]+)/gi,
+    keep: match =>
+      hostAccountIsReal(match[1].replace(/[_-](?:sb|rp)\d+$/i, '')),
   },
   {
     category: 'managed-agents-id',
-    // Claude Managed Agents resource IDs: agent, environment, vault,
-    // credential, session, deployment and file IDs.
-    regex:
-      /\b(?:agent|env|vlt|vcrd|sesn|depl|file|skill|msg)_01[A-Za-z0-9]{16,}\b/g,
+    // Claude Managed Agents resource IDs (agent_, env_, vlt_, vcrd_, sesn_,
+    // depl_ and other prefixes), in any case: a short prefix, _01, then at
+    // least 12 more letters and digits. Short fixtures such as vlt_01NetSuite pass.
+    regex: /\b[a-z]{2,8}_01[A-Za-z0-9]{12,}\b/gi,
     keep: () => true,
   },
 ];
 
+/**
+ * Between the words of a denylist entry: spaces, hyphens, underscores, dots,
+ * plus signs or %20, or nothing ("Acme Widgets", "acme-widgets",
+ * "Acme%20Widgets", "AcmeWidgets").
+ */
+const SEPARATOR = '(?:[\\s_+.-]|%20)*';
+
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Parses IDENTIFIER_DENYLIST: one literal per line; blank lines and # comments ignored. */
+/**
+ * Parses IDENTIFIER_DENYLIST: one literal per line; blank lines and # comments
+ * ignored. Matching is case-insensitive and on whole words; a name split
+ * across two lines is not matched.
+ */
 export function parseDenylist(raw) {
   if (!raw) return [];
   return raw
@@ -89,7 +112,10 @@ export function parseDenylist(raw) {
     .map(
       entry =>
         new RegExp(
-          `(?<![A-Za-z0-9])${escapeRegex(entry).replace(/\s+/g, '\\s+')}(?![A-Za-z0-9])`,
+          `(?<![A-Za-z0-9])${entry
+            .split(/\s+/)
+            .map(escapeRegex)
+            .join(SEPARATOR)}(?![A-Za-z0-9])`,
           'gi'
         )
     );
