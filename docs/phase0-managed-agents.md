@@ -1,6 +1,6 @@
 # Phase 0: a Managed Agent on NetSuite's AI Connector
 
-Status: **passed 2026-10-31**, with one item open (the 168-hour limit, below). Run 2026-10-30/31 on demo account TSTDRV1755417.
+Status: **passed 2026-10-31**, with one item open (the 168-hour limit, below). Run 2026-10-30/31 on demo (pilot) account.
 
 Question: can a Claude Managed Agent use Oracle's AI Connector (`/services/mcp/v1/all`) directly, with a NetSuite OAuth token held in a Managed Agents vault: no gateway, no process on the owner's Mac?
 
@@ -9,7 +9,7 @@ Question: can a Claude Managed Agent use Oracle's AI Connector (`/services/mcp/v
 | Check | Result | Evidence |
 | --- | --- | --- |
 | Agent reaches NetSuite through the vault | Pass | Read session below |
-| Runs as NS Agent Integration | Pass | `ns_getSessionInfo`: account TSTDRV1755417, role `customrole_ns_agent` |
+| Runs as NS Agent Integration | Pass | `ns_getSessionInfo`: the pilot account, role `customrole_ns_agent` |
 | Read tools run without asking | Pass | 3 calls, `evaluated_permission: allow`; 1,014 clients, invoice status A 504 / B 601 (same as CP4) |
 | Write tools stop for approval, then run once | Pass | `createCustomer` paused (`requires_action`); after the owner's Allow it created the test client, confirmed by a separate gateway read |
 | Vault renews the expired access token | Pass | Session started 2026-10-31 17:30 UTC, ~20 h after the first access token expired (2026-10-30 21:43 UTC); it reached NetSuite as `customrole_ns_agent` |

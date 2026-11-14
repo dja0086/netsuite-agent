@@ -25,7 +25,7 @@ The owner describes a NetSuite use case in plain language ("every Monday, client
 
 ### Fixed rules (enforced by the builder, not the model)
 
-1. The only MCP server is `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all`.
+1. The only MCP server is `https://<pilot-account>.suitetalk.api.netsuite.com/services/mcp/v1/all`.
 2. NetSuite write tools (`createCustomer`, `updateCustomer`, `ns_createRecord`, `ns_updateRecord`, `ns_transformRecord`, `ns_executeRecordAction`) are `always_ask`. File-write tools (`ns_uploadFile`, `ns_uploadFileApp`, `ns_attachFile`, `ns_detachFile`) are disabled. The toolset default is `always_ask`, so a tool Oracle adds later asks first.
 3. Read tools may be `always_allow`, chosen per use case from the connector's read tools.
 4. Sandbox tools (bash, files) only when the use case produces files; web search and web fetch off.

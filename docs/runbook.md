@@ -19,8 +19,8 @@ Owner decision 2026-10-30. When the team grows, name a backup here.
 | Agents and their runs | Anthropic (Claude Managed Agents), shared environment and NetSuite vault from `managed-agents/phase0/claude-lock.json` | Each run's NetSuite calls use the vault's token: the owner's employee record with role NS Agent Integration, through the AI Connector integration | The session's event history: every tool call, its approval decision and result (builder run page, or the Claude Console) |
 | Schedules | Anthropic deployments (cron + time zone), listed on the builder's Schedules page | As above | Each scheduled run is a session like any other |
 | Waiting-run check (`apps/agent-builder/scripts/pending-check.sh`) | The owner's Mac, launchd `com.dja0086.netsuite-agent.builder-pending`, every 15 minutes | The owner's `ant` and `gh` logins | `~/Library/Logs/netsuite-agent-builder-pending.log` |
-| NetSuite AI Connector | `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all` | The signed-in role | Login Audit Trail; the toolset's script execution log |
-| Role, toolset, custom field, PDF template | NetSuite TSTDRV1755417, deployed by `deploy-sdf` | | NetSuite script execution logs |
+| NetSuite AI Connector | `https://<pilot-account>.suitetalk.api.netsuite.com/services/mcp/v1/all` | The signed-in role | Login Audit Trail; the toolset's script execution log |
+| Role, toolset, custom field, PDF template | NetSuite (pilot account), deployed by `deploy-sdf` | | NetSuite script execution logs |
 
 ## Approvals
 
@@ -70,7 +70,7 @@ Read the run page: the stop note and the last tool result say why.
 
 ## NetSuite releases
 
-Twice a year, when TSTDRV1755417 moves to a new release: read the release notes for SuiteQL and AI Connector changes, then start a run of each agent on the builder's Agents page and compare with its last good run.
+Twice a year, when the pilot account moves to a new release: read the release notes for SuiteQL and AI Connector changes, then start a run of each agent on the builder's Agents page and compare with its last good run.
 
 ## Quarterly
 

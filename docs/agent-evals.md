@@ -4,7 +4,7 @@
 
 `pnpm skills:eval --mode agent|triggers` runs the `kind: agent` cases and the trigger prompts through headless Claude Code (`scripts/eval-adapters.ts`): the enabled skills are the system prompt, the gateway is the only MCP server, built-in tools are off, and `NS_AGENT_WRITES=off` means no write can be approved or run. A second `claude -p` call grades each run against its rubric. Cost: about $2-3 for a full agent run.
 
-## First run (2026-10-21, TSTDRV1755417)
+## First run (2026-10-21, pilot account)
 
 **Triggers:** all four user-facing skills pass (100% of their own prompts routed, 0% of others claimed).
 

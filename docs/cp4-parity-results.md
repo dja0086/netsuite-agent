@@ -2,7 +2,7 @@
 
 ## Run on /all (2026-10-30)
 
-Run: 2026-10-30 16:34 UTC. Connector: the claude.ai custom connector "NetSuite All", URL `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all`, signed in by the owner as NS Agent Integration. Gateway: the `netsuite-agent` MCP server (M2M, same role). Read only: no writes were made.
+Run: 2026-10-30 16:34 UTC. Connector: the claude.ai custom connector "NetSuite All", URL `https://<pilot-account>.suitetalk.api.netsuite.com/services/mcp/v1/all`, signed in by the owner as NS Agent Integration. Gateway: the `netsuite-agent` MCP server (M2M, same role). Read only: no writes were made.
 
 Verdict: **Parity 5/5.** Both nsagent tools are visible under the integration role. The live guard call was blocked before it was sent (see Guard).
 
@@ -15,7 +15,7 @@ Its `/mcp` sign-in fails before the browser opens. NetSuite's dynamic client reg
 ```json
 {
   "capturedAt": "2026-10-30T16:34:25.001Z",
-  "account": { "accountId": "TSTDRV1755417", "environmentType": "PRODUCTION", "version": "2026.2" },
+  "account": { "accountId": "<pilot account>", "environmentType": "PRODUCTION", "version": "2026.2" },
   "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": "<the role's subsidiary>" }
 }
 ```
@@ -71,7 +71,7 @@ The connector now runs as the integration role. Its tool list still does not inc
 ```json
 {
   "capturedAt": "2026-10-30T00:03:41.399Z",
-  "account": { "accountId": "TSTDRV1755417", "environmentType": "PRODUCTION", "version": "2026.2" },
+  "account": { "accountId": "<pilot account>", "environmentType": "PRODUCTION", "version": "2026.2" },
   "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": "<the role's subsidiary>" }
 }
 ```
@@ -124,4 +124,4 @@ Why does the connector, under a role that meets the toolset's permission, not li
 - The connector's tools match the "MCP Standard Tools" SuiteApp toolsets on the Custom Tools page: File Cabinet, Record, Record Action, Reporting, Runtime Session Information and Prompt Library.
 - It serves none of the "MCP Tools" SuiteApp toolsets (Customer Management, Financial, General, Sales and Orders, SuiteQL), and none of ours.
 - So the connector is probably pointed at the `com.netsuite.mcpstandardtools` endpoint, not `/all`.
-- Next step: connect an MCP client to `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all` as NS Agent Integration, then rerun the listing and the parity test.
+- Next step: connect an MCP client to `https://<pilot-account>.suitetalk.api.netsuite.com/services/mcp/v1/all` as NS Agent Integration, then rerun the listing and the parity test.

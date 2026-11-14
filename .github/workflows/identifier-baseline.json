@@ -18,40 +18,6 @@
       "netsuite-account-id": 2,
       "netsuite-account-host": 1
     },
-    "docs/agent-builder-plan.md": {
-      "netsuite-account-id": 1,
-      "netsuite-account-host": 1
-    },
-    "docs/agent-evals.md": {
-      "netsuite-account-id": 1
-    },
-    "docs/cp1-agent-trials.md": {
-      "netsuite-account-id": 1
-    },
-    "docs/cp3-evidence.md": {
-      "netsuite-account-id": 2
-    },
-    "docs/cp4-evidence.md": {
-      "netsuite-account-id": 3,
-      "netsuite-account-host": 1
-    },
-    "docs/cp4-parity-results.md": {
-      "netsuite-account-id": 4,
-      "netsuite-account-host": 2
-    },
-    "docs/phase0-findings.md": {
-      "netsuite-account-id": 1
-    },
-    "docs/phase0-managed-agents.md": {
-      "netsuite-account-id": 2
-    },
-    "docs/release.md": {
-      "netsuite-account-id": 4
-    },
-    "docs/runbook.md": {
-      "netsuite-account-id": 3,
-      "netsuite-account-host": 1
-    },
     "managed-agents/phase0/agent.md": {
       "netsuite-account-id": 3,
       "netsuite-account-host": 1
@@ -63,9 +29,6 @@
       "netsuite-account-id": 1
     },
     "managed-agents/phase0/vault.yaml": {
-      "netsuite-account-id": 1
-    },
-    "netsuite/README.md": {
       "netsuite-account-id": 1
     },
     "roles/tiers.json": {

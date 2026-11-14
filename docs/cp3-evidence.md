@@ -7,7 +7,7 @@ Status: **CP3 PASSED: owner sign-off 2026-10-28.** Evidence completed 2026-10-25
 The Delivery plan's CP3 criteria ("One custom field and one PDF template go PR to sandbox to production with approvals; rollback rehearsed by revert; importer writes enabled after a sandbox import reconciles row for row") were amended by two owner decisions recorded in CLAUDE.md:
 
 - 2026-10-22: the importer criterion is met by ADR 0005's acceptance; no reconciliation file.
-- 2026-10-25: there is one account (demo TSTDRV1755417) and no sandbox, so "PR to sandbox to production with approvals" means PR → the account (GitHub environment `production`) with one approval in `deploy-sdf`.
+- 2026-10-25: there is one account (the demo, pilot account) and no sandbox, so "PR to sandbox to production with approvals" means PR → the account (GitHub environment `production`) with one approval in `deploy-sdf`.
 
 | # | Criterion | Result |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ The Delivery plan's CP3 criteria ("One custom field and one PDF template go PR t
 1. The object is generated with `packages/sdf-gen` and opened as a PR on dja0086/netsuite-agent.
 2. `main` is protected: it takes the PR only with the checks `checks`, `secret-scan` and `sdf-check` passing (no force push, no deletion).
 3. After the merge, `deploy-sdf` is started by hand from main. It resolves `ref` to one SHA that must be on main, then waits for the required reviewer (dja0086) to approve the `production` environment. GitHub enforces both rules, so an edited workflow on a branch cannot skip them.
-4. The approved job authenticates with the CI certificate (Administrator + SuiteCloud Development Integration), confirms the account is TSTDRV1755417, runs `suitecloud project:validate` on the server, then `project:deploy`, and keeps its logs as a run artifact (`sdf-production-<sha>`, 90 days).
+4. The approved job authenticates with the CI certificate (Administrator + SuiteCloud Development Integration), confirms the account is the pilot account, runs `suitecloud project:validate` on the server, then `project:deploy`, and keeps its logs as a run artifact (`sdf-production-<sha>`, 90 days).
 
 First credential check: validate-only run [40225840388](https://github.com/dja0086/netsuite-agent/actions/runs/40225840388) on 8774b4e, 2026-10-25: success, 0 errors, nothing deployed.
 
