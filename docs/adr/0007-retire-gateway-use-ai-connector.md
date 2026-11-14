@@ -6,14 +6,14 @@
 
 ## Decision
 
-1. **NetSuite access goes through Oracle's AI Connector only** (`/services/mcp/v1/all`), signed in as NS Agent Integration through integration 209. The OAuth token lives in a Claude Managed Agents vault and renews there (Phase 0).
+1. **NetSuite access goes through Oracle's AI Connector only** (`/services/mcp/v1/all`), signed in as NS Agent Integration through the AI Connector integration ("SuiteReact MCP (local)"). The OAuth token lives in a Claude Managed Agents vault and renews there (Phase 0).
 2. **Agents are Claude Managed Agents**, one per use case, created by an agent builder (`docs/agent-builder-plan.md`) rather than written by hand. No use case is hardcoded.
 3. **Controls live in each agent's configuration**, enforced by Managed Agents, and the builder refuses any configuration that breaks them:
    - NetSuite read tools `always_allow`; write tools `always_ask` (a person approves each call and sees its exact input); file-write tools disabled; any tool not listed `always_ask`.
-   - The only MCP server allowed is the demo account's `/all` URL. The production account (9173162) cannot be configured.
+   - The only MCP server allowed is the demo account's `/all` URL. The production account cannot be configured.
    - Environments use `limited` networking with MCP servers only, unless a use case needs more and the owner approves it.
    - The record of each run is the session's event history (every tool call, its permission decision and result).
-4. **The gateway is retired** once the builder's first version works: `apps/mcp-gateway`, the packages only it uses, its skills, the M2M login (integration 207), and the RESTlets and toolset only it calls. Code stays in git history under the tag `gateway-final`.
+4. **The gateway is retired** once the builder's first version works: `apps/mcp-gateway`, the packages only it uses, its skills, the M2M login (the gateway integration), and the RESTlets and toolset only it calls. Code stays in git history under the tag `gateway-final`.
 5. **Kept:** the role `customrole_ns_agent`, the SDF project and `deploy-sdf` for account changes (ADR 0002), and the docs as history.
 
 ## Why
@@ -36,7 +36,7 @@
 
 ## Consequences
 
-- Integration 209 is AI Connector only; suitemcp can no longer sign in through it (owner's decision 2026-10-31).
-- The vault's NetSuite sign-in may need repeating weekly (209's 168-hour token rotation limit); to be confirmed 2026-11-06/07.
-- When the gateway is retired, the owner (in NetSuite, not SDF): revokes the M2M mapping jxqM14Kc…, inactivates integration 207, inactivates the three RESTlet deployments and the toolset `custtoolset_nsagent_read` (or keeps the toolset; the connector serves it), and releases 207's concurrency slice. The launchd audit job is unloaded. CLAUDE.md and `docs/runbook.md` are rewritten.
+- The AI Connector integration is AI Connector only; suitemcp can no longer sign in through it (owner's decision 2026-10-31).
+- The vault's NetSuite sign-in may need repeating weekly (the integration's 168-hour token rotation limit); to be confirmed 2026-11-06/07.
+- When the gateway is retired, the owner (in NetSuite, not SDF): revokes the gateway's M2M mapping, inactivates the gateway integration ("NS Agent Gateway"), inactivates the three RESTlet deployments and the toolset `custtoolset_nsagent_read` (or keeps the toolset; the connector serves it), and releases the gateway integration's concurrency slice. The launchd audit job is unloaded. CLAUDE.md and `docs/runbook.md` are rewritten.
 - Revisit if several people use it (approvals would need to be separate from the requester again), if it moves to a real company account, or if bulk writes are needed.

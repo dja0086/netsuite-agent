@@ -54,8 +54,8 @@ Run 2026-10-30 16:34 UTC, connector (`nsagent_*`) against the gateway (`ns_suite
 | S1 | Customer count (1014) | Yes |
 | S2 | Invoice counts by status (A 504, B 601) | Yes |
 | S3 | First 10 customers by id, with more pages | Yes |
-| R1 | Customer 22, four fields | Yes |
-| R2 | Latest invoice 46871, six fields | Yes |
+| R1 | First customer by id, four fields | Yes |
+| R2 | Latest invoice, six fields | Yes |
 
 **Parity 5/5.** Differences are in shape only and are written down in the results file: numbers against SuiteQL strings; SuiteQL lowercase keys against REST camelCase; the user's date format against ISO; status code `A` against "Open"; `foreigntotal` (not offered by the REST Record API) checked against `total` and currency.
 

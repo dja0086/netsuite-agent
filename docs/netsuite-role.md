@@ -7,7 +7,7 @@ The gateway runs as one dedicated integration role: View on what the agent reads
 ## Steps (NetSuite admin, Phase 0)
 
 1. Setup > Users/Roles > Manage Roles > New. Name **NS Agent Integration**, ID **`_ns_agent`** (NetSuite prefixes it to `customrole_ns_agent`).
-2. Leave **Web Services Only Role** unchecked: with it checked, OAuth 2.0 calls to RESTlets fail with `InsufficientPermissions` in the Login Audit Trail (REST and SuiteQL still work). The role is assigned to employee 2815 "Integration User", the account's integration user for this use case (decided 2026-10-21; no dedicated employee).
+2. Leave **Web Services Only Role** unchecked: with it checked, OAuth 2.0 calls to RESTlets fail with `InsufficientPermissions` in the Login Audit Trail (REST and SuiteQL still work). The role is assigned to the owner's employee record "Integration User", the account's integration user for this use case (decided 2026-10-21; no dedicated employee).
 3. Add the permissions below.
 4. Import it into the repo so the XML matches the account exactly:
    ```bash
@@ -46,7 +46,7 @@ Add more record types only through a PR, reviewed by the NetSuite admin and secu
 
 ## Permission review 2026-10-30 (CP5)
 
-Reviewed against the role XML and the permissions NetSuite actually grants a session (`ns_getSessionInfo` through the AI Connector, signed in as employee 2815 with this role, 2026-10-30 17:09 UTC). Next review: **2027-01-30**, then every quarter, and after any change to this role or to employee 2815's access.
+Reviewed against the role XML and the permissions NetSuite actually grants a session (`ns_getSessionInfo` through the AI Connector, signed in as the owner's employee record with this role, 2026-10-30 17:09 UTC). Next review: **2027-01-30**, then every quarter, and after any change to this role or to the owner's employee record's access.
 
 | Permission | XML | Effective | Verdict |
 | --- | --- | --- | --- |
@@ -61,6 +61,6 @@ Reviewed against the role XML and the permissions NetSuite actually grants a ses
 
 ### Findings
 
-1. **Effective permissions exceed the role.** The session also holds: Full on Manage OAuth 2.0 Authorized Applications (`ADMI_MANAGE_OAUTH2`), SuiteApp Deployment (`ADMI_APP_DEPLOYMENT`), Web Services Setup (`ADMI_WEBSERVICESSETUP`), Allow JS/HTML Upload (`ADMI_ALLOW_JS_HTML_UPLOAD`) and SuiteSignOn (`ADMI_SUITESIGNON`); Edit on File Cabinet (`LIST_FILECABINET`); View on Custom Lists, SuiteScript, Custom Record Types and Find (lists). None is in `customrole_ns_agent.xml`. The likely source, not yet verified, is **global permissions on employee 2815** (the owner's own login, which NetSuite adds to every role the employee uses). The gateway's M2M session runs as the same employee and role, so it has them too. No gateway tool uses them; the AI Connector's Oracle tools could (for example `ns_uploadFile`). **Owner decision 2026-10-30: they stay.** Accepted risk: no gateway tool uses them; recheck at each quarterly review.
+1. **Effective permissions exceed the role.** The session also holds: Full on Manage OAuth 2.0 Authorized Applications (`ADMI_MANAGE_OAUTH2`), SuiteApp Deployment (`ADMI_APP_DEPLOYMENT`), Web Services Setup (`ADMI_WEBSERVICESSETUP`), Allow JS/HTML Upload (`ADMI_ALLOW_JS_HTML_UPLOAD`) and SuiteSignOn (`ADMI_SUITESIGNON`); Edit on File Cabinet (`LIST_FILECABINET`); View on Custom Lists, SuiteScript, Custom Record Types and Find (lists). None is in `customrole_ns_agent.xml`. The likely source, not yet verified, is **global permissions on the owner's employee record** (the owner's own login, which NetSuite adds to every role the employee uses). The gateway's M2M session runs as the same employee and role, so it has them too. No gateway tool uses them; the AI Connector's Oracle tools could (for example `ns_uploadFile`). **Owner decision 2026-10-30: they stay.** Accepted risk: no gateway tool uses them; recheck at each quarterly review.
 2. **The AI Connector keeps this role** (owner decision 2026-10-30). A client signed in to `/services/mcp/v1/all` as NS Agent Integration is offered Oracle's write tools (`createCustomer`, `updateCustomer`, `ns_createRecord`, `ns_updateRecord`, `ns_executeRecordAction`, `ns_transformRecord`, `ns_uploadFile`, `ns_attachFile`, `ns_detachFile`). With Customers = Full they can change customers without the approval path of ADRs 0004-0006. Accepted risk, mitigated by: agents are instructed never to call them (CLAUDE.md), and the "NetSuite All" connector stays disconnected when not in use (`docs/runbook.md`). Calls made through the connector are not in the gateway's audit log; NetSuite's Login Audit Trail and the record's System Notes show them.
 3. **Custom Record Entries** (View on every custom record type that requires it): still needed; read-only. No change.

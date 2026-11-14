@@ -39,7 +39,7 @@ First credential check: validate-only run [40225840388](https://github.com/dja00
 `custtmpl_nsagent_invoice_standard`, "NS Agent - Invoice": an Advanced PDF/HTML template for invoices (standard `STDTMPLCUSTINVC`), **not preferred**, so no printout changed.
 
 - Generated with sdf-gen: the template lint found no issues. The template loads only NetSuite-hosted resources (`${nsfont.*}`, `${companyInformation.logoUrl}`).
-- Previewed before the PR against invoice 46374 through the deployed PDF RESTlet (renders, checks resources, then makes the PDF). It produced a 1-page PDF with the invoice number, dates, three lines and the total.
+- Previewed before the PR against a test invoice through the deployed PDF RESTlet (renders, checks resources, then makes the PDF). It produced a 1-page PDF with the invoice number, dates, three lines and the total.
 - `suitecloud project:validate` against the account: 0 errors.
 - PR [#16](https://github.com/dja0086/netsuite-agent/pull/16), merged as 26cb58d.
 - Deploy run [40229632648](https://github.com/dja0086/netsuite-agent/actions/runs/40229632648), approved by the owner: validation and deploy SUCCESS, 0 errors, `CUSTOM_OBJECT_CREATION --- custtmpl_nsagent_invoice_standard`.

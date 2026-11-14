@@ -44,9 +44,9 @@ Done when: three use cases typed in plain language (one read-only, one with an E
 
 | Use case | Agent | Run | Outcome |
 | --- | --- | --- | --- |
-| Top 10 clients by open balance, per currency (read-only) | `agent_01PzebKcnozyhx7Ssf2wTGSq` | `sesn_01PsL7NyrcU527KNCANWM9P9` | Correct per-currency tables. Paused once on `nsagent_suiteql` (not in its tool list, so it asked); the owner allowed it. Drafting now always adds `nsagent_suiteql` as a fallback. |
-| Weekly 60+ days overdue as Excel, one sheet per currency | `agent_019ZUHCPhGfVppkUm7MepH2K` | `sesn_01JhBM36YFAAKqH6zW7tHmk9` | `Overdue_60plus_2026-10-31.xlsx`: 499 invoices, totals per currency, cross-checked by a second query; no pauses. |
-| Change a client's email (approved write) | `agent_011H4qxHjZZXkRii1KP2CPsU` | `sesn_01BmSpnG3E4CcyLDrWB87L37` | Draft asked for `updateCustomer` and `ns_updateRecord`; the owner kept only `updateCustomer`. Paused on `updateCustomer` for client 2928; the owner allowed it; the gateway confirms the new email. |
+| Top 10 clients by open balance, per currency (read-only) | `agent_…` | `sesn_…` | Correct per-currency tables. Paused once on `nsagent_suiteql` (not in its tool list, so it asked); the owner allowed it. Drafting now always adds `nsagent_suiteql` as a fallback. |
+| Weekly 60+ days overdue as Excel, one sheet per currency | `agent_…` | `sesn_…` | `Overdue_60plus_2026-10-31.xlsx`: 499 invoices, totals per currency, cross-checked by a second query; no pauses. |
+| Change a client's email (approved write) | `agent_…` | `sesn_…` | Draft asked for `updateCustomer` and `ns_updateRecord`; the owner kept only `updateCustomer`. Paused on `updateCustomer` for the test client; the owner allowed it; the gateway confirms the new email. |
 
 Findings: Oracle's `ns_runCustomSuiteQL` fails with "An unexpected SuiteScript error" on some queries (grouping by `BUILTIN.DF`); drafting guidance now warns against it. Approvals were sent with `ant` after the owner's word; Phase 2 brings Approve/Deny into the builder.
 
@@ -60,9 +60,9 @@ Done when: the Phase 1 use cases run end to end without opening the Console.
 
 | Use case | Run | Outcome |
 | --- | --- | --- |
-| Weekly 60+ overdue as Excel | `sesn_015zNf3vcxKnsZ1YXfXFGCcJ` | Finished with no pauses; the `.xlsx` (37,871 bytes) downloads from the page; the same request without the page token is refused (403). |
-| Change a client's email | `sesn_0147LpAYq3TSecPPGsYiupG3` | Paused on `updateCustomer`; the owner clicked Approve; the session records `allow` and the gateway confirms the new email on client 2928. |
-| Top 10 clients by balance | `sesn_01K7cGs7j2itFMRhZZM3XUUK` | This agent predates the `nsagent_suiteql` fallback, so each such call asked. The owner approved one and denied the next; the agent continued with its allowed tools and finished with the same figures as Phase 1. |
+| Weekly 60+ overdue as Excel | `sesn_…` | Finished with no pauses; the `.xlsx` (37,871 bytes) downloads from the page; the same request without the page token is refused (403). |
+| Change a client's email | `sesn_…` | Paused on `updateCustomer`; the owner clicked Approve; the session records `allow` and the gateway confirms the new email on the test client. |
+| Top 10 clients by balance | `sesn_…` | This agent predates the `nsagent_suiteql` fallback, so each such call asked. The owner approved one and denied the next; the agent continued with its allowed tools and finished with the same figures as Phase 1. |
 
 Lesson: the first Approve went to a page the owner could not see (the browser pane was hidden). A page left open across a builder restart now says to reload instead of failing with "forbidden".
 
@@ -81,10 +81,10 @@ Done when: a weekly agent runs on schedule and a pending approval reaches the ow
 
 | Check | Evidence | Outcome |
 | --- | --- | --- |
-| A scheduled run fires | Test schedule `depl_01WsnTWQyFDv2nPhu7FqTjm1` (`10 15 31 10 *`, America/New_York) started session `sesn_01EHP75BhA2jmpgE6zJ6Stik` at 19:17:44Z (Anthropic's jitter) | Ran unattended, paused on `updateCustomer` (client 2928, new email) |
+| A scheduled run fires | Test schedule `depl_…` (`10 15 31 10 *`, America/New_York) started session `sesn_…` at 19:17:44Z (Anthropic's jitter) | Ran unattended, paused on `updateCustomer` (the test client, new email) |
 | The waiting approval reaches the owner | The launchd check at 19:32:25Z opened issue #29 on its own | Issue named the agent and run only |
-| The owner decides | Owner approved in the builder (after the fix below); the session records `allow` | Agent changed the email and re-read it; gateway SuiteQL shows `phase3-test@example.com` on client 2928. Issue #29 closed, test schedule paused |
-| A weekly agent on schedule | `depl_01K2Wncj1g3LdEPQSnKrm5TE` "Weekly 60+ days overdue clients", `0 8 * * 1` America/New_York | **Due 2026-11-02 08:00**; check its run and workbook then |
+| The owner decides | Owner approved in the builder (after the fix below); the session records `allow` | Agent changed the email and re-read it; gateway SuiteQL shows `phase3-test@example.com` on the test client. Issue #29 closed, test schedule paused |
+| A weekly agent on schedule | `depl_…` "Weekly 60+ days overdue clients", `0 8 * * 1` America/New_York | **Due 2026-11-02 08:00**; check its run and workbook then |
 
 Lessons:
 
@@ -101,14 +101,14 @@ As in ADR 0007, "Consequences": tag `gateway-final`, remove gateway code, owner'
 - Kept: the toolset `custtoolset_nsagent_read` and its guard tests (builder agents use `nsagent_suiteql`), the role, the field and template objects, `deploy-sdf`, `sdf-check`, and the docs as history.
 - Rewritten: CLAUDE.md, `docs/runbook.md`, README, doctor (now checks `ant`, its login, `gh`, the vault lock file and the waiting-run job), `.env.example`, CODEOWNERS, CI.
 - The daily audit job is unloaded; its plist is in `~/Library/LaunchAgents/retired/`. The local `audit/` folder stays as history.
-- Claude Code now checks NetSuite data through the claude.ai "NetSuite All" connector's read tools (verified: client 2928 read back).
+- Claude Code now checks NetSuite data through the claude.ai "NetSuite All" connector's read tools (verified: the test client read back).
 - The three RESTlets are off through SDF (#32; deploy run 41309201952, 2026-11-01): scripts inactive, deployments `customdeploy_ns_agent_explore_rl`, `customdeploy_ns_agent_search_rl`, `customdeploy_ns_agent_pdf_rl` not deployed (checked with SuiteQL).
-- Revoking M2M mapping jxqM14Kc… and inactivating integration 207 "NS Agent Gateway" are the owner's to do and are not tracked here (owner decision 2026-11-01).
+- Revoking the gateway's M2M mapping and inactivating the integration "NS Agent Gateway" are the owner's to do and are not tracked here (owner decision 2026-11-01).
 
 ## Open items
 
 - **168-hour limit:** check on 2026-11-06/07 whether the vault still reaches NetSuite. If not, Phase 1 includes a "Reconnect NetSuite" button that re-runs the sign-in and updates the vault credential.
-- **Clean up Phase 0:** test client 2928 (no connector delete tool: delete it in the UI, or keep it).
+- **Clean up Phase 0:** the test client `nsagent-phase0-test-001` (no connector delete tool: delete it in the UI, or keep it).
 - **Concurrency:** several sessions at once against the account's 5 concurrent requests. Not measured yet; schedules are enabled for one weekly agent only, so measure before adding more.
 - **Event retention** on Anthropic's side, to replace the CP5 audit retention.
 

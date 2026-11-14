@@ -16,7 +16,7 @@ Owner decision 2026-10-30. When the team grows, name a backup here.
 | Part | Where | Runs as | Record |
 | --- | --- | --- | --- |
 | Agent builder (`pnpm builder`, http://127.0.0.1:5178) | The owner's Mac, on demand | The owner's `ant` login | `apps/agent-builder/data/` (agents, runs, schedules; git-ignored) |
-| Agents and their runs | Anthropic (Claude Managed Agents), shared environment and NetSuite vault from `managed-agents/phase0/claude-lock.json` | Each run's NetSuite calls use the vault's token: employee 2815 with role NS Agent Integration, through integration 209 | The session's event history: every tool call, its approval decision and result (builder run page, or the Claude Console) |
+| Agents and their runs | Anthropic (Claude Managed Agents), shared environment and NetSuite vault from `managed-agents/phase0/claude-lock.json` | Each run's NetSuite calls use the vault's token: the owner's employee record with role NS Agent Integration, through the AI Connector integration | The session's event history: every tool call, its approval decision and result (builder run page, or the Claude Console) |
 | Schedules | Anthropic deployments (cron + time zone), listed on the builder's Schedules page | As above | Each scheduled run is a session like any other |
 | Waiting-run check (`apps/agent-builder/scripts/pending-check.sh`) | The owner's Mac, launchd `com.dja0086.netsuite-agent.builder-pending`, every 15 minutes | The owner's `ant` and `gh` logins | `~/Library/Logs/netsuite-agent-builder-pending.log` |
 | NetSuite AI Connector | `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all` | The signed-in role | Login Audit Trail; the toolset's script execution log |
@@ -58,7 +58,7 @@ Read the run page: the stop note and the last tool result say why.
 
 | Item | Where | Expires / rotate |
 | --- | --- | --- |
-| NetSuite token for agents | Managed Agents vault (credential refreshed by Anthropic with integration 209's client secret) | Refresh token 168 h; whether the vault keeps renewing past that is checked 2026-11-06/07. If not, sign in again weekly (above). |
+| NetSuite token for agents | Managed Agents vault (credential refreshed by Anthropic with the AI Connector integration's client secret) | Refresh token 168 h; whether the vault keeps renewing past that is checked 2026-11-06/07. If not, sign in again weekly (above). |
 | `ant` login (owner) | `~/.config/anthropic` | Renews itself; `ant auth login` if the builder reports auth errors |
 | CI deploy certificate | `~/.netsuite-agent/sdf-ci/`, GitHub secret `NS_PROD_SDF_PRIVATE_KEY` in environment `production` | 2027-10-23; rotate a month earlier |
 | `gh` login (dja0086) | macOS keychain | Waiting-run issues stop if it lapses |
@@ -66,7 +66,7 @@ Read the run page: the stop note and the last tool result say why.
 ## Things never to do
 
 - Never call Oracle's write tools from Claude Code or the claude.ai "NetSuite All" connector directly: writes go only through a builder agent's approval. Disconnect "NetSuite All" in claude.ai when you are not using it.
-- Never sign in to "United Refractories - NetSuite" (account 9173162, a real production account) from this project.
+- Never sign in to the real production account (named only in untracked config) from this project.
 
 ## NetSuite releases
 
@@ -74,6 +74,6 @@ Twice a year, when TSTDRV1755417 moves to a new release: read the release notes 
 
 ## Quarterly
 
-- Permission review of `customrole_ns_agent` and employee 2815's global permissions (`docs/netsuite-role.md`; next 2027-01-30).
+- Permission review of `customrole_ns_agent` and the owner's employee record's global permissions (`docs/netsuite-role.md`; next 2027-01-30).
 - Close or act on any open waiting-run issues.
 - Check the expiry table above.

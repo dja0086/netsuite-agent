@@ -39,7 +39,7 @@ Exact-query reader, code-computed figures with text refused if it holds figures,
 
 ## Decisions for the owner
 
-1. **Which finance team, and on which NetSuite account?** Rules today allow only the demo account, and account 9173162 is explicitly excluded. ADR 0007's "revisit if" conditions all apply: several people, a real account, bulk writes. So redaction, separate approvers and audit retention have to come back first.
+1. **Which finance team, and on which NetSuite account?** Rules today allow only the demo account, and the real production account is explicitly excluded. ADR 0007's "revisit if" conditions all apply: several people, a real account, bulk writes. So redaction, separate approvers and audit retention have to come back first.
 2. **Rule changes:** custom tools are refused today (`assertConfigSafe`) and the only allowed server is NetSuite. A send tool needs your decision. Same for one approval covering a batch: the rule says the owner approves "that exact request", and an exact-match list keeps that meaning but changes how it's given.
 3. **Which mailbox and which provider** sends and reads replies?
 4. **Use NetSuite's own dunning letters for some steps?** They already send template email (no AI found). Simpler for early reminders; the agent could own only the judgement calls.
