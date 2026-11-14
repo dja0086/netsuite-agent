@@ -27,6 +27,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: This repo's copy of the scanner matches its recorded sha256
+        # The scanner is a copy of suitereact-mcp's (a public repo cannot call a private
+        # repo's reusable workflow). The value must match suitereact-mcp
+        # .github/scripts/scanner-copies.json, so any change to a copy is deliberate.
+        run: echo "bebbd1d9273c8dbfb145715df59b3c6519dd76dd32f4f066947c98e52c655dc8  .github/workflows/identifier-scan.mjs" | sha256sum -c -
       - name: Scan the current tree against the baseline
         env:
           IDENTIFIER_DENYLIST: ${{ secrets.IDENTIFIER_DENYLIST }}
