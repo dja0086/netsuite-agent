@@ -20,15 +20,15 @@ Scope (owner decisions 2026-10-29): two read tools, `nsagent_suiteql` and `nsage
 - Role: `ADMI_MCP_SERVER` (MCP Server Connection, Full) added to `customrole_ns_agent` in PR [#20](https://github.com/dja0086/netsuite-agent/pull/20), merged as b546be1. Table in `docs/netsuite-role.md`.
 - Toolset: `custtoolset_nsagent_read` "NS Agent - Read tools" in PR [#19](https://github.com/dja0086/netsuite-agent/pull/19), merged as 57fec3e. `exposetoaiconnector` T; one visibility permission, `TRAN_FIND` View, which the integration role holds. Script `SuiteScripts/ns_agent/tools/agent_tools.js`, schema `agent_tools_schema.json`.
 - Validate-only run [40926400688](https://github.com/dja0086/netsuite-agent/actions/runs/40926400688): 0 errors.
-- Deploy run [40937190598](https://github.com/dja0086/netsuite-agent/actions/runs/40937190598) from main at 57fec3e, approved by the owner (2026-10-29 19:11 UTC): `DEPLOY SUMMARY Status: SUCCESS`, steps 44/44, 0 errors, account ID TSTDRV1755417. Server validation listed `custtoolset_nsagent_read (custtoolset)` and `customrole_ns_agent (role)`.
+- Deploy run [40937190598](https://github.com/dja0086/netsuite-agent/actions/runs/40937190598) from main at 57fec3e, approved by the owner (2026-10-29 19:11 UTC): `DEPLOY SUMMARY Status: SUCCESS`, steps 44/44, 0 errors, the pilot account ID. Server validation listed `custtoolset_nsagent_read (custtoolset)` and `customrole_ns_agent (role)`.
 - Check afterwards (Administrator, read only): Customization > Scripting > Custom Tools lists "NS Agent - Read tools", active, permission Find Transaction - View, no SuiteApp.
 
 ## 2. Visible under the integration role
 
 Full listing and session excerpt: `docs/cp4-parity-results.md`, "Run on /all (2026-10-30)".
 
-- Client: claude.ai custom connector "NetSuite All", URL `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all`, signed in by the owner as NS Agent Integration.
-- `ns_getSessionInfo` (2026-10-30 16:34 UTC): account TSTDRV1755417, role `customrole_ns_agent`.
+- Client: claude.ai custom connector "NetSuite All", URL `https://<pilot-account>.suitetalk.api.netsuite.com/services/mcp/v1/all`, signed in by the owner as NS Agent Integration.
+- `ns_getSessionInfo` (2026-10-30 16:34 UTC): the pilot account, role `customrole_ns_agent`.
 - The connector lists 44 tools. `nsagent_suiteql` and `nsagent_record_get` are both listed, without a prefix.
 
 What it took, for whoever connects a client next:
@@ -54,8 +54,8 @@ Run 2026-10-30 16:34 UTC, connector (`nsagent_*`) against the gateway (`ns_suite
 | S1 | Customer count (1014) | Yes |
 | S2 | Invoice counts by status (A 504, B 601) | Yes |
 | S3 | First 10 customers by id, with more pages | Yes |
-| R1 | Customer 22, four fields | Yes |
-| R2 | Latest invoice 46871, six fields | Yes |
+| R1 | First customer by id, four fields | Yes |
+| R2 | Latest invoice, six fields | Yes |
 
 **Parity 5/5.** Differences are in shape only and are written down in the results file: numbers against SuiteQL strings; SuiteQL lowercase keys against REST camelCase; the user's date format against ISO; status code `A` against "Open"; `foreigntotal` (not offered by the REST Record API) checked against `total` and currency.
 

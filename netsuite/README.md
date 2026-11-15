@@ -4,7 +4,7 @@ Everything deployed into NetSuite by this repo. Changes reach the account only t
 
 How deploys run:
 
-- **Pipeline:** `.github/workflows/deploy-sdf.yml`, started by hand from main. It deploys one commit that is on main to the one account, the demo account TSTDRV1755417 (GitHub environment `production`), after one approval in GitHub's environment review; it server-validates, deploys and uploads its logs. Owner decision 2026-10-25: one environment, one approval, no sandbox. Setup, approval and rollback: `docs/release.md` ("SDF deploy pipeline").
+- **Pipeline:** `.github/workflows/deploy-sdf.yml`, started by hand from main. It deploys one commit that is on main to the one account, the demo (pilot) account (GitHub environment `production`), after one approval in GitHub's environment review; it server-validates, deploys and uploads its logs. Owner decision 2026-10-25: one environment, one approval, no sandbox. Setup, approval and rollback: `docs/release.md` ("SDF deploy pipeline").
 - **Locally, until then:** from this folder with SuiteCloud auth ID `nsagent-demo`. Before every deploy, run `suitecloud account:manageauth --info nsagent-demo` and confirm the Account ID (an early setup once linked the wrong account).
 
 Deploys never delete: an object or file removed from this project stays in the account until an admin deletes it in NetSuite (see Rollback in `docs/release.md`).

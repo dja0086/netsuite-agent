@@ -2,7 +2,7 @@
 
 ## Run on /all (2026-10-30)
 
-Run: 2026-10-30 16:34 UTC. Connector: the claude.ai custom connector "NetSuite All" (server id 23c480de…), URL `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all`, signed in by the owner as NS Agent Integration. Gateway: the `netsuite-agent` MCP server (M2M, same role). Read only: no writes were made.
+Run: 2026-10-30 16:34 UTC. Connector: the claude.ai custom connector "NetSuite All", URL `https://<pilot-account>.suitetalk.api.netsuite.com/services/mcp/v1/all`, signed in by the owner as NS Agent Integration. Gateway: the `netsuite-agent` MCP server (M2M, same role). Read only: no writes were made.
 
 Verdict: **Parity 5/5.** Both nsagent tools are visible under the integration role. The live guard call was blocked before it was sent (see Guard).
 
@@ -15,8 +15,8 @@ Its `/mcp` sign-in fails before the browser opens. NetSuite's dynamic client reg
 ```json
 {
   "capturedAt": "2026-10-30T16:34:25.001Z",
-  "account": { "accountId": "TSTDRV1755417", "environmentType": "PRODUCTION", "version": "2026.2" },
-  "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": 12 }
+  "account": { "accountId": "<pilot account>", "environmentType": "PRODUCTION", "version": "2026.2" },
+  "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": "<the role's subsidiary>" }
 }
 ```
 
@@ -36,13 +36,13 @@ This confirms the earlier "likely cause": the old connector used the Standard To
 | --- | --- | --- | --- | --- |
 | S1 | `SELECT COUNT(c.id) AS n FROM customer c` | n = 1014 | n = "1014" | Yes |
 | S2 | `SELECT t.status, COUNT(t.id) AS n FROM transaction t WHERE t.type = 'CustInvc' GROUP BY t.status ORDER BY t.status` | A 504, B 601 | A "504", B "601" | Yes |
-| S3 | `SELECT c.id, c.entityid, c.companyname FROM customer c ORDER BY c.id`, limit 10 | ids 22, 24, 29, 30, 31, 32, 33, 34, 35, 36; hasMore true | same 10 ids, entityids and company names in the same order; hasMore true, totalResults 1014 | Yes |
-| R1 | customer 22, fields `id, entityid, companyname, email` | 22, Bay Media Research, Bay Media Research, maryc@baymedia.com | same values | Yes |
-| R2 | invoice 46871 (`MAX(t.id)` for `CustInvc`, 46871 on both sides), fields `id, tranid, trandate, entity, foreigntotal, status` | 46871, 1716, 8/1/2026, 294, 2500, A | 46871, 1716, 2026-08-01, 294 (Hogan Software), 2500 USD (`total`), Open | Yes |
+| S3 | `SELECT c.id, c.entityid, c.companyname FROM customer c ORDER BY c.id`, limit 10 | 10 ids; hasMore true | same 10 ids, entityids and company names in the same order; hasMore true, totalResults 1014 | Yes |
+| R1 | the first customer from S3, fields `id, entityid, companyname, email` | its id, entity ID, company name and email | same values | Yes |
+| R2 | the latest invoice (`MAX(t.id)` for `CustInvc`, the same id on both sides), fields `id, tranid, trandate, entity, foreigntotal, status` | its id and tranid, 8/1/2026, its entity, 2500, A | the same id, tranid and entity, 2026-08-01, 2500 USD (`total`), Open | Yes |
 
 Shape differences (values equal after normalising):
 
-- The connector returns numbers (`1014`, `22`); the gateway returns SuiteQL strings (`"1014"`, `"22"`).
+- The connector returns numbers (`1014`); the gateway returns SuiteQL strings (`"1014"`).
 - `nsagent_record_get` wraps the result in `{ record: {...} }` with SuiteQL lowercase keys (`entityid`). The gateway's REST Record API returns camelCase (`entityId`, `tranDate`) and references as `{ id, refName }`.
 - R2 date: the connector shows the user's date preference (`M/D/YYYY`, so `8/1/2026`); REST returns ISO (`2026-08-01`).
 - R2 status: the connector returns the SuiteQL code `A`; REST returns `Open`. Invoice status A is Open.
@@ -60,7 +60,7 @@ Shape differences (values equal after normalising):
 
 ## Earlier run (2026-10-30 00:03 UTC, Standard Tools URL), kept as history
 
-Run: 2026-10-30 00:03 UTC, from a fresh Claude Code session whose NetSuite connector (claude.ai connector "NetSuite", server id 89b58377…) was loaded after the owner re-authorized it.
+Run: 2026-10-30 00:03 UTC, from a fresh Claude Code session whose NetSuite connector (claude.ai connector "NetSuite") was loaded after the owner re-authorized it.
 
 ## Result: stopped at step 2. The role is right, but the custom tools are not served
 
@@ -71,8 +71,8 @@ The connector now runs as the integration role. Its tool list still does not inc
 ```json
 {
   "capturedAt": "2026-10-30T00:03:41.399Z",
-  "account": { "accountId": "TSTDRV1755417", "environmentType": "PRODUCTION", "version": "2026.2" },
-  "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": 12 }
+  "account": { "accountId": "<pilot account>", "environmentType": "PRODUCTION", "version": "2026.2" },
+  "role": { "roleId": "customrole_ns_agent", "roleCenter": "ACCOUNTCENTER", "subsidiary": "<the role's subsidiary>" }
 }
 ```
 
@@ -124,4 +124,4 @@ Why does the connector, under a role that meets the toolset's permission, not li
 - The connector's tools match the "MCP Standard Tools" SuiteApp toolsets on the Custom Tools page: File Cabinet, Record, Record Action, Reporting, Runtime Session Information and Prompt Library.
 - It serves none of the "MCP Tools" SuiteApp toolsets (Customer Management, Financial, General, Sales and Orders, SuiteQL), and none of ours.
 - So the connector is probably pointed at the `com.netsuite.mcpstandardtools` endpoint, not `/all`.
-- Next step: connect an MCP client to `https://tstdrv1755417.suitetalk.api.netsuite.com/services/mcp/v1/all` as NS Agent Integration, then rerun the listing and the parity test.
+- Next step: connect an MCP client to `https://<pilot-account>.suitetalk.api.netsuite.com/services/mcp/v1/all` as NS Agent Integration, then rerun the listing and the parity test.

@@ -98,7 +98,7 @@ describe("assertConfigSafe", () => {
 
   it("refuses another MCP server, including the production account", () => {
     const c = safe();
-    c.mcp_servers = [{ type: "url", name: "netsuite", url: "https://9173162.suitetalk.api.netsuite.com/services/mcp/v1/all" }];
+    c.mcp_servers = [{ type: "url", name: "netsuite", url: "https://1234567.suitetalk.api.netsuite.com/services/mcp/v1/all" }];
     expect(() => assertConfigSafe(c)).toThrow(/only MCP server/);
   });
 

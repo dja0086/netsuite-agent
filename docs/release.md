@@ -6,7 +6,7 @@ How account changes reach NetSuite: SDF objects in `netsuite/`, merged by PR and
 
 | `NS_TARGET_KIND` | Use | Deploys and live tests |
 | --- | --- | --- |
-| `demo` | Test-drive or demo account with no real data (currently TSTDRV1755417) | Allowed |
+| `demo` | Test-drive or demo account with no real data (currently the pilot account) | Allowed |
 | `sandbox` | A sandbox of a real company account | Allowed |
 | `production` | A real company account | Refused |
 
@@ -24,7 +24,7 @@ pnpm check                           # typecheck, builder and toolset tests, off
 
 Account changes (roles, scripts, custom fields, PDF templates) ship only as SDF objects in `netsuite/`, merged to main through a PR (ADR 0002), then deployed by `.github/workflows/deploy-sdf.yml`.
 
-> **One account, one environment, one approval.** Owner decision 2026-10-25: this project has one NetSuite account, the demo account TSTDRV1755417, and no sandbox. The workflow deploys to it through the GitHub environment `production`, after one approval. (This replaces the two-stage sandbox → production design of 2026-10-22; for CP3, "PR to sandbox to production" becomes "PR to the one account, approved".) When real accounts exist, add an environment per account.
+> **One account, one environment, one approval.** Owner decision 2026-10-25: this project has one NetSuite account, the demo (pilot) account, and no sandbox. The workflow deploys to it through the GitHub environment `production`, after one approval. (This replaces the two-stage sandbox → production design of 2026-10-22; for CP3, "PR to sandbox to production" becomes "PR to the one account, approved".) When real accounts exist, add an environment per account.
 
 ### What runs where
 
@@ -62,7 +62,7 @@ Pipeline details:
   ```
   The certificate expires 2027-10-23: make a new pair and mapping before then.
 - [x] NetSuite M2M mapping (Setup → Integration → Manage Authentication → OAuth 2.0 Client Credentials (M2M) Setup): Entity = the owner, Role = Administrator, Application = SuiteCloud Development Integration, Certificate = `sdf-ci-cert.pem`. (The gateway's "NS Agent Gateway" mapping cannot deploy: its role has no SDF permission.)
-- [x] Environment `production`: variables `NS_PROD_ACCOUNT_ID` = `TSTDRV1755417` and `NS_PROD_SDF_CERT_ID` = the mapping's certificate ID; secret `NS_PROD_SDF_PRIVATE_KEY` = the contents of `sdf-ci-key.pem`:
+- [x] Environment `production`: variables `NS_PROD_ACCOUNT_ID` = the pilot account ID and `NS_PROD_SDF_CERT_ID` = the mapping's certificate ID; secret `NS_PROD_SDF_PRIVATE_KEY` = the contents of `sdf-ci-key.pem`:
   ```bash
   gh secret set NS_PROD_SDF_PRIVATE_KEY --repo dja0086/netsuite-agent --env production < ~/.netsuite-agent/sdf-ci/sdf-ci-key.pem
   ```
@@ -87,7 +87,7 @@ The SuiteCloud CLI needs a JDK (17 or 21). Run these from `netsuite/`:
 
 ```bash
 suitecloud account:setup                           # browser sign-in to the demo account (one time; auth ID nsagent-demo)
-suitecloud account:manageauth --info nsagent-demo  # every time: confirm the Account ID is TSTDRV1755417
+suitecloud account:manageauth --info nsagent-demo  # every time: confirm the Account ID is the pilot account
 suitecloud project:validate
 suitecloud project:deploy
 ```

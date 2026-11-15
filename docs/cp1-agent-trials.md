@@ -1,6 +1,6 @@
 # CP1 step 8: data-explorer agent cases, tried by hand
 
-Date 2026-10-20, account TSTDRV1755417 (demo), gateway over MCP stdio (`scripts/mcp-gateway.sh`), data-explorer 1.0.1. The agent was Claude Code following `skills/data-explorer/SKILL.md`, calling the gateway through a plain MCP client.
+Date 2026-10-20, the pilot account (demo), gateway over MCP stdio (`scripts/mcp-gateway.sh`), data-explorer 1.0.1. The agent was Claude Code following `skills/data-explorer/SKILL.md`, calling the gateway through a plain MCP client.
 
 | Case | Tools called | Result |
 | --- | --- | --- |

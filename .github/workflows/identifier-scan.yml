@@ -1,0 +1,58 @@
+name: identifier-scan
+
+# Plan invariant I9 (platform plan in dja0086/suitereact-mcp, docs/platform/plan.md; ADR 0008).
+# Scans the current tree only, never history (history keeps what was removed, decision D7),
+# for NetSuite account IDs and hostnames, Managed Agents IDs, and the literal strings in the
+# optional IDENTIFIER_DENYLIST secret. Files that still hold identifiers are baselined by path
+# and count in identifier-baseline.json. The log names files and lines, never the match.
+# The gitleaks history scan in ci.yml is separate and unchanged.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  identifier-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: This repo's copy of the scanner matches its recorded sha256
+        # The scanner is a copy of suitereact-mcp's (a public repo cannot call a private
+        # repo's reusable workflow). The value must match suitereact-mcp
+        # .github/scripts/scanner-copies.json, so any change to a copy is deliberate.
+        run: echo "0e16669491cb656e924fd048cdb97a3f6fd71dcbf470e2d02d23c06c01c155b0  .github/workflows/identifier-scan.mjs" | sha256sum -c -
+      - name: Scan the current tree against the baseline
+        env:
+          IDENTIFIER_DENYLIST: ${{ secrets.IDENTIFIER_DENYLIST }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # On a pull request the scanner and its baseline come from the base commit when
+          # it has them, so editing them in the pull request does not change this run.
+          # This workflow file itself still comes from the pull request, so an edit to it
+          # can change what runs.
+          scanner=.github/workflows/identifier-scan.mjs
+          baseline=.github/workflows/identifier-baseline.json
+          if [ -n "$BASE_SHA" ] && git show "$BASE_SHA:$scanner" > "$RUNNER_TEMP/identifier-scan.mjs" 2>/dev/null; then
+            scanner="$RUNNER_TEMP/identifier-scan.mjs"
+            echo "scanner: from the base commit"
+          else
+            echo "scanner: from this commit"
+          fi
+          if [ -n "$BASE_SHA" ] && git show "$BASE_SHA:$baseline" > "$RUNNER_TEMP/baseline.json" 2>/dev/null; then
+            baseline="$RUNNER_TEMP/baseline.json"
+            echo "baseline: from the base commit"
+          else
+            echo "baseline: from this commit"
+          fi
+          node "$scanner" --root "$GITHUB_WORKSPACE" --baseline "$baseline"

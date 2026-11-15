@@ -33,12 +33,12 @@ Everything about the tiers lives in `roles/tiers.json`: permissions (a shared ba
 
 **Sign a tier in (once per tier, not per agent):**
 
-1. Owner, in NetSuite: give employee 2815 the tier's role (Setup > Users/Roles > Manage Users > the employee > Access > Roles).
-2. Owner: with `NS_BUILDER_CLIENT_ID` and `NS_BUILDER_CLIENT_SECRET` (integration 209) set in the shell, run `npx tsx managed-agents/phase0/scripts/ns-signin.mts "NS Agent - Read-only"`. On NetSuite's login page, choose that role.
+1. Owner, in NetSuite: give the owner's employee record the tier's role (Setup > Users/Roles > Manage Users > the employee > Access > Roles).
+2. Owner: with `NS_BUILDER_CLIENT_ID` and `NS_BUILDER_CLIENT_SECRET` (the AI Connector integration) set in the shell, run `npx tsx managed-agents/phase0/scripts/ns-signin.mts "NS Agent - Read-only"`. On NetSuite's login page, choose that role.
 3. Create a vault for the tier: `ant beta:vaults create --display-name "NetSuite - Read-only"`. Then store the sign-in in it: `npx tsx managed-agents/phase0/scripts/vault-store.mts <vlt_…> "NS Agent - Read-only"`. Both scripts print no secrets. Delete the token file afterwards (`managed-agents/phase0/scripts/tokens.json`).
 4. Put the vault id in the tier's `vault` in `roles/tiers.json`, then restart the builder.
 
-The first extra sign-in also tests something Oracle's docs don't cover. Clerk's agents use the same integration (209) under another role, and it's not documented whether a second sign-in replaces the first. So right after it, start a run of a Clerk agent. If it fails to sign in, the Clerk tier needs its own integration record.
+The first extra sign-in also tests something Oracle's docs don't cover. Clerk's agents use the same integration under another role, and it's not documented whether a second sign-in replaces the first. So right after it, start a run of a Clerk agent. If it fails to sign in, the Clerk tier needs its own integration record.
 
 Agents made before tiers existed run as Clerk, the sign-in they always used. To move one to Read-only, edit it, pick Read-only and save; its schedules move to the new vault too.
 
