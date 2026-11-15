@@ -11,6 +11,12 @@
  * scan fails when a file outside the baseline has any hit, or a baselined file
  * has more hits in a category than its baseline allows.
  *
+ * Every tracked file is scanned; none is skipped. UTF-8 is the default. A
+ * file with a UTF-16 byte-order mark, or with the NUL pattern of UTF-16 text,
+ * is decoded as UTF-16. Any other file with a NUL byte, or larger than
+ * MAX_BYTES, is scanned as raw bytes (latin1), so binary files are scanned too.
+ * Zero-width characters are removed before matching.
+ *
  * Output names the file, the line and the category, never the matched text,
  * so a public CI log cannot leak what it found. This file and the baseline hold
  * patterns and paths only, never a literal identifier.
@@ -27,7 +33,19 @@ import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/** Above this size a file is scanned as raw bytes rather than decoded. */
 const MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Zero-width and invisible formatting characters that can split an
+ * identifier without changing how it looks: zero-width space, non-joiner and
+ * joiner, word joiner, invisible operators, BOM / zero-width no-break space,
+ * soft hyphen, Mongolian vowel separator.
+ */
+const INVISIBLE = /[\u200B-\u200D\u2060-\u2064\uFEFF\u00AD\u180E]/g;
+
+/** Removes zero-width characters before matching. */
+export const stripInvisible = text => text.replace(INVISIBLE, '');
 
 /**
  * An account number is fictional when it is the documented example
@@ -84,7 +102,9 @@ export const PATTERNS = [
     // Claude Managed Agents resource IDs (agent_, env_, vlt_, vcrd_, sesn_,
     // depl_ and other prefixes), in any case: a short prefix, _01, then at
     // least 12 more letters and digits. Short fixtures such as vlt_01NetSuite pass.
-    regex: /\b[a-z]{2,8}_01[A-Za-z0-9]{12,}\b/gi,
+    // Bounded by any non-alphanumeric character, so `_x` after it or `X_`
+    // before it does not hide one.
+    regex: /(?<![A-Za-z0-9])[a-z]{2,8}_01[A-Za-z0-9]{12,}(?![A-Za-z0-9])/gi,
     keep: () => true,
   },
 ];
@@ -99,9 +119,21 @@ const SEPARATOR = '(?:[\\s_+.-]|%20)*';
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
+ * Between the digits of a denylisted number of seven or more digits (an
+ * account number): at most one space, dot or hyphen ("765-4321", "765 4321").
+ */
+const DIGIT_SEPARATOR = '[\\s.\\u2010-\\u2014-]?';
+
+const entryPattern = entry =>
+  /^\d{7,}$/.test(entry)
+    ? entry.split('').join(DIGIT_SEPARATOR)
+    : entry.split(/\s+/).map(escapeRegex).join(SEPARATOR);
+
+/**
  * Parses IDENTIFIER_DENYLIST: one literal per line; blank lines and # comments
  * ignored. Matching is case-insensitive and on whole words; a name split
- * across two lines is not matched.
+ * across two lines is not matched, and neither is a number inside a longer
+ * run of digits.
  */
 export function parseDenylist(raw) {
   if (!raw) return [];
@@ -112,10 +144,7 @@ export function parseDenylist(raw) {
     .map(
       entry =>
         new RegExp(
-          `(?<![A-Za-z0-9])${entry
-            .split(/\s+/)
-            .map(escapeRegex)
-            .join(SEPARATOR)}(?![A-Za-z0-9])`,
+          `(?<![A-Za-z0-9])${entryPattern(entry)}(?![A-Za-z0-9])`,
           'gi'
         )
     );
@@ -124,7 +153,7 @@ export function parseDenylist(raw) {
 /** Returns [{ line, category }] for one file's text. */
 export function scanText(text, denylist = []) {
   const hits = [];
-  const lines = text.split(/\r?\n/);
+  const lines = stripInvisible(text).split(/\r?\n/);
   lines.forEach((content, index) => {
     for (const { category, regex, keep } of PATTERNS) {
       for (const match of content.matchAll(regex)) {
@@ -195,13 +224,59 @@ function trackedFiles(root) {
     .filter(Boolean);
 }
 
-function readTextFile(path) {
+/**
+ * Guesses UTF-16 from where the NUL bytes sit in the first 4 KB: ASCII text in
+ * UTF-16LE has a NUL at most odd offsets and none at even ones (BE the
+ * reverse). Returns 'le', 'be' or null.
+ */
+function utf16Order(buffer) {
+  const sample = buffer.subarray(0, 4096);
+  let even = 0;
+  let odd = 0;
+  for (let i = 0; i < sample.length; i++) {
+    if (sample[i] === 0) i % 2 ? odd++ : even++;
+  }
+  const pairs = Math.floor(sample.length / 2);
+  if (pairs < 2) return null;
+  if (odd >= pairs * 0.3 && even <= pairs * 0.05) return 'le';
+  if (even >= pairs * 0.3 && odd <= pairs * 0.05) return 'be';
+  return null;
+}
+
+/**
+ * Decodes a file's bytes for scanning. Returns { texts, mode }: mode is
+ * 'utf8', 'utf16' or 'bytes', and texts are the views to scan. Never refuses a
+ * file. A UTF-16 file is also scanned as raw bytes, so a byte-order mark put
+ * in front of ASCII text cannot hide what follows; real UTF-16 text has a NUL
+ * between its characters, so that view adds no hits.
+ */
+export function decodeForScan(buffer) {
+  const bom =
+    buffer[0] === 0xff && buffer[1] === 0xfe
+      ? 'le'
+      : buffer[0] === 0xfe && buffer[1] === 0xff
+        ? 'be'
+        : null;
+  const order = bom ?? (buffer.includes(0) ? utf16Order(buffer) : null);
+  if (order) {
+    let body = Buffer.from(buffer.subarray(bom ? 2 : 0));
+    if (body.length % 2) body = body.subarray(0, body.length - 1);
+    if (order === 'be') body.swap16();
+    return {
+      texts: [body.toString('utf16le'), buffer.toString('latin1')],
+      mode: 'utf16',
+    };
+  }
+  if (buffer.length > MAX_BYTES || buffer.includes(0)) {
+    return { texts: [buffer.toString('latin1')], mode: 'bytes' };
+  }
+  return { texts: [buffer.toString('utf8')], mode: 'utf8' };
+}
+
+function readTrackedFile(path) {
   try {
-    if (!statSync(path).isFile() || statSync(path).size > MAX_BYTES)
-      return null;
-    const buffer = readFileSync(path);
-    if (buffer.includes(0)) return null; // binary
-    return buffer.toString('utf8');
+    if (!statSync(path).isFile()) return null;
+    return decodeForScan(readFileSync(path));
   } catch {
     return null; // deleted in the working tree or unreadable
   }
@@ -236,11 +311,14 @@ export function main(argv = process.argv.slice(2), env = process.env) {
   const countsByFile = {};
   const linesByFile = {};
   let scanned = 0;
+  const modes = { utf16: 0, bytes: 0 };
   for (const path of trackedFiles(args.root)) {
-    const text = readTextFile(join(args.root, path));
-    if (text === null) continue;
+    const file = readTrackedFile(join(args.root, path));
+    if (file === null) continue;
+    const { texts, mode } = file;
     scanned++;
-    const hits = scanText(text, denylist);
+    if (mode in modes) modes[mode]++;
+    const hits = texts.flatMap(text => scanText(text, denylist));
     if (hits.length) {
       countsByFile[path] = countByCategory(hits);
       linesByFile[path] = hits;
@@ -269,7 +347,7 @@ export function main(argv = process.argv.slice(2), env = process.env) {
     denylistActive: denylist.length > 0,
   });
   console.log(
-    `scanned ${scanned} tracked text files; ${Object.keys(countsByFile).length} hold identifiers; ${Object.keys(baseline).length} baselined`
+    `scanned ${scanned} tracked files (${modes.utf16} as UTF-16, ${modes.bytes} as raw bytes); ${Object.keys(countsByFile).length} hold identifiers; ${Object.keys(baseline).length} baselined`
   );
   for (const path of lowerable) {
     console.log(
