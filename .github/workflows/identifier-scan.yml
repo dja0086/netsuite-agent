@@ -38,8 +38,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           # On a pull request the scanner and its baseline come from the base commit when
-          # it has them, so a pull request cannot loosen the scan or raise its own
-          # allowance. This workflow file itself still comes from the pull request.
+          # it has them, so editing them in the pull request does not change this run.
+          # This workflow file itself still comes from the pull request, so an edit to it
+          # can change what runs.
           scanner=.github/workflows/identifier-scan.mjs
           baseline=.github/workflows/identifier-baseline.json
           if [ -n "$BASE_SHA" ] && git show "$BASE_SHA:$scanner" > "$RUNNER_TEMP/identifier-scan.mjs" 2>/dev/null; then
