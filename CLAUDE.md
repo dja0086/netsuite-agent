@@ -8,7 +8,7 @@ On 2026-11-14 the owner accepted the Hardened plan for the NetSuite agent platfo
 
 - **This repo is frozen** (decision D2). Its role definitions moved to the platform repo in checkpoint S1 (`docs/adr/0009-roles-move-to-the-platform-repo.md`); it takes no new work. Change it only when a plan checkpoint names it, on that checkpoint's branch (`s<N>-<name>`).
 - **The old no-write rule is retired** (decision L2). Agents will write to NetSuite through the platform's tool runner from checkpoint S2, and hard-gated actions only from an approved proposal from S3. Until then nothing in this repo gains a new write path, and the builder's existing approval flow stays as it is.
-- **D4: agents act as a dedicated agent user, never the owner's login.** By the plan's amendment A21 the platform has one agent user with one agent role for now, defined in the platform repo. This repo's tiers are not moved onto it (ADR 0009).
+- **D4 and this frozen repo.** D4 says agents act as a dedicated agent user, and by the plan's amendment A21 the platform has one such user with one role, defined in the platform repo. This repo's builder is the exception the owner accepted on 2026-11-17: its tiers still sign in as the owner's own login until a later checkpoint replaces the builder (ADR 0009). Do not add agents or tiers to it.
 - When sources disagree, the order is: the owner's instruction, then the plan, then ADRs, then this file. Stop and report the conflict; do not choose. Do not reopen locked decisions L1 to L8; D1 to D7 change only by the owner.
 - An exit criterion is met only when shown with a command's output, a CI run or a query result. Separate what you verified from what you inferred.
 

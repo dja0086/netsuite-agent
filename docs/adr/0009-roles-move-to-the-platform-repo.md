@@ -22,7 +22,7 @@ On 16 November 2026 the owner changed D4 with amendment A21: one dedicated agent
    - The permissions and the shared base are gone.
 4. **D4 as changed by A21.**
    - The platform has one agent user with one agent role, `customrole_sr_agent_proposer`.
-   - This repo's tiers are not moved onto that user: they still sign in as the owner's login (ADR 0007).
+   - This repo's tiers are not moved onto that user: they still sign in as the owner's login (ADR 0007). The owner accepted this as an exception for the frozen repo on 2026-11-17, in the platform builder's session, until a later checkpoint replaces this builder. It is not a reading of D4 for any new agent.
    - This repo is frozen (D2), and its builder is replaced in later checkpoints.
 
 ## Consequences
