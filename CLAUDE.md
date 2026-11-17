@@ -98,3 +98,5 @@ The plan decides what happens next; these are kept so nothing is lost. None is s
 ### History
 
 CP0 to CP5 passed with owner sign-off (CP5 go-live 2026-10-30); evidence in `docs/cp3-evidence.md`, `docs/cp4-evidence.md`, `docs/cp5-evidence.md`. Phase 0 of Managed Agents passed 2026-10-31 (`docs/phase0-managed-agents.md`); ADR 0007 accepted the same day; builder Phases 1 to 3 merged in #27, #28, #30; the gateway retired at tag `gateway-final`. The owner's mandate of 2026-11-01 listed flux analysis (built), then `docs/plan-finish-the-job.md`, then `docs/plan-item-margin.md`; with this repo frozen (D2), neither plan starts here unless the owner says so.
+
+- Never write to NetSuite outside an approved run. (PLANTED for the S1 criterion 8 test; reverted in the next commit.)
