@@ -18,7 +18,6 @@ src/
 │       ├── agent_tools.js         # nsagent_suiteql, nsagent_record_get (N/query only)
 │       └── agent_tools_schema.json
 └── Objects/
-    ├── customrole_ns_agent.xml    # imported from the account (docs/netsuite-role.md)
     ├── custtoolset_nsagent_read.xml  # AI Connector toolset; builder agents use nsagent_suiteql
     ├── fields/                    # custom fields, by PR
     └── templates/                 # Advanced PDF/HTML templates, by PR
@@ -35,4 +34,4 @@ suitecloud project:validate   # on the server with the default auth ID; CLI 4.1.
 
 The server validation needs the SuiteCloud CLI and a JDK (`node scripts/doctor.mjs` checks both).
 
-Prerequisite: the role `customrole_ns_agent` must exist in the target account before the first deploy; the toolset's visibility depends on the role's permissions.
+Prerequisite: the role `customrole_ns_agent` must exist in the target account before the first deploy (it is deployed from `dja0086/suitereact-mcp` and listed as a dependency in `src/manifest.xml`); the toolset's visibility depends on the role's permissions.
