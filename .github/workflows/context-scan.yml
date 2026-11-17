@@ -1,0 +1,49 @@
+name: context-scan
+
+# Plan invariant I10 and amendment A11 (platform plan in dja0086/suitereact-mcp,
+# docs/platform/plan.md). Fails when a context file (CLAUDE.md, AGENTS.md) carries the
+# retired no-write rule (superseded by decision L2), a hand-kept NetSuite account fact
+# (A6), or no link to the plan. The log names the file, the line and the rule, never
+# the matched text.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  context-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: This repo's copy of the scanner matches its recorded sha256
+        # A copy of suitereact-mcp's .github/scripts/context-scan.mjs (a public repo
+        # cannot call a private repo's reusable workflow). The value must match
+        # suitereact-mcp .github/scripts/scanner-copies.json, so any change is deliberate.
+        run: echo "0947916ba9cfb8a528a912cda4a6b5a3f62c9f3aedbd901a097b0ad9631e30af  .github/workflows/context-scan.mjs" | sha256sum -c -
+      - name: Scan the context files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # On a pull request the scanner comes from the base commit when it has one, so
+          # editing it in the pull request does not change this run. This workflow file
+          # itself still comes from the pull request.
+          scanner=.github/workflows/context-scan.mjs
+          if [ -n "$BASE_SHA" ] && git show "$BASE_SHA:$scanner" > "$RUNNER_TEMP/context-scan.mjs" 2>/dev/null; then
+            scanner="$RUNNER_TEMP/context-scan.mjs"
+            echo "scanner: from the base commit"
+          else
+            echo "scanner: from this commit"
+          fi
+          # With no file arguments the scanner reads CLAUDE.md and AGENTS.md, whichever exist.
+          node "$scanner"
