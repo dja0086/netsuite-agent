@@ -636,7 +636,7 @@ function rulesView() {
   const rules = [
     ["Account", "Only the demo account's AI Connector (TSTDRV1755417). The production account cannot be configured."],
     ["Reads", "Run without asking, and only the read tools you choose."],
-    ["Role tiers", `Each agent runs as one shared tier; a tier allows only its own writes. ${tiers.map((t) => `<b>${esc(t.label)}</b> (${esc(t.roleName)}): ${t.writeTools.length ? esc(t.writeTools.join(", ")) : "no writes"}${t.signedIn ? "" : ", not signed in yet"}.`).join(" ")} Managed in roles/tiers.json.`],
+    ["Role tiers", `Each agent runs as one shared tier; a tier allows only its own writes. ${tiers.map((t) => `<b>${esc(t.label)}</b> (${esc(t.roleName)}): ${t.writeTools.length ? esc(t.writeTools.join(", ")) : "no writes"}${t.signedIn ? "" : ", not signed in yet"}.`).join(" ")} Tiers and vaults are in roles/tiers.json; role permissions are defined in the platform repo.`],
     ["Writes", "Off unless you tick them and the tier allows them; each call then waits for your approval."],
     ["Other tools", "File Cabinet writes and chat UI tools are off. Any tool not listed asks first."],
     ["Web", "Web search and fetch are off. The workspace is used only to produce files."],

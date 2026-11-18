@@ -11,5 +11,9 @@
       <feature required="false">CRM</feature>
       <feature required="true">ACCOUNTING</feature>
     </features>
+    <objects>
+      <!-- Generated and deployed from dja0086/suitereact-mcp since S1 (A13); the RESTlet deployments restrict to it. -->
+      <object>customrole_ns_agent</object>
+    </objects>
   </dependencies>
 </manifest>

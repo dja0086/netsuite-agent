@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 /**
- * Role tiers from roles/tiers.json (the one place NetSuite agent permissions are managed): each tier is one
- * NetSuite role, one sign-in and one vault, shared by every agent that picks it.
+ * Role tiers from roles/tiers.json, the tier-to-vault map: each tier is one NetSuite role, one sign-in and one
+ * vault, shared by every agent that picks it. Role permissions are defined in dja0086/suitereact-mcp (ADR 0009).
  */
 const Tier = z.object({
   id: z.string().regex(/^[a-z][a-z0-9_]*$/),

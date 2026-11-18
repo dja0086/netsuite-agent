@@ -27,9 +27,9 @@ Agents don't get a NetSuite role each. They share a few **tiers**, and each tier
 | Read-only | NS Agent - Read-only (`customrole_nsagent_read`) | None |
 | Clerk | NS Agent Integration (`customrole_ns_agent`) | `createCustomer`, `updateCustomer`, `ns_createRecord`, `ns_updateRecord` |
 
-Everything about the tiers lives in `roles/tiers.json`: permissions (a shared base plus each tier's changes), the write tools each tier allows, and the vault holding each tier's sign-in.
+`roles/tiers.json` holds the write tools each tier allows and the vault holding each tier's sign-in. It holds no permissions: since platform checkpoint S1, role permissions are defined, generated and deployed only in `dja0086/suitereact-mcp` (ADR 0009).
 
-**Change a permission or add a tier:** edit `roles/tiers.json`, run `node scripts/roles.mjs` (it writes the role files in `netsuite/src/Objects/`), open a PR, then deploy with `deploy-sdf`. CI fails if a role file and `tiers.json` disagree, or if a tier without write tools has more than View on a record.
+**Change a permission:** in `dja0086/suitereact-mcp`, under its checkpoint rules; the owner deploys the role from there. `deploy-sdf` here no longer deploys roles. **Add a tier:** once its role exists in the account, add it to `roles/tiers.json` here.
 
 **Sign a tier in (once per tier, not per agent):**
 
